@@ -1,0 +1,39 @@
+name: nexa_sdk
+description: NEXA embeddable chat SDK for Flutter host applications. Public API surface, session lifecycle, chat orchestration, gateway transport and the embedded chat screen.
+version: 0.1.0
+publish_to: none
+resolution: workspace
+
+environment:
+  sdk: ^3.12.0
+  flutter: ">=3.44.0"
+
+dependencies:
+  bloc: ^9.0.0
+  clock: ^1.1.2
+  dio: ^5.11.1
+  flutter:
+    sdk: flutter
+  flutter_bloc: ^9.1.1
+  freezed_annotation: ^3.1.0
+  get_it: ^9.3.0
+  injectable: ^3.0.0
+  json_annotation: ^4.12.0
+  meta: ^1.17.0
+  nexa_core: ^0.1.0
+  nexa_ui: ^0.1.0
+  retrofit: ^4.10.0
+  uuid: ^4.6.0
+
+dev_dependencies:
+  bloc_test: ^10.0.0
+  build_runner: ^2.4.13
+  flutter_lints: ^6.0.0
+  flutter_test:
+    sdk: flutter
+  freezed: ^3.2.5
+  injectable_generator: ^3.1.3
+  json_serializable: ^6.15.2
+  mocktail: ^1.0.5
+  nexa_reference_gateway: ^0.2.0
+  retrofit_generator: ^10.2.12

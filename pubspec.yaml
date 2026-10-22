@@ -1,0 +1,11 @@
+name: nexa_workspace
+description: NEXA Flutter SDK monorepo (pub workspace). Not published.
+publish_to: none
+environment:
+  sdk: ^3.12.0
+workspace:
+  - packages/nexa_core
+  - packages/nexa_ui
+  - packages/nexa_sdk
+  - apps/nexa_example
+  - tools/nexa_reference_gateway

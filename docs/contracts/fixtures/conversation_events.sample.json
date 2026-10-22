@@ -1,0 +1,17 @@
+[
+  {"type": "session_started", "event_id": "evt_1", "session_id": "ses_1", "sequence": 1, "occurred_at": "2026-10-22T12:00:00Z", "expires_at": "2026-10-22T13:00:00Z"},
+  {"type": "user_message_accepted", "event_id": "evt_2", "session_id": "ses_1", "sequence": 2, "occurred_at": "2026-10-22T12:00:01Z", "message_id": "msg_u1", "client_message_id": "cm_1"},
+  {"type": "assistant_message_started", "event_id": "evt_3", "session_id": "ses_1", "sequence": 3, "occurred_at": "2026-10-22T12:00:01Z", "message_id": "msg_a1", "in_reply_to": "msg_u1"},
+  {"type": "assistant_text_delta", "event_id": "evt_4", "session_id": "ses_1", "sequence": 4, "occurred_at": "2026-10-22T12:00:01Z", "message_id": "msg_a1", "delta_index": 0, "text": "Sure, "},
+  {"type": "tool_call_requested", "event_id": "evt_5", "session_id": "ses_1", "sequence": 5, "occurred_at": "2026-10-22T12:00:02Z", "message_id": "msg_a1", "tool_call": {"id": "tc_1", "tool_name": "restaurants.search", "display_title": "Searching nearby restaurants", "requires_confirmation": false}},
+  {"type": "tool_execution_progress", "event_id": "evt_6", "session_id": "ses_1", "sequence": 6, "occurred_at": "2026-10-22T12:00:02Z", "tool_call_id": "tc_1", "status": "running", "progress": 0.4, "message": "Querying provider"},
+  {"type": "tool_result_received", "event_id": "evt_7", "session_id": "ses_1", "sequence": 7, "occurred_at": "2026-10-22T12:00:03Z", "tool_call_id": "tc_1", "message_id": "msg_a1", "result": {"kind": "restaurants", "query": "nearby", "items": [{"id": "r1", "name": "Mocha House", "cuisine": "Cafe", "rating": 4.6, "price_tier": 2, "distance_meters": 450, "open_now": true}]}},
+  {"type": "user_confirmation_requested", "event_id": "evt_8", "session_id": "ses_1", "sequence": 8, "occurred_at": "2026-10-22T12:00:04Z", "tool_call_id": "tc_2", "confirmation": {"id": "cf_1", "title": "Confirm booking", "description": "A table for two at 8 PM.", "severity": "medium", "details": ["Mocha House", "8:00 PM"]}},
+  {"type": "permission_requested", "event_id": "evt_9", "session_id": "ses_1", "sequence": 9, "occurred_at": "2026-10-22T12:00:05Z", "request_id": "perm_1", "permission": "microphone", "reason": "Needed for voice."},
+  {"type": "assistant_message_completed", "event_id": "evt_10", "session_id": "ses_1", "sequence": 10, "occurred_at": "2026-10-22T12:00:06Z", "message_id": "msg_a1", "finish_reason": "stop", "full_text": "Sure, here is what I found."},
+  {"type": "quota_updated", "event_id": "evt_11", "session_id": "ses_1", "sequence": 11, "occurred_at": "2026-10-22T12:00:06Z", "quota": {"kind": "messages", "remaining": 97, "limit": 100}, "exceeded": false},
+  {"type": "message_failed", "event_id": "evt_12", "session_id": "ses_1", "sequence": 12, "occurred_at": "2026-10-22T12:00:07Z", "message_id": "msg_a2", "error": {"code": "inference_failed", "message": "Model busy", "retryable": true}},
+  {"type": "message_cancelled", "event_id": "evt_13", "session_id": "ses_1", "sequence": 13, "occurred_at": "2026-10-22T12:00:08Z", "message_id": "msg_a3"},
+  {"type": "user_message_rejected", "event_id": "evt_14", "session_id": "ses_1", "sequence": 14, "occurred_at": "2026-10-22T12:00:09Z", "client_message_id": "cm_2", "error": {"code": "policy_violation", "message": "Blocked by tenant policy", "retryable": false}},
+  {"type": "session_ended", "event_id": "evt_15", "session_id": "ses_1", "sequence": 15, "occurred_at": "2026-10-22T12:05:00Z", "reason": "user_ended"}
+]

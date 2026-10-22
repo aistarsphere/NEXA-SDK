@@ -1,0 +1,6 @@
+arb-dir: lib/l10n
+template-arb-file: nexa_en.arb
+output-dir: lib/l10n/generated
+output-localization-file: nexa_localizations.dart
+output-class: NexaLocalizations
+nullable-getter: false

@@ -1,0 +1,243 @@
+openapi: 3.1.0
+info:
+  title: NEXA Gateway - SDK Surface (PROPOSED)
+  version: 0.2.0-proposed
+  description: |
+    STATUS: PROPOSED, with a local REFERENCE IMPLEMENTATION
+    (`tools/nexa_reference_gateway`, development infrastructure only). The
+    Flutter SDK is validated against that reference server over real HTTP
+    (SSE and long-poll). No production or staging deployment exists; the
+    backend team must confirm or amend this document before any claim of
+    live integration is made.
+
+    Versioning policy:
+    * The path prefix `/v1` is the major version. Within `/v1` changes are
+      additive only (new optional fields, new event types, new endpoints).
+    * Clients MUST ignore unknown event types and unknown fields. The SDK
+      maps unknown/invalid events to an internal `unsupported` marker so the
+      sequence cursor still advances.
+    * `info.version` tracks this document: 0.1.0 (long-poll only) ->
+      0.2.0 (adds SSE delivery, error code catalogue, idempotency and
+      busy/cancel semantics). 0.2.0 is backward-compatible with 0.1.0 clients.
+
+    Boundary rules:
+    * The SDK talks ONLY to this gateway. It never calls the GPU Manager.
+    * Authorisation is a short-lived session credential issued by the HOST's
+      backend (which holds the tenant's NEXA API key). The mobile-supplied
+      X-Nexa-App-Id header identifies the integration; the gateway binds the
+      credential to an application/tenant server-side and rejects a mismatch
+      (403 application_mismatch). The header is never proof of anything.
+    * Tool execution happens server-side. The SDK renders ToolResult and
+      returns ToolAction; the gateway re-validates every action.
+    * Event delivery: Server-Sent Events (preferred) or long-polling, same
+      schema, same `after` cursor.
+
+    Event payload schema is defined by the SDK's typed models
+    (nexa_core ConversationEvent, snake_case wire keys, discriminator `type`;
+    ToolResult discriminator `kind`). See fixtures/conversation_events.sample.json
+    for every variant.
+servers:
+  - url: http://127.0.0.1:8080
+    description: local reference gateway (development only)
+  - url: https://gw.{env}.nexa.example
+    description: placeholder - no environment exists
+security:
+  - sessionToken: []
+components:
+  securitySchemes:
+    sessionToken:
+      type: http
+      scheme: bearer
+      description: |
+        Short-lived session credential minted for the signed-in user by the
+        host backend (tenant-side endpoint, not called by the SDK). The SDK
+        refreshes it through the host's NexaAuthProvider: proactively before
+        expiry, and once more after a 401.
+  parameters:
+    appId:
+      name: X-Nexa-App-Id
+      in: header
+      required: true
+      schema: { type: string }
+      description: Public SDK application id. Informational; must match the credential's application.
+    requestId:
+      name: X-Request-Id
+      in: header
+      required: false
+      schema: { type: string, format: uuid }
+    sdkVersion:
+      name: X-Nexa-Sdk-Version
+      in: header
+      required: true
+      schema: { type: string }
+  schemas:
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              description: |
+                Stable machine-readable code. Catalogue (status -> code):
+                400 missing_idempotency_key | missing_sdk_version | bad_request
+                401 missing_token | invalid_token | token_expired (retryable: SDK refreshes once)
+                402 quota_exceeded (quota_kind set)
+                403 application_mismatch | forbidden | capability_not_granted
+                404 session_not_found | message_not_found
+                409 idempotency_conflict | assistant_busy | already_finished | not_awaiting_action
+                410 session_expired | session_ended
+                422 validation_failed
+                429 rate_limited (retry_after_seconds set)
+                503 unavailable (retryable)
+            message: { type: string }
+            retryable: { type: boolean, default: false }
+            retry_after_seconds: { type: integer }
+            quota_kind: { type: string }
+    CreateSessionRequest:
+      type: object
+      required: [application_id, requested_capabilities, language_tag, sdk_version, platform]
+      properties:
+        application_id: { type: string }
+        requested_capabilities:
+          type: array
+          items: { type: string, enum: [textChat, voiceMessages, liveVoice, toolCalling, richResults, attachments] }
+        language_tag: { type: string, enum: [en, ar] }
+        client_metadata: { type: object, additionalProperties: { type: string } }
+        sdk_version: { type: string }
+        platform: { type: string }
+    Session:
+      type: object
+      required: [session_id, expires_at, granted_capabilities]
+      properties:
+        session_id: { type: string }
+        expires_at: { type: string, format: date-time }
+        granted_capabilities: { type: array, items: { type: string } }
+        last_sequence: { type: integer, default: 0, description: resume cursor for reconnects }
+    EventPage:
+      type: object
+      required: [events, cursor]
+      properties:
+        events:
+          type: array
+          description: ConversationEvent objects in ascending sequence. May include duplicates across reconnects; must never reorder within a page.
+          items: { type: object }
+        cursor: { type: integer, description: highest sequence included, or the request cursor if empty }
+        done: { type: boolean, default: false, description: true after session_ended }
+    MessageRequest:
+      type: object
+      required: [client_message_id, text]
+      properties:
+        client_message_id: { type: string, description: idempotency key chosen by the SDK; equals the Idempotency-Key header }
+        text: { type: string, minLength: 1, maxLength: 8000 }
+        language_tag: { type: string }
+    ToolAction:
+      type: object
+      description: nexa_core ToolAction union; discriminator `kind` (form_submitted, option_selected, confirmed, declined, card_action_tapped, retry_requested).
+      required: [kind, tool_call_id]
+    PermissionResult:
+      type: object
+      required: [granted]
+      properties:
+        granted: { type: boolean }
+paths:
+  /v1/sdk/sessions:
+    post:
+      summary: Create a session
+      description: |
+        The first event of every session is `session_started` (sequence 1).
+        Capabilities are policy-filtered; unknown names are ignored.
+      parameters: [ { $ref: '#/components/parameters/appId' }, { $ref: '#/components/parameters/sdkVersion' }, { $ref: '#/components/parameters/requestId' } ]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/CreateSessionRequest' } } }
+      responses:
+        '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/Session' } } } }
+        '401': { description: Missing / invalid / expired credential, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '402': { description: Quota exhausted, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { description: Credential not issued for this application, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '422': { description: Validation failure, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '429': { description: Rate limited, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /v1/sdk/sessions/{session_id}/events:
+    get:
+      summary: Long-poll conversation events
+      parameters:
+        - { name: session_id, in: path, required: true, schema: { type: string } }
+        - { name: after, in: query, required: false, schema: { type: integer, minimum: 0, default: 0 }, description: return events with sequence > after }
+        - { name: wait_ms, in: query, required: false, schema: { type: integer, minimum: 0, maximum: 30000, default: 0 }, description: server may hold the request this long when no events are pending }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/EventPage' } } } }
+        '410': { description: Session ended/expired and the cursor is at the end, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '503': { description: Transient; retry with back-off, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /v1/sdk/sessions/{session_id}/events/stream:
+    get:
+      summary: Server-Sent Events delivery (added in 0.2.0)
+      description: |
+        `Content-Type: text/event-stream`. Each message is
+        `id: <sequence>` + `data: <ConversationEvent JSON>`; comment lines
+        (`: keep-alive`) are sent periodically; `retry:` may be sent. The
+        server closes the stream after `session_ended`. If the connection
+        drops earlier the client reconnects with `after=<last applied
+        sequence>`; duplicates across reconnects are allowed (clients dedupe
+        by event_id / sequence).
+      parameters:
+        - { name: session_id, in: path, required: true, schema: { type: string } }
+        - { name: after, in: query, required: false, schema: { type: integer, minimum: 0, default: 0 } }
+      responses:
+        '200': { description: Event stream, content: { text/event-stream: { schema: { type: string } } } }
+        '410': { description: Session ended/expired and the cursor is at the end }
+  /v1/sdk/sessions/{session_id}/messages:
+    post:
+      summary: Send a user message (asynchronous; acknowledgement arrives as user_message_accepted or user_message_rejected)
+      description: |
+        Idempotency: the same key with the same body is acknowledged again
+        (202) without emitting new events or starting a second reply; the
+        same key with a different body is 409 idempotency_conflict. While an
+        assistant reply is in progress the gateway answers 409 assistant_busy
+        (the SDK prevents this client-side).
+      parameters:
+        - { name: session_id, in: path, required: true, schema: { type: string } }
+        - { name: Idempotency-Key, in: header, required: true, schema: { type: string }, description: equals client_message_id }
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/MessageRequest' } } } }
+      responses:
+        '202': { description: Accepted (or idempotent replay) }
+        '400': { description: Missing Idempotency-Key }
+        '402': { description: Quota exhausted }
+        '409': { description: idempotency_conflict or assistant_busy }
+        '410': { description: Session no longer active }
+        '422': { description: Validation failure, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '429': { description: Rate limited; honour retry_after_seconds }
+  /v1/sdk/sessions/{session_id}/tool-actions:
+    post:
+      summary: Return an authorised user action for a rendered tool result
+      parameters: [ { name: session_id, in: path, required: true, schema: { type: string } } ]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ToolAction' } } } }
+      responses:
+        '202': { description: Accepted }
+        '403': { description: Tool not permitted for tenant/session, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '409': { description: not_awaiting_action }
+  /v1/sdk/sessions/{session_id}/permissions/{request_id}:
+    post:
+      summary: Report the outcome of a permission request
+      parameters:
+        - { name: session_id, in: path, required: true, schema: { type: string } }
+        - { name: request_id, in: path, required: true, schema: { type: string } }
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/PermissionResult' } } } }
+      responses: { '204': { description: Recorded } }
+  /v1/sdk/sessions/{session_id}/messages/{message_id}/cancel:
+    post:
+      summary: Request cancellation of an in-progress assistant message
+      description: Cooperative, like GPU Manager cancel. Confirmation arrives as message_cancelled (partial text is kept); if the message already completed the gateway returns 409 already_finished and the SDK keeps the completed text.
+      parameters:
+        - { name: session_id, in: path, required: true, schema: { type: string } }
+        - { name: message_id, in: path, required: true, schema: { type: string } }
+      responses: { '202': { description: Cancel requested }, '404': { description: Unknown message }, '409': { description: Already finished } }
+  /v1/sdk/sessions/{session_id}:
+    delete:
+      summary: End the session
+      description: Idempotent. Emits session_ended(user_ended); afterwards messages answer 410 and event streams close after delivering session_ended.
+      parameters: [ { name: session_id, in: path, required: true, schema: { type: string } } ]
+      responses: { '204': { description: Ended (idempotent) } }
