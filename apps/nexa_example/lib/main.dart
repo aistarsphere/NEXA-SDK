@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 // MOCK ONLY: used when the app is built with --dart-define=NEXA_USE_MOCK=true.
-import 'package:nexa_core/testing.dart' show MockChatTransport;
+import 'package:nexa_core/testing.dart'
+    show MockChatTransport, MockRealtimeVoiceTransport, MockVoiceProvisioner;
 import 'package:nexa_example/example_config.dart';
 import 'package:nexa_example/host_auth_provider.dart';
 import 'package:nexa_example/host_permission_handler.dart';
 import 'package:nexa_example/pages/embedded_chat_page.dart';
 import 'package:nexa_example/pages/home_page.dart';
 import 'package:nexa_example/pages/settings_page.dart';
+import 'package:nexa_example/pages/voice_page.dart';
 import 'package:nexa_sdk/nexa_sdk.dart';
 
 /// Example host application.
@@ -38,14 +40,20 @@ Future<void> main() async {
         NexaCapability.textChat,
         NexaCapability.toolCalling,
         NexaCapability.richResults,
-        NexaCapability.liveVoice, // will NOT be granted (no voice backend)
+        NexaCapability
+            .liveVoice, // granted by the reference gateway when LiveKit is configured
       },
       clientMetadata: const {'host_app_version': '1.1.0'},
     ),
     auth: auth,
     overrides: NexaOverrides(
-      // MOCK ONLY when NEXA_USE_MOCK=true; otherwise the real HTTP transport.
+      // MOCK ONLY when NEXA_USE_MOCK=true; otherwise the real HTTP transport
+      // and the real LiveKit voice transport.
       chatTransport: ExampleConfig.useMock ? MockChatTransport() : null,
+      voiceTransport: ExampleConfig.useMock
+          ? MockRealtimeVoiceTransport()
+          : null,
+      voiceProvisioner: ExampleConfig.useMock ? MockVoiceProvisioner() : null,
       permissionHandler: const HostPermissionHandler(),
       logger: const _PrintLogger(),
     ),
@@ -74,6 +82,10 @@ class ExampleApp extends StatelessWidget {
           GoRoute(
             path: 'embedded',
             builder: (context, state) => EmbeddedChatPage(client: client),
+          ),
+          GoRoute(
+            path: 'voice',
+            builder: (context, state) => VoicePage(client: client),
           ),
           GoRoute(
             path: 'settings',

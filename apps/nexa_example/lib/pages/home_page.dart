@@ -82,6 +82,13 @@ class _HomePageState extends State<HomePage> {
             onPressed: () => context.go('/embedded'),
           ),
           const SizedBox(height: 12),
+          OutlinedButton.icon(
+            key: const Key('open_voice'),
+            icon: const Icon(Icons.mic_rounded),
+            label: const Text('Live voice page'),
+            onPressed: () => context.go('/voice'),
+          ),
+          const SizedBox(height: 12),
           TextButton.icon(
             icon: const Icon(Icons.tune),
             label: const Text('SDK settings (language / theme / token TTL)'),

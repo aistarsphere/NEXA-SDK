@@ -12,6 +12,20 @@ Future<void> main(List<String> args) async {
     ..addOption('session-ttl', defaultsTo: '3600', help: 'seconds')
     ..addOption('quota', defaultsTo: '50', help: 'messages per application')
     ..addOption('delta-ms', defaultsTo: '40')
+    ..addOption(
+      'livekit-url',
+      help: 'LiveKit dev server, e.g. ws://127.0.0.1:7880 (enables liveVoice)',
+    )
+    ..addOption(
+      'livekit-public-url',
+      help: 'LiveKit URL handed to clients when it differs (emulators)',
+    )
+    ..addOption('livekit-key', defaultsTo: 'devkey')
+    ..addOption('livekit-secret', defaultsTo: 'secret')
+    ..addOption(
+      'agent-audio',
+      help: 'Audio file the mock agent publishes via `lk` (synthetic)',
+    )
     ..addFlag('verbose', negatable: false)
     ..addFlag('help', abbr: 'h', negatable: false);
   final r = parser.parse(args);
@@ -29,7 +43,24 @@ Future<void> main(List<String> args) async {
       deltaDelay: Duration(milliseconds: int.parse(r['delta-ms'] as String)),
       verbose: r['verbose'] == true,
     ),
+    voice: VoiceOptions(
+      liveKitUrl: r['livekit-url'] == null
+          ? null
+          : Uri.parse(r['livekit-url'] as String),
+      liveKitPublicUrl: r['livekit-public-url'] == null
+          ? null
+          : Uri.parse(r['livekit-public-url'] as String),
+      liveKitApiKey: r['livekit-key'] as String,
+      liveKitApiSecret: r['livekit-secret'] as String,
+      agentAudioFile: r['agent-audio'] as String?,
+    ),
   );
+  if (r['livekit-url'] != null) {
+    stdout.writeln(
+      'Voice (DEV, mock agent): LiveKit ${r['livekit-url']} '
+      '${r['agent-audio'] == null ? '(no agent audio)' : 'agent audio ${r['agent-audio']}'}',
+    );
+  }
   stdout.writeln(
     'NEXA reference gateway (DEV ONLY, contract $contractVersion) listening on '
     '${gw.uri}',

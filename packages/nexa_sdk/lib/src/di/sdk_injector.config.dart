@@ -17,6 +17,9 @@ import 'package:nexa_core/nexa_core.dart' as _i829;
 import 'package:nexa_sdk/src/data/gateway/nexa_gateway_api.dart' as _i969;
 import 'package:nexa_sdk/src/di/sdk_module.dart' as _i470;
 import 'package:nexa_sdk/src/features/chat/bloc/chat_bloc.dart' as _i292;
+import 'package:nexa_sdk/src/features/voice/nexa_voice_controller.dart'
+    as _i1004;
+import 'package:nexa_sdk/src/features/voice/nexa_voice_state.dart' as _i131;
 import 'package:nexa_sdk/src/nexa_overrides.dart' as _i480;
 import 'package:nexa_sdk/src/permissions/nexa_permission_handler.dart' as _i668;
 import 'package:nexa_sdk/src/session/session_manager.dart' as _i1027;
@@ -49,6 +52,21 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i969.NexaGatewayApi>(
       () => sdkModule.gatewayApi(gh<_i361.Dio>()),
     );
+    gh.lazySingleton<_i829.VoiceProvisioner>(
+      () => sdkModule.voiceProvisioner(
+        gh<_i480.NexaOverrides>(),
+        gh<_i829.NexaConfig>(),
+        gh<_i829.NexaLogger>(),
+        gh<_i361.Dio>(),
+      ),
+    );
+    gh.lazySingleton<_i829.RealtimeVoiceTransport>(
+      () => sdkModule.voiceTransport(
+        gh<_i480.NexaOverrides>(),
+        gh<_i829.NexaConfig>(),
+        gh<_i829.NexaLogger>(),
+      ),
+    );
     gh.lazySingleton<_i829.ChatTransport>(
       () => sdkModule.chatTransport(
         gh<_i480.NexaOverrides>(),
@@ -73,6 +91,16 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i668.NexaPermissionHandler>(),
         gh<_i829.NexaLogger>(),
         gh<_i829.NexaConfig>(),
+      ),
+    );
+    gh.lazySingleton<_i1004.NexaVoiceController>(
+      () => sdkModule.voiceController(
+        gh<_i1027.SessionManager>(),
+        gh<_i829.VoiceProvisioner>(),
+        gh<_i829.RealtimeVoiceTransport>(),
+        gh<_i668.NexaPermissionHandler>(),
+        gh<_i829.NexaLogger>(),
+        gh<_i131.NexaVoiceOptions>(),
       ),
     );
     return this;

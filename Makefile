@@ -2,7 +2,7 @@
 bootstrap: ; ./tool/bootstrap.sh
 gen:       ; ./tool/gen.sh
 check:     ; ./tool/check.sh
-format:    ; dart format packages apps tools
+format:    ; dart format packages tools apps/*/lib apps/*/test apps/*/integration_test
 gateway:   ; ./tool/gateway.sh
 e2e:       ; ./tool/e2e.sh
 example:   ; cd apps/nexa_example && flutter run

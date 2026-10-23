@@ -421,6 +421,192 @@ abstract class NexaLocalizations {
   /// In en, this message translates to:
   /// **'Message failed to send'**
   String get semanticsMessageFailed;
+
+  /// No description provided for @voiceTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Live voice'**
+  String get voiceTitle;
+
+  /// No description provided for @voiceStart.
+  ///
+  /// In en, this message translates to:
+  /// **'Start voice'**
+  String get voiceStart;
+
+  /// No description provided for @voiceEnd.
+  ///
+  /// In en, this message translates to:
+  /// **'End call'**
+  String get voiceEnd;
+
+  /// No description provided for @voiceMute.
+  ///
+  /// In en, this message translates to:
+  /// **'Mute'**
+  String get voiceMute;
+
+  /// No description provided for @voiceUnmute.
+  ///
+  /// In en, this message translates to:
+  /// **'Unmute'**
+  String get voiceUnmute;
+
+  /// No description provided for @voiceRetry.
+  ///
+  /// In en, this message translates to:
+  /// **'Try again'**
+  String get voiceRetry;
+
+  /// No description provided for @voiceOpenSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Open settings'**
+  String get voiceOpenSettings;
+
+  /// No description provided for @voiceStateIdle.
+  ///
+  /// In en, this message translates to:
+  /// **'Ready'**
+  String get voiceStateIdle;
+
+  /// No description provided for @voiceStateConnecting.
+  ///
+  /// In en, this message translates to:
+  /// **'Connecting…'**
+  String get voiceStateConnecting;
+
+  /// No description provided for @voiceStateListening.
+  ///
+  /// In en, this message translates to:
+  /// **'Listening'**
+  String get voiceStateListening;
+
+  /// No description provided for @voiceStateUserSpeaking.
+  ///
+  /// In en, this message translates to:
+  /// **'Go on, I\'m listening'**
+  String get voiceStateUserSpeaking;
+
+  /// No description provided for @voiceStateTranscribing.
+  ///
+  /// In en, this message translates to:
+  /// **'Got it…'**
+  String get voiceStateTranscribing;
+
+  /// No description provided for @voiceStateThinking.
+  ///
+  /// In en, this message translates to:
+  /// **'Thinking…'**
+  String get voiceStateThinking;
+
+  /// No description provided for @voiceStateAiSpeaking.
+  ///
+  /// In en, this message translates to:
+  /// **'Speaking'**
+  String get voiceStateAiSpeaking;
+
+  /// No description provided for @voiceStateBargeIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Interrupting…'**
+  String get voiceStateBargeIn;
+
+  /// No description provided for @voiceStateMuted.
+  ///
+  /// In en, this message translates to:
+  /// **'Muted'**
+  String get voiceStateMuted;
+
+  /// No description provided for @voiceStateWeakNetwork.
+  ///
+  /// In en, this message translates to:
+  /// **'Weak connection'**
+  String get voiceStateWeakNetwork;
+
+  /// No description provided for @voiceStateDisconnected.
+  ///
+  /// In en, this message translates to:
+  /// **'Disconnected'**
+  String get voiceStateDisconnected;
+
+  /// No description provided for @voiceStateReconnecting.
+  ///
+  /// In en, this message translates to:
+  /// **'Reconnecting…'**
+  String get voiceStateReconnecting;
+
+  /// No description provided for @voiceStateModelBusy.
+  ///
+  /// In en, this message translates to:
+  /// **'The assistant is busy, hold on…'**
+  String get voiceStateModelBusy;
+
+  /// No description provided for @voiceStateMicrophoneDenied.
+  ///
+  /// In en, this message translates to:
+  /// **'Microphone access is off'**
+  String get voiceStateMicrophoneDenied;
+
+  /// No description provided for @voiceStateQuotaExceeded.
+  ///
+  /// In en, this message translates to:
+  /// **'Voice limit reached'**
+  String get voiceStateQuotaExceeded;
+
+  /// No description provided for @voiceStateEnded.
+  ///
+  /// In en, this message translates to:
+  /// **'Call ended'**
+  String get voiceStateEnded;
+
+  /// No description provided for @voiceTranscriptYou.
+  ///
+  /// In en, this message translates to:
+  /// **'You'**
+  String get voiceTranscriptYou;
+
+  /// No description provided for @voiceTranscriptAssistant.
+  ///
+  /// In en, this message translates to:
+  /// **'Assistant'**
+  String get voiceTranscriptAssistant;
+
+  /// No description provided for @voiceUnverifiedEvents.
+  ///
+  /// In en, this message translates to:
+  /// **'Development mode: agent events are not signed.'**
+  String get voiceUnverifiedEvents;
+
+  /// No description provided for @voiceAgentWaiting.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for the assistant to join…'**
+  String get voiceAgentWaiting;
+
+  /// No description provided for @semanticsVoiceOrb.
+  ///
+  /// In en, this message translates to:
+  /// **'Voice status: {state}'**
+  String semanticsVoiceOrb(String state);
+
+  /// No description provided for @semanticsMuteButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Mute microphone'**
+  String get semanticsMuteButton;
+
+  /// No description provided for @semanticsUnmuteButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Unmute microphone'**
+  String get semanticsUnmuteButton;
+
+  /// No description provided for @semanticsEndCallButton.
+  ///
+  /// In en, this message translates to:
+  /// **'End voice call'**
+  String get semanticsEndCallButton;
 }
 
 class _NexaLocalizationsDelegate

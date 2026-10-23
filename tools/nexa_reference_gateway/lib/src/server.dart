@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:nexa_reference_gateway/src/scripts.dart';
 import 'package:nexa_reference_gateway/src/store.dart';
+import 'package:nexa_reference_gateway/src/voice.dart';
 import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart' as shelf_io;
 import 'package:shelf_router/shelf_router.dart';
@@ -20,22 +21,26 @@ const _knownCapabilities = {
   'attachments',
 };
 
-/// Capabilities the reference gateway grants. Voice/attachments are never
-/// granted because no such backend exists.
+/// Capabilities the reference gateway grants. `liveVoice` is added only when
+/// a LiveKit dev server is configured; attachments/voice messages never.
 const _grantable = {'textChat', 'toolCalling', 'richResults'};
 
 /// Local reference implementation of the proposed NEXA Gateway SDK surface.
 /// See README: development infrastructure only.
 final class ReferenceGateway {
-  ReferenceGateway._(this.options)
+  ReferenceGateway._(this.options, VoiceOptions voiceOptions)
     : store = GatewayStore(options),
       _log = options.verbose ? stderr.writeln : null {
     _responder = ScriptedResponder(store);
+    voice = VoiceService(voiceOptions, store)..log = _log;
   }
 
   final GatewayOptions options;
   final GatewayStore store;
   late final ScriptedResponder _responder;
+
+  /// Voice provisioning + mock agent (DEV ONLY).
+  late final VoiceService voice;
   final void Function(String)? _log;
   HttpServer? _server;
 
@@ -49,13 +54,15 @@ final class ReferenceGateway {
     String host = '127.0.0.1',
     int port = 8080,
     GatewayOptions options = const GatewayOptions(),
+    VoiceOptions voice = const VoiceOptions(),
   }) async {
-    final gw = ReferenceGateway._(options);
+    final gw = ReferenceGateway._(options, voice);
     gw._server = await shelf_io.serve(gw.handler, host, port);
     return gw;
   }
 
   Future<void> close() async {
+    await voice.dispose();
     await _server?.close(force: true);
     store.dispose();
   }
@@ -83,7 +90,11 @@ final class ReferenceGateway {
         '/v1/sdk/sessions/<sessionId>/permissions/<requestId>',
         _permissionResult,
       )
-      ..delete('/v1/sdk/sessions/<sessionId>', _endSession);
+      ..delete('/v1/sdk/sessions/<sessionId>', _endSession)
+      // Voice (PROPOSED surface, see docs/contracts/nexa-voice-provisioning.proposed.md)
+      ..post('/v1/sdk/sessions/<sessionId>/voice', _provisionVoice)
+      ..post('/v1/sdk/sessions/<sessionId>/voice/intents', _voiceIntent)
+      ..delete('/v1/sdk/sessions/<sessionId>/voice', _endVoice);
     return const Pipeline()
         .addMiddleware(_logging)
         .addMiddleware(_catchErrors)
@@ -239,6 +250,7 @@ final class ReferenceGateway {
 
   Response _resetApplication(Request req, String appId) {
     store.application(appId).quotaRemaining = options.quotaPerApplication;
+    voice.resetQuota(appId);
     return Response(204);
   }
 
@@ -274,11 +286,12 @@ final class ReferenceGateway {
         quotaKind: 'messages',
       );
     }
+    final grantable = {..._grantable, if (voice.livekit != null) 'liveVoice'};
     final granted = [
       for (final c in requested)
         if (c is String &&
             _knownCapabilities.contains(c) &&
-            _grantable.contains(c))
+            grantable.contains(c))
           c,
     ];
     final session = store.createSession(
@@ -564,7 +577,90 @@ final class ReferenceGateway {
   Response _endSession(Request req, String sessionId) {
     final token = _authenticate(req);
     final session = _session(req, token, sessionId);
+    final v = voice.forChatSession(session.id);
+    if (v != null) unawaited(voice.end(v, 'chat_ended'));
     session.end('user_ended');
+    return Response(204);
+  }
+
+  // ----------------------------------------------------------------- voice
+
+  /// PROPOSED: provisions a LiveKit room-scoped grant for the chat session.
+  Future<Response> _provisionVoice(Request req, String sessionId) async {
+    final token = _authenticate(req);
+    final session = _session(req, token, sessionId);
+    _requireActive(session);
+    if (!session.grantedCapabilities.contains('liveVoice')) {
+      return _error(
+        403,
+        'capability_not_granted',
+        'liveVoice was not granted for this session.',
+        quotaKind: 'liveVoice',
+      );
+    }
+    final lk = voice.livekit;
+    if (lk == null) {
+      return _error(
+        503,
+        'voice_unavailable',
+        'No LiveKit server configured for this gateway.',
+        retryable: true,
+      );
+    }
+    if (!await lk.isReachable()) {
+      return _error(
+        503,
+        'voice_unavailable',
+        'LiveKit server unreachable at ${lk.httpBase}.',
+        retryable: true,
+      );
+    }
+    if (voice.voiceQuotaRemaining(session.applicationId) <= 0) {
+      return _error(
+        402,
+        'quota_exceeded',
+        'Voice quota exhausted for this application.',
+        quotaKind: 'voice_minutes',
+      );
+    }
+    final existing = voice.forChatSession(session.id);
+    if (existing != null) {
+      return _error(
+        409,
+        'voice_session_active',
+        'A voice session is already active for this chat session.',
+      );
+    }
+    final body = await _body(req);
+    final scenario = body['scenario'];
+    final grant = await voice.provision(
+      session,
+      text: scenario is String ? scenario : null,
+    );
+    return _json(201, grant);
+  }
+
+  Future<Response> _voiceIntent(Request req, String sessionId) async {
+    final token = _authenticate(req);
+    final session = _session(req, token, sessionId);
+    final v = voice.forChatSession(session.id);
+    if (v == null) {
+      return _error(404, 'voice_session_not_found', 'No active voice session.');
+    }
+    final body = await _body(req);
+    final type = body['type'];
+    if (type is! String) {
+      return _error(422, 'validation_failed', 'type is required.');
+    }
+    unawaited(voice.onIntent(v, type));
+    return Response(202);
+  }
+
+  Future<Response> _endVoice(Request req, String sessionId) async {
+    final token = _authenticate(req);
+    final session = _session(req, token, sessionId);
+    final v = voice.forChatSession(session.id);
+    if (v != null) await voice.end(v, 'user_ended');
     return Response(204);
   }
 }

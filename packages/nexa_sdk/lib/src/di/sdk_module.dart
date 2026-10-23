@@ -1,9 +1,13 @@
 import 'package:dio/dio.dart';
 import 'package:injectable/injectable.dart';
 import 'package:nexa_core/nexa_core.dart';
+import 'package:nexa_realtime/nexa_realtime.dart';
 import 'package:nexa_sdk/src/data/gateway/gateway_chat_transport.dart';
+import 'package:nexa_sdk/src/data/gateway/gateway_voice_provisioner.dart';
 import 'package:nexa_sdk/src/data/gateway/nexa_gateway_api.dart';
 import 'package:nexa_sdk/src/data/network/dio_factory.dart';
+import 'package:nexa_sdk/src/features/voice/nexa_voice_controller.dart';
+import 'package:nexa_sdk/src/features/voice/nexa_voice_state.dart';
 import 'package:nexa_sdk/src/nexa_overrides.dart';
 import 'package:nexa_sdk/src/permissions/nexa_permission_handler.dart';
 import 'package:nexa_sdk/src/session/session_manager.dart';
@@ -84,4 +88,61 @@ abstract class SdkModule {
 
   @lazySingleton
   ConversationReducer reducer() => const ConversationReducer();
+
+  /// LiveKit transport unless a (mock) override is supplied.
+  @lazySingleton
+  RealtimeVoiceTransport voiceTransport(
+    NexaOverrides overrides,
+    NexaConfig config,
+    NexaLogger logger,
+  ) {
+    final override = overrides.voiceTransport;
+    if (override != null) {
+      _warnOverride(config, logger, 'RealtimeVoiceTransport');
+      return override;
+    }
+    return LiveKitVoiceTransport(logger: logger);
+  }
+
+  @lazySingleton
+  VoiceProvisioner voiceProvisioner(
+    NexaOverrides overrides,
+    NexaConfig config,
+    NexaLogger logger,
+    Dio dio,
+  ) {
+    final override = overrides.voiceProvisioner;
+    if (override != null) {
+      _warnOverride(config, logger, 'VoiceProvisioner');
+      return override;
+    }
+    return GatewayVoiceProvisioner(dio: dio, logger: logger);
+  }
+
+  @lazySingleton
+  NexaVoiceController voiceController(
+    SessionManager sessions,
+    VoiceProvisioner provisioner,
+    RealtimeVoiceTransport transport,
+    NexaPermissionHandler permissions,
+    NexaLogger logger,
+    NexaVoiceOptions options,
+  ) => NexaVoiceController(
+    sessions: sessions,
+    provisioner: provisioner,
+    transport: transport,
+    permissions: permissions,
+    logger: logger,
+    options: options,
+  );
+
+  static void _warnOverride(NexaConfig config, NexaLogger logger, String what) {
+    if (config.environment != NexaEnvironment.development) {
+      logger.log(
+        NexaLogLevel.warning,
+        'A $what override is active outside development. '
+        'Mocks must never ship in production builds.',
+      );
+    }
+  }
 }

@@ -16,6 +16,7 @@ export 'src/components/nexa_streaming_caret.dart';
 export 'src/components/nexa_tool_call_tile.dart';
 export 'src/components/nexa_tool_result_card.dart';
 export 'src/components/nexa_typing_indicator.dart';
+export 'src/components/nexa_voice_capsule.dart';
 export 'src/localization/nexa_locale.dart';
 export 'src/theme/mocha_palette.dart';
 export 'src/theme/nexa_colors.dart';

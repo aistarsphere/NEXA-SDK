@@ -58,3 +58,28 @@ not exist in the real contract and the SDK never calls them):
 | `mic` | `permission_requested(microphone)` |
 
 Language: when the session's `language_tag` is `ar` the canned text is Arabic.
+
+## Voice (Phase 5.2, DEV ONLY)
+
+With `--livekit-url ws://127.0.0.1:7880` (a local `livekit-server --dev`,
+`brew install livekit`) the gateway grants `liveVoice` and serves the
+PROPOSED voice surface (`docs/contracts/nexa-voice-provisioning.proposed.md`):
+
+| Method | Path | Purpose |
+|---|---|---|
+| POST | `/v1/sdk/sessions/{id}/voice` | room-scoped LiveKit participant JWT + per-session HMAC key (201); 402 voice quota, 403 not granted, 409 already active, 503 LiveKit unreachable |
+| POST | `/v1/sdk/sessions/{id}/voice/intents` | `{type:"interrupt"}` (202) |
+| DELETE | `/v1/sdk/sessions/{id}/voice` | end (204) |
+
+The **mock agent** waits until the SDK participant is actually in the room
+(LiveKit `ListParticipants`), then publishes signed events through the
+server data API (`agent_joined`, a greeting turn with
+`assistant_thinking / assistant_speaking_started / assistant_transcript /
+assistant_speaking_ended`, plus `model_busy` / `quota_exceeded` when the
+provisioning body carries `scenario: "busy"` / `"quota"`). With
+`--agent-audio <file>` and the `lk` CLI installed (`brew install
+livekit-cli`) it also joins the room as `nexa-agent` publishing that file
+(`assets/agent_tone.ogg` is a synthetic tone) so the SDK receives a real
+remote audio track. **No speech model is involved.** Use
+`--livekit-public-url ws://10.0.2.2:7880` for Android emulators. The LiveKit
+dev key/secret never leave this process.

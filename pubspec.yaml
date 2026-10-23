@@ -6,6 +6,7 @@ environment:
 workspace:
   - packages/nexa_core
   - packages/nexa_ui
+  - packages/nexa_realtime
   - packages/nexa_sdk
   - apps/nexa_example
   - tools/nexa_reference_gateway

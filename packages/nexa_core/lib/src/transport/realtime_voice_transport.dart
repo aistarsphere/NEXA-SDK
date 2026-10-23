@@ -1,45 +1,58 @@
-import 'dart:typed_data';
+import 'package:nexa_core/src/voice/voice_grant.dart';
 
-import 'package:nexa_core/src/auth/session_credential.dart';
-import 'package:nexa_core/src/ids/ids.dart';
-
-/// PCM audio frame exchanged with the realtime transport.
-final class AudioFrame {
-  const AudioFrame({
-    required this.pcm16,
-    required this.sampleRateHz,
-    required this.sequence,
-  });
-
-  /// 16-bit little-endian mono PCM.
-  final Uint8List pcm16;
-  final int sampleRateHz;
-
-  /// Monotonic per-direction counter for loss detection.
-  final int sequence;
-}
-
-/// Events emitted by the realtime voice transport.
+/// Events emitted by a realtime voice transport.
 ///
-/// **STATUS: PROPOSED.** No bidirectional low-latency voice endpoint exists in
-/// the GPU Manager API (it is request/poll only). This contract describes
-/// what the NEXA realtime gateway must provide; see
-/// `docs/contracts/nexa-realtime-voice.proposed.md`.
+/// With the LiveKit-based design the transport does **not** move audio
+/// frames through Dart: capture and playback happen inside the WebRTC
+/// engine. The transport therefore reports *what is happening* (connection,
+/// who is speaking, transcripts, agent signals) and the voice controller
+/// feeds these into `VoiceSessionMachine`.
+///
+/// Agent-originated events (`RealtimeAgent*`, transcripts, thinking,
+/// interrupted, model busy, quota) arrive as signed data packets and are
+/// only surfaced after `VoiceEventVerifier` accepted them. Rejected packets
+/// surface as [RealtimeEventRejected] for diagnostics and never change state.
 sealed class RealtimeVoiceEvent {
   const RealtimeVoiceEvent();
 }
 
-/// Transport connected and the server is ready to receive audio.
+/// Room joined and local audio can be published.
 final class RealtimeConnected extends RealtimeVoiceEvent {
   const RealtimeConnected();
 }
 
-/// Server-side VAD detected the user started speaking.
+/// The engine lost the connection and is retrying on its own.
+final class RealtimeReconnecting extends RealtimeVoiceEvent {
+  const RealtimeReconnecting();
+}
+
+/// The assistant participant joined the room.
+final class RealtimeAgentJoined extends RealtimeVoiceEvent {
+  const RealtimeAgentJoined(this.identity);
+  final String identity;
+}
+
+/// A remote audio track from the assistant was subscribed (true) or
+/// unsubscribed (false). This is the engine-level proof that agent audio is
+/// being received and played; it is independent of agent-signed events.
+final class RealtimeAgentAudioTrack extends RealtimeVoiceEvent {
+  const RealtimeAgentAudioTrack({required this.subscribed});
+  final bool subscribed;
+}
+
+/// The assistant participant left the room.
+final class RealtimeAgentLeft extends RealtimeVoiceEvent {
+  const RealtimeAgentLeft(this.identity);
+  final String identity;
+}
+
+/// Local participant started speaking (engine audio-level detection or
+/// server VAD relayed by the agent).
 final class RealtimeUserSpeechStarted extends RealtimeVoiceEvent {
   const RealtimeUserSpeechStarted();
 }
 
-/// Server-side VAD detected the user stopped speaking.
+/// Local participant stopped speaking.
 final class RealtimeUserSpeechEnded extends RealtimeVoiceEvent {
   const RealtimeUserSpeechEnded();
 }
@@ -51,21 +64,29 @@ final class RealtimeTranscript extends RealtimeVoiceEvent {
   final bool isFinal;
 }
 
+/// Partial or final caption of the assistant's speech.
+final class RealtimeAssistantTranscript extends RealtimeVoiceEvent {
+  const RealtimeAssistantTranscript({
+    required this.text,
+    required this.isFinal,
+  });
+  final String text;
+  final bool isFinal;
+}
+
 /// Assistant is generating a reply (no audio yet).
 final class RealtimeAssistantThinking extends RealtimeVoiceEvent {
   const RealtimeAssistantThinking();
 }
 
-/// Assistant audio chunk to play.
-final class RealtimeAssistantAudio extends RealtimeVoiceEvent {
-  const RealtimeAssistantAudio(this.frame, {this.transcriptDelta});
-  final AudioFrame frame;
-  final String? transcriptDelta;
+/// Assistant audio is now audible (remote track active / agent signal).
+final class RealtimeAssistantSpeakingStarted extends RealtimeVoiceEvent {
+  const RealtimeAssistantSpeakingStarted();
 }
 
 /// Assistant finished speaking the current turn.
-final class RealtimeAssistantTurnEnded extends RealtimeVoiceEvent {
-  const RealtimeAssistantTurnEnded();
+final class RealtimeAssistantSpeakingEnded extends RealtimeVoiceEvent {
+  const RealtimeAssistantSpeakingEnded();
 }
 
 /// Server acknowledged a barge-in; playback must stop immediately.
@@ -79,10 +100,21 @@ final class RealtimeModelBusy extends RealtimeVoiceEvent {
   final Duration? estimatedWait;
 }
 
-/// Quota exhausted; server will close the session.
+/// Model available again after [RealtimeModelBusy].
+final class RealtimeModelAvailable extends RealtimeVoiceEvent {
+  const RealtimeModelAvailable();
+}
+
+/// Quota exhausted; the gateway will close the session.
 final class RealtimeQuotaExceeded extends RealtimeVoiceEvent {
   const RealtimeQuotaExceeded(this.quotaKind);
   final String quotaKind;
+}
+
+/// Gateway announced the session is ending (max duration, agent shutdown).
+final class RealtimeSessionEnding extends RealtimeVoiceEvent {
+  const RealtimeSessionEnding(this.reason);
+  final String reason;
 }
 
 /// Network quality changed. [weak] true means degraded.
@@ -92,11 +124,18 @@ final class RealtimeNetworkQuality extends RealtimeVoiceEvent {
   final int? rttMs;
 }
 
-/// Transport disconnected. [willReconnect] signals the transport will try again.
+/// Transport disconnected. [willReconnect] signals the engine will retry.
 final class RealtimeDisconnected extends RealtimeVoiceEvent {
   const RealtimeDisconnected({required this.willReconnect, this.reason});
   final bool willReconnect;
   final String? reason;
+}
+
+/// A data packet was dropped by the verifier (bad signature, replay, stale,
+/// wrong session). Diagnostic only; never changes voice state.
+final class RealtimeEventRejected extends RealtimeVoiceEvent {
+  const RealtimeEventRejected(this.reason);
+  final String reason;
 }
 
 /// Unrecoverable failure.
@@ -107,34 +146,33 @@ final class RealtimeFailed extends RealtimeVoiceEvent {
 
 /// Transport-independent realtime voice contract.
 ///
-/// **STATUS: PROPOSED / MOCK ONLY.** The only implementation in this phase is
-/// `MockRealtimeVoiceTransport`. A production implementation (WebSocket or
-/// WebRTC) will live in a separate package once the gateway contract is
-/// finalised, so platform-specific dependencies never leak into consumers
-/// that only need text chat.
+/// Implementations:
+/// * `LiveKitVoiceTransport` (package `nexa_realtime`) - real WebRTC room via
+///   the official LiveKit Flutter SDK.
+/// * `MockRealtimeVoiceTransport` (nexa_core/testing) - in-memory, scripted.
+///
+/// The transport never provisions credentials itself: it receives a
+/// [VoiceGrant] produced by the gateway through `VoiceProvisioner`.
 abstract interface class RealtimeVoiceTransport {
-  /// Connects for [sessionId] using the session credential.
-  Future<void> connect({
-    required SessionId sessionId,
-    required SessionCredential credential,
-    required int sampleRateHz,
-  });
+  /// Joins the room described by [grant]. Completes once connected.
+  Future<void> connect(VoiceGrant grant);
 
-  /// Server-to-client events.
+  /// Transport and (verified) agent events.
   Stream<RealtimeVoiceEvent> get events;
 
-  /// Uplink audio.
-  void sendAudio(AudioFrame frame);
+  /// Enables or disables publishing the microphone track. Disabling is the
+  /// mute implementation; the track stays published but silent-muted.
+  Future<void> setMicrophoneEnabled({required bool enabled});
 
-  /// User interrupted the assistant (barge-in).
+  /// Whether the microphone track is currently enabled.
+  bool get isMicrophoneEnabled;
+
+  /// User interrupted the assistant (barge-in). Sent to the agent.
   Future<void> interrupt();
 
-  /// Tells the server to ignore uplink audio.
-  Future<void> setMuted({required bool muted});
-
-  /// Graceful disconnect.
+  /// Leaves the room. Safe to call when not connected.
   Future<void> disconnect();
 
-  /// Releases resources.
+  /// Releases engine resources. The transport is unusable afterwards.
   Future<void> dispose();
 }

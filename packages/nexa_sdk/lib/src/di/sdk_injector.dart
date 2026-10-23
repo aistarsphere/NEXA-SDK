@@ -2,6 +2,7 @@ import 'package:get_it/get_it.dart';
 import 'package:injectable/injectable.dart';
 import 'package:nexa_core/nexa_core.dart';
 import 'package:nexa_sdk/src/di/sdk_injector.config.dart';
+import 'package:nexa_sdk/src/features/voice/nexa_voice_state.dart';
 import 'package:nexa_sdk/src/nexa_overrides.dart';
 
 /// Builds an **isolated** `GetIt` container for one `NexaClient`.
@@ -18,10 +19,12 @@ GetIt buildSdkInjector({
   required NexaConfig config,
   required NexaAuthProvider authProvider,
   required NexaOverrides overrides,
+  NexaVoiceOptions voiceOptions = const NexaVoiceOptions(),
 }) {
   final getIt = GetIt.asNewInstance()
     ..registerSingleton<NexaConfig>(config)
     ..registerSingleton<NexaAuthProvider>(authProvider)
-    ..registerSingleton<NexaOverrides>(overrides);
+    ..registerSingleton<NexaOverrides>(overrides)
+    ..registerSingleton<NexaVoiceOptions>(voiceOptions);
   return getIt.initSdkScope();
 }

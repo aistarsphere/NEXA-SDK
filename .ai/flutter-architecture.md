@@ -1,6 +1,6 @@
 # NEXA Flutter SDK — Architecture (source of truth)
 
-Last updated: 2026-10-22 (Phase 4.1). Read this before changing any package.
+Last updated: 2026-10-23 (Phase 5.2). Read this before changing any package.
 Companion files: `.ai/assumptions-and-blockers.md`, `docs/adr/`, `docs/contracts/`.
 
 ## 1. Workspace and package boundaries
@@ -9,7 +9,8 @@ Companion files: `.ai/assumptions-and-blockers.md`, `docs/adr/`, `docs/contracts
 chat-boot-sdk/                 pub workspace (Dart ≥3.12, Flutter ≥3.44); one root lockfile
 ├─ packages/nexa_core          pure Dart contracts (NO flutter import)
 ├─ packages/nexa_ui            design system + localisation + chat components (flutter, no networking)
-├─ packages/nexa_sdk           public SDK: facade, DI, session, chat orchestration, gateway transport, screens
+├─ packages/nexa_realtime      LiveKit (WebRTC) voice transport + platform audio setup; the only package with native media deps
+├─ packages/nexa_sdk           public SDK: facade, DI, session, chat + voice orchestration, gateway transports, screens
 ├─ apps/nexa_example           host app (go_router) showing integration; never a dependency of anything
 ├─ tools/nexa_reference_gateway DEV INFRASTRUCTURE: local executable reference gateway (shelf); test dependency of nexa_sdk only
 ├─ docs/contracts              GPU Manager export (authoritative), PROPOSED gateway (0.2.0) + realtime contracts, fixtures
@@ -22,15 +23,16 @@ chat-boot-sdk/                 pub workspace (Dart ≥3.12, Flutter ≥3.44); on
 * *Proposed backend API* — `docs/contracts/nexa-gateway-api.proposed.yaml`; unconfirmed by the backend team.
 * *Missing production integration* — anything that needs a deployed gateway, tenant auth, GPU-backed inference or voice (see `.ai/assumptions-and-blockers.md`).
 
-**Dependency direction (enforced by pubspecs):** `nexa_sdk → nexa_ui → nexa_core`.
-Never import `nexa_sdk` from `nexa_ui`/`nexa_core`; never import Flutter in `nexa_core`.
+**Dependency direction (enforced by pubspecs):** `nexa_sdk → {nexa_ui, nexa_realtime} → nexa_core`.
+Never import `nexa_sdk` from the others; never import Flutter in `nexa_core`; never import `livekit_client` outside `nexa_realtime`.
 
 | Package | Owns | Must not contain |
 |---|---|---|
-| `nexa_core` | `NexaConfig`, `NexaAuthProvider`/`SessionCredential`/`CredentialManager`, `NexaException` hierarchy, typed ids, `ConversationEvent`/`ConversationState`/`ConversationReducer`/`EventSequencer`, `ToolResult`/`ToolAction`/`ToolResultValidator`, `ChatTransport`, `RealtimeVoiceTransport` (proposed), `VoiceSessionMachine`, logging + lifecycle events, `testing.dart` mocks | widgets, Dio, platform code |
+| `nexa_core` | `NexaConfig`, `NexaAuthProvider`/`SessionCredential`/`CredentialManager`, `NexaException` hierarchy, typed ids, `ConversationEvent`/`ConversationState`/`ConversationReducer`/`EventSequencer`, `ToolResult`/`ToolAction`/`ToolResultValidator`, `ChatTransport`, `RealtimeVoiceTransport` + `VoiceProvisioner` + `VoiceGrant`, `SignedVoiceEvent`/`VoiceEventVerifier`, `VoiceSessionMachine`, logging + lifecycle events, `testing.dart` mocks | widgets, Dio, LiveKit, platform code |
 | `nexa_ui` | `MochaPalette` (single token file), `NexaTheme`, `NexaColors` extension, shapes, motion, typography, `NexaLocalizations` (gen-l10n, en/ar), `NexaLocale`, components (`NexaMessageBubble`, `NexaComposer`, `NexaToolResultCard`, `NexaToolCallTile`, `NexaStatusBanner`, `NexaTypingIndicator`, permission sheet) | blocs, transports, JSON parsing |
 | `nexa_sdk` | `Nexa`/`NexaClient` facade, `NexaOverrides`, `NexaPermissionHandler`, DI (`buildSdkInjector`, `SdkModule`), `SessionManager`, `ChatBloc` (incl. reconnect policy), `NexaChatView`/`NexaChatScreen`, `GatewayChatTransport` (SSE + long-poll) + `decodeSse` + DTOs + Retrofit API + Dio factory + error mapper | design tokens, provider payload parsing |
-| `nexa_reference_gateway` | shelf server implementing the proposed contract with scripted replies and chaos switches; dev token endpoint standing in for the host backend | any import of `nexa_core` (its JSON is written from the contract so tests are real contract tests), anything deployable |
+| `nexa_realtime` | `LiveKitVoiceTransport` (room join, mic publish/mute, remote audio, engine reconnects, signed data packets → verified events), `LiveKitAudioSetup` | provisioning, UI, state decisions |
+| `nexa_reference_gateway` | shelf server implementing the proposed contract with scripted replies and chaos switches; dev token endpoint standing in for the host backend; voice provisioning (room-scoped LiveKit JWT), signed-event mock agent, optional synthetic agent audio via `lk` | any import of `nexa_core` (its JSON is written from the contract so tests are real contract tests), anything deployable |
 
 Why not `nexa_tools` / `nexa_realtime` packages: both are small pure-Dart contracts versioned with the core event model. Split `nexa_realtime` out **only** when a concrete transport (WebSocket/WebRTC/audio) introduces platform dependencies that text-only hosts should not pay for.
 
@@ -90,9 +92,14 @@ nexa_sdk/lib/src/
 * **Proposed (interface + mock only):** `docs/contracts/nexa-realtime-voice.proposed.md`.
 * Boundary mapping (gateway responsibilities, not SDK): see `docs/contracts/gpu-manager-boundary.md`.
 
-## 7. Realtime voice status
+## 7. Realtime voice (Phase 5.2)
 
-`VoiceSessionMachine` (pure, total, tested for every state×event pair) + `RealtimeVoiceTransport` interface + `MockRealtimeVoiceTransport`. **No audio capture, playback, VAD or network implementation exists.** Do not add a voice UI that implies otherwise. Next step requires the gateway channel decision (codec, VAD location, TTS engine).
+* Engine: official `livekit_client` (WebRTC) inside `nexa_realtime`. Audio never passes through Dart. `LiveKitVoiceTransport` maps engine events + verified agent data packets to `RealtimeVoiceEvent`.
+* Orchestration: `NexaVoiceController` (nexa_sdk) executes `VoiceSessionMachine` commands: host permission → `SessionManager.start` (liveVoice must be granted) → `VoiceProvisioner.provision` → `transport.connect(grant)`; mic enable/disable for capture and mute; `interrupt` intent to agent + gateway; grant-expiry / max-duration timer; `end` → disconnect + `DELETE …/voice`. The machine is the only source of the displayed phase.
+* Public API: `NexaClient.voice` (`start/end/setMuted/toggleMute/interrupt`, `state`, `events`, `microphoneEnabled`), `NexaClient.voiceView(...)`, `Nexa.initialize(voiceOptions: NexaVoiceOptions(...))`, `NexaOverrides.voiceTransport/voiceProvisioner` (mocks).
+* Security: grants are room-scoped participant JWTs (no API keys on device); agent events are HMAC-signed per session and verified (signature, session, monotonic seq, skew) before they can change state; unverified (dev) mode is visible and can be forbidden. Threat model: `docs/contracts/nexa-voice-provisioning.proposed.md` §4 — needs human sign-off.
+* Status: validated on the iOS simulator against local `livekit-server` + reference gateway mock agent (synthetic audio). **The `nexa-integration` backend contract was unreachable; provisioning and signing are PROPOSED and must be realigned in `GatewayVoiceProvisioner._parseGrant` and `SignedVoiceEvent`.** No model inference anywhere.
+* UI: `NexaVoiceCapsule` (nexa_ui) is pure presentation (orb, state label live region, transcript, mute/end, error actions), en/ar, RTL, reduced motion.
 
 ## 8. Localization and theme rules
 
@@ -112,6 +119,9 @@ nexa_sdk/lib/src/
 | Contract | `nexa_core/test/contracts` + `docs/contracts/fixtures` | every event/action variant round-trips; fixtures parse |
 | Theme/a11y | `nexa_ui/test/theme` | contrast baseline, bundled fonts, override bounds, touch targets |
 | Widget | `nexa_ui/test/components` | bubble LTR/RTL, retry, typing + reduced motion, composer, every tool card, forms/selection/confirmation actions |
+| Voice | `nexa_core/test/voice`, `nexa_realtime/test`, `nexa_sdk/test/features/voice_*`, `nexa_sdk/test/data/gateway_voice_provisioner_test.dart`, `nexa_ui/test/components/voice_capsule_test.dart` | verifier (signature/replay/stale/session), event mapping, transport guards + audio options, controller (permission denied, capability, quota 402, connect failure, unsigned policy, startMuted, scripted turn, barge-in, busy, rejected events, mute, reconnect, final drop, quota event, expiry, session_ending, end/restart, dispose), capsule (buttons, labels en/ar, error actions, unverified banner, RTL transcript, reduced motion, semantics), voice view (journey, ar+dark, autoStart) |
+| Voice contract | `nexa_sdk/test/integration/voice_provisioning_integration_test.dart`, `nexa_reference_gateway/test/voice_test.dart` (need `livekit-server --dev`; skipped otherwise) | real grant over HTTP, quota 402, credential renewal, gateway signer ↔ SDK verifier, token scope (no admin), 403/409/404 paths |
+| Voice e2e | `apps/nexa_example/integration_test/voice_journey_test.dart` via `tool/e2e.sh <device> integration_test/voice_journey_test.dart` | real LiveKit room join, mic published, agent audio track subscribed, signed events → states, mute/unmute, end |
 | SDK unit/widget | `nexa_sdk/test` | init/dispose/lifecycle, error mapper, SSE decoder, gateway transport vs mocked API, ChatBloc flows (send/retry/cancel/tool/permission/quota/error), reconnect policy + budget + auth/expiry handling, duplicate-submission guard, chat view embedding, banners (reconnecting/auth/expired/quota, en+ar), streaming caret, jump-to-latest, unmount mid-stream, runtime language/theme, openChat, semantics |
 | SDK ↔ gateway contract | `nexa_sdk/test/integration` (starts `ReferenceGateway` on port 0) | real HTTP: SSE and long-poll journeys, interruption + reconnect, duplicates, 503, server gone, 429 retry, rapid double send, upstream failure, proactive renewal, 401 forced refresh, auth failure + recovery, cross-application token, no token in logs, quota, expiry, tool round trips |
 | Reference gateway | `tools/nexa_reference_gateway/test` | every endpoint and scenario over dart:io sockets (auth codes, idempotency, SSE drop/resume, duplicates, cancel, quota, end, tools, permissions) |
@@ -129,4 +139,4 @@ Local development: `make gateway` runs the reference gateway on 127.0.0.1:8080; 
 
 ## 11. Codegen and tooling
 
-`tool/bootstrap.sh` (pub get) → `tool/gen.sh` (build_runner in core + sdk, gen-l10n in ui) → `tool/check.sh` (format, analyze, all tests incl. the reference-gateway contract tests) → `tool/e2e.sh` (device journey). Generated files are committed so a fresh clone builds without running generators.
+`tool/bootstrap.sh` (pub get) → `tool/gen.sh` (build_runner in core + sdk, gen-l10n in ui) → `tool/check.sh` (format, analyze, all tests incl. the reference-gateway contract tests) → `tool/e2e.sh [device] [test]` (device journeys; starts `livekit-server --dev` when installed: `brew install livekit livekit-cli`). Generated files are committed so a fresh clone builds without running generators.

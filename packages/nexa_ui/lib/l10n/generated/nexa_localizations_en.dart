@@ -191,4 +191,100 @@ class NexaLocalizationsEn extends NexaLocalizations {
 
   @override
   String get semanticsMessageFailed => 'Message failed to send';
+
+  @override
+  String get voiceTitle => 'Live voice';
+
+  @override
+  String get voiceStart => 'Start voice';
+
+  @override
+  String get voiceEnd => 'End call';
+
+  @override
+  String get voiceMute => 'Mute';
+
+  @override
+  String get voiceUnmute => 'Unmute';
+
+  @override
+  String get voiceRetry => 'Try again';
+
+  @override
+  String get voiceOpenSettings => 'Open settings';
+
+  @override
+  String get voiceStateIdle => 'Ready';
+
+  @override
+  String get voiceStateConnecting => 'Connecting…';
+
+  @override
+  String get voiceStateListening => 'Listening';
+
+  @override
+  String get voiceStateUserSpeaking => 'Go on, I\'m listening';
+
+  @override
+  String get voiceStateTranscribing => 'Got it…';
+
+  @override
+  String get voiceStateThinking => 'Thinking…';
+
+  @override
+  String get voiceStateAiSpeaking => 'Speaking';
+
+  @override
+  String get voiceStateBargeIn => 'Interrupting…';
+
+  @override
+  String get voiceStateMuted => 'Muted';
+
+  @override
+  String get voiceStateWeakNetwork => 'Weak connection';
+
+  @override
+  String get voiceStateDisconnected => 'Disconnected';
+
+  @override
+  String get voiceStateReconnecting => 'Reconnecting…';
+
+  @override
+  String get voiceStateModelBusy => 'The assistant is busy, hold on…';
+
+  @override
+  String get voiceStateMicrophoneDenied => 'Microphone access is off';
+
+  @override
+  String get voiceStateQuotaExceeded => 'Voice limit reached';
+
+  @override
+  String get voiceStateEnded => 'Call ended';
+
+  @override
+  String get voiceTranscriptYou => 'You';
+
+  @override
+  String get voiceTranscriptAssistant => 'Assistant';
+
+  @override
+  String get voiceUnverifiedEvents =>
+      'Development mode: agent events are not signed.';
+
+  @override
+  String get voiceAgentWaiting => 'Waiting for the assistant to join…';
+
+  @override
+  String semanticsVoiceOrb(String state) {
+    return 'Voice status: $state';
+  }
+
+  @override
+  String get semanticsMuteButton => 'Mute microphone';
+
+  @override
+  String get semanticsUnmuteButton => 'Unmute microphone';
+
+  @override
+  String get semanticsEndCallButton => 'End voice call';
 }

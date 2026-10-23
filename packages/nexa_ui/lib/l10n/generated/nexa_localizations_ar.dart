@@ -190,4 +190,99 @@ class NexaLocalizationsAr extends NexaLocalizations {
 
   @override
   String get semanticsMessageFailed => 'تعذّر إرسال الرسالة';
+
+  @override
+  String get voiceTitle => 'محادثة صوتية';
+
+  @override
+  String get voiceStart => 'ابدأ الصوت';
+
+  @override
+  String get voiceEnd => 'إنهاء المكالمة';
+
+  @override
+  String get voiceMute => 'كتم';
+
+  @override
+  String get voiceUnmute => 'إلغاء الكتم';
+
+  @override
+  String get voiceRetry => 'حاول مرة أخرى';
+
+  @override
+  String get voiceOpenSettings => 'افتح الإعدادات';
+
+  @override
+  String get voiceStateIdle => 'جاهز';
+
+  @override
+  String get voiceStateConnecting => 'جارٍ الاتصال…';
+
+  @override
+  String get voiceStateListening => 'أستمع إليك';
+
+  @override
+  String get voiceStateUserSpeaking => 'تفضّل، أنا أستمع';
+
+  @override
+  String get voiceStateTranscribing => 'فهمت…';
+
+  @override
+  String get voiceStateThinking => 'جارٍ التفكير…';
+
+  @override
+  String get voiceStateAiSpeaking => 'يتحدث';
+
+  @override
+  String get voiceStateBargeIn => 'جارٍ المقاطعة…';
+
+  @override
+  String get voiceStateMuted => 'الصوت مكتوم';
+
+  @override
+  String get voiceStateWeakNetwork => 'الاتصال ضعيف';
+
+  @override
+  String get voiceStateDisconnected => 'انقطع الاتصال';
+
+  @override
+  String get voiceStateReconnecting => 'جارٍ إعادة الاتصال…';
+
+  @override
+  String get voiceStateModelBusy => 'المساعد مشغول، لحظة من فضلك…';
+
+  @override
+  String get voiceStateMicrophoneDenied => 'الوصول إلى الميكروفون غير مفعّل';
+
+  @override
+  String get voiceStateQuotaExceeded => 'وصلت إلى حد المحادثات الصوتية';
+
+  @override
+  String get voiceStateEnded => 'انتهت المكالمة';
+
+  @override
+  String get voiceTranscriptYou => 'أنت';
+
+  @override
+  String get voiceTranscriptAssistant => 'المساعد';
+
+  @override
+  String get voiceUnverifiedEvents => 'وضع التطوير: أحداث المساعد غير موقّعة.';
+
+  @override
+  String get voiceAgentWaiting => 'بانتظار انضمام المساعد…';
+
+  @override
+  String semanticsVoiceOrb(String state) {
+    return 'حالة الصوت: $state';
+  }
+
+  @override
+  String get semanticsMuteButton => 'كتم الميكروفون';
+
+  @override
+  String get semanticsUnmuteButton => 'إلغاء كتم الميكروفون';
+
+  @override
+  String get semanticsEndCallButton => 'إنهاء المكالمة الصوتية';
 }

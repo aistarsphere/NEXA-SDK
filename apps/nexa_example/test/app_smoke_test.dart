@@ -27,6 +27,8 @@ void main() {
           tokenDelay: Duration.zero,
           thinkDelay: Duration.zero,
         ),
+        voiceTransport: MockRealtimeVoiceTransport(),
+        voiceProvisioner: MockVoiceProvisioner(),
       ),
     );
     addTearDown(client.dispose);

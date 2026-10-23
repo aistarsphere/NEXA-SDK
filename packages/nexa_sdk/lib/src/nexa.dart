@@ -10,6 +10,9 @@ import 'package:nexa_sdk/src/di/sdk_injector.dart';
 import 'package:nexa_sdk/src/features/chat/bloc/chat_bloc.dart';
 import 'package:nexa_sdk/src/features/chat/presentation/nexa_chat_screen.dart';
 import 'package:nexa_sdk/src/features/chat/presentation/nexa_chat_view.dart';
+import 'package:nexa_sdk/src/features/voice/nexa_voice_controller.dart';
+import 'package:nexa_sdk/src/features/voice/nexa_voice_state.dart';
+import 'package:nexa_sdk/src/features/voice/presentation/nexa_voice_view.dart';
 import 'package:nexa_sdk/src/nexa_overrides.dart';
 import 'package:nexa_sdk/src/nexa_ui_settings.dart';
 import 'package:nexa_sdk/src/session/session_manager.dart';
@@ -40,6 +43,7 @@ abstract final class Nexa {
     required NexaConfig config,
     required NexaAuthProvider auth,
     NexaOverrides overrides = const NexaOverrides(),
+    NexaVoiceOptions voiceOptions = const NexaVoiceOptions(),
   }) async {
     if (_client != null) {
       throw const ConfigurationException(
@@ -51,6 +55,7 @@ abstract final class Nexa {
       config: config,
       authProvider: auth,
       overrides: overrides,
+      voiceOptions: voiceOptions,
     );
     final client = NexaClient._(config, injector);
     _client = client;
@@ -145,6 +150,36 @@ final class NexaClient {
     );
   }
 
+  /// Live voice controller: start/end a call, mute, observe typed state and
+  /// events. Requires `NexaCapability.liveVoice` to be requested *and*
+  /// granted by the gateway, and a `NexaPermissionHandler` that can obtain
+  /// the microphone permission.
+  NexaVoiceController get voice {
+    _checkAlive();
+    return _injector<NexaVoiceController>();
+  }
+
+  /// Embeddable Live Voice Capsule bound to [voice]. The host owns
+  /// navigation; the SDK never pushes routes for voice.
+  Widget voiceView({
+    Key? key,
+    bool showTranscript = true,
+    bool autoStart = false,
+    VoidCallback? onEnded,
+    VoidCallback? onOpenSettings,
+  }) {
+    _checkAlive();
+    return NexaVoiceView(
+      key: key,
+      controller: voice,
+      settings: _settings,
+      showTranscript: showTranscript,
+      autoStart: autoStart,
+      onEnded: onEnded,
+      onOpenSettings: onOpenSettings,
+    );
+  }
+
   /// Pushes the full-screen chat. Returns when it is popped.
   Future<void> openChat(BuildContext context) {
     _checkAlive();
@@ -165,6 +200,10 @@ final class NexaClient {
     final sessions = _sessions;
     final transport = _injector<ChatTransport>();
     sessions.emit(NexaDisposed(clock.now()));
+    if (_injector.isRegistered<NexaVoiceController>()) {
+      await _injector<NexaVoiceController>().dispose();
+      await _injector<RealtimeVoiceTransport>().dispose();
+    }
     await sessions.dispose();
     await transport.dispose();
     await _injector.reset();
