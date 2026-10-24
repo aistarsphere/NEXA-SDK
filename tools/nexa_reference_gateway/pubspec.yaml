@@ -10,6 +10,7 @@ environment:
 dependencies:
   args: ^2.6.0
   crypto: ^3.0.6
+  pinenacl: ^0.6.0
   shelf: ^1.4.1
   shelf_router: ^1.1.4
 

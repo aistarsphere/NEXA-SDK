@@ -1,6 +1,6 @@
 # NEXA Flutter SDK — Architecture (source of truth)
 
-Last updated: 2026-10-23 (Phase 5.2). Read this before changing any package.
+Last updated: 2026-10-24 (Phase 5.3B). Read this before changing any package.
 Companion files: `.ai/assumptions-and-blockers.md`, `docs/adr/`, `docs/contracts/`.
 
 ## 1. Workspace and package boundaries
@@ -98,7 +98,7 @@ nexa_sdk/lib/src/
 * Orchestration: `NexaVoiceController` (nexa_sdk) executes `VoiceSessionMachine` commands: host permission → `SessionManager.start` (liveVoice must be granted) → `VoiceProvisioner.provision` → `transport.connect(grant)`; mic enable/disable for capture and mute; `interrupt` intent to agent + gateway; grant-expiry / max-duration timer; `end` → disconnect + `DELETE …/voice`. The machine is the only source of the displayed phase.
 * Public API: `NexaClient.voice` (`start/end/setMuted/toggleMute/interrupt`, `state`, `events`, `microphoneEnabled`), `NexaClient.voiceView(...)`, `Nexa.initialize(voiceOptions: NexaVoiceOptions(...))`, `NexaOverrides.voiceTransport/voiceProvisioner` (mocks).
 * Security: grants are room-scoped participant JWTs (no API keys on device); agent events are HMAC-signed per session and verified (signature, session, monotonic seq, skew) before they can change state; unverified (dev) mode is visible and can be forbidden. Threat model: `docs/contracts/nexa-voice-provisioning.proposed.md` §4 — needs human sign-off.
-* Status: validated on the iOS simulator against local `livekit-server` + reference gateway mock agent (synthetic audio). **The `nexa-integration` backend contract was unreachable; provisioning and signing are PROPOSED and must be realigned in `GatewayVoiceProvisioner._parseGrant` and `SignedVoiceEvent`.** No model inference anywhere.
+* Contract: backend-owned `nexa.voice.v1` (handoff 1.0.0, `docs/contracts/voice-v1/`); SDK mapping and differences in `docs/voice/backend-compatibility-v1.md`. Ed25519 sealed envelopes verified by `VoiceEventVerifier`; gapless `seq` by `VoiceReplayGuard`; both driven by the pure `VoiceEventPipeline`. Status: fixture-verified + Android-emulator journey against the reference gateway's v1 mirror; no live-backend run; no model inference.
 * UI: `NexaVoiceCapsule` (nexa_ui) is pure presentation (orb, state label live region, transcript, mute/end, error actions), en/ar, RTL, reduced motion.
 
 ## 8. Localization and theme rules

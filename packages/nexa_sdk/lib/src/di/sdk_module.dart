@@ -110,13 +110,20 @@ abstract class SdkModule {
     NexaConfig config,
     NexaLogger logger,
     Dio dio,
+    NexaVoiceOptions options,
   ) {
     final override = overrides.voiceProvisioner;
     if (override != null) {
       _warnOverride(config, logger, 'VoiceProvisioner');
       return override;
     }
-    return GatewayVoiceProvisioner(dio: dio, logger: logger);
+    return GatewayVoiceProvisioner(
+      dio: dio,
+      logger: logger,
+      allowLegacyHmac: options.allowLegacyHmac,
+      // Plain ws:// only for local development gateways.
+      allowInsecureWebSocket: config.environment == NexaEnvironment.development,
+    );
   }
 
   @lazySingleton
@@ -127,6 +134,7 @@ abstract class SdkModule {
     NexaPermissionHandler permissions,
     NexaLogger logger,
     NexaVoiceOptions options,
+    NexaConfig config,
   ) => NexaVoiceController(
     sessions: sessions,
     provisioner: provisioner,
@@ -134,6 +142,7 @@ abstract class SdkModule {
     permissions: permissions,
     logger: logger,
     options: options,
+    languageTag: config.languageTag,
   );
 
   static void _warnOverride(NexaConfig config, NexaLogger logger, String what) {

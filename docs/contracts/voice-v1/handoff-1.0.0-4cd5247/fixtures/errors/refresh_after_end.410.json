@@ -1,0 +1,10 @@
+{
+  "status": 410,
+  "body": {
+    "error": {
+      "code": "voice_session_ended",
+      "message": "Voice session ended (user_ended).",
+      "retryable": false
+    }
+  }
+}

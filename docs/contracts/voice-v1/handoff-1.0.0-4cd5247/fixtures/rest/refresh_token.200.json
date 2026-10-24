@@ -1,0 +1,13 @@
+{
+  "status": 200,
+  "body": {
+    "voice_session_id": "vs_<id>",
+    "livekit": {
+      "url": "wss://<livekit-host>",
+      "room": "nexa-vs_<id>",
+      "identity": "nexa-user-vs_<id>",
+      "token": "<livekit-join-jwt>",
+      "token_expires_at": "<iso8601-utc>"
+    }
+  }
+}

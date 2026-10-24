@@ -1,23 +1,45 @@
 import 'package:nexa_core/src/ids/ids.dart';
 import 'package:nexa_core/src/voice/voice_grant.dart';
 
-/// Obtains scoped voice credentials from the NEXA gateway for an active chat
-/// session and relays client intents the gateway must know about.
-///
-/// **STATUS: PROPOSED.** Implemented by `GatewayVoiceProvisioner` (nexa_sdk)
-/// against `POST /v1/sdk/sessions/{id}/voice` of the reference gateway;
-/// the production `nexa-integration` surface must be mapped here once it is
-/// available. The SDK never talks to LiveKit's server API or holds API keys.
+/// The four SDK calls of the NEXA voice API (contract `nexa.voice.v1` §3,
+/// backend handoff 1.0.0). Implemented by `GatewayVoiceProvisioner`
+/// (nexa_sdk). The SDK never talks to LiveKit's server API or holds API keys.
 abstract interface class VoiceProvisioner {
-  /// Requests a room-scoped grant. Throws `CapabilityNotGrantedException`
-  /// when `liveVoice` was not granted, `QuotaExceededException` when the
-  /// voice quota is exhausted, `AuthenticationException` /
-  /// `SessionExpiredException` for credential problems.
-  Future<VoiceGrant> provision(SessionId sessionId);
+  /// `POST /v1/sdk/voice/sessions`. Returns only after the agent joined
+  /// the room. Throws a `NexaException`; notably `ServerException` with
+  /// `serverCode: 'voice_unavailable'` and a `retryAfter` when no agent
+  /// could be provided (nothing was created).
+  Future<VoiceGrant> create({
+    required String languageTag,
+    SessionId? chatSessionId,
+  });
 
-  /// Tells the gateway about a client intent (`interrupt`). Best effort.
-  Future<void> sendIntent(SessionId sessionId, String type);
+  /// `POST /v1/sdk/voice/sessions/{id}/token`: fresh join token for the
+  /// same identity. Throws `VoiceSessionOverException` when the session is
+  /// over (`410 voice_session_ended`) or the refresh budget is used up
+  /// (`429 rate_limited`, `retryable: false`).
+  Future<VoiceGrant> refreshToken(VoiceGrant grant);
 
-  /// Ends the voice session server-side. Idempotent.
-  Future<void> end(SessionId sessionId);
+  /// `GET /v1/sdk/voice/sessions/{id}`: authoritative status. Call it after
+  /// any disconnect before choosing between "ended" and "reconnect".
+  Future<VoiceSessionStatus> status(String voiceSessionId);
+
+  /// `DELETE /v1/sdk/voice/sessions/{id}` (idempotent). Must be called on
+  /// every exit path. Returns the final status, or null when the call could
+  /// not be made (network); never throws.
+  Future<VoiceSessionStatus?> end(String voiceSessionId);
+}
+
+/// The voice session cannot be resumed: refresh answered `410` or the
+/// refresh budget is exhausted. The caller should read [status] (or `GET`)
+/// and stop.
+final class VoiceSessionOverException implements Exception {
+  const VoiceSessionOverException(this.code, [this.message]);
+
+  /// `voice_session_ended` or `rate_limited`.
+  final String code;
+  final String? message;
+
+  @override
+  String toString() => 'VoiceSessionOverException($code)';
 }

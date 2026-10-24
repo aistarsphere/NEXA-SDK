@@ -1,0 +1,10 @@
+{
+  "status": 409,
+  "body": {
+    "error": {
+      "code": "voice_session_active",
+      "message": "A voice session is already active for this user.",
+      "retryable": false
+    }
+  }
+}

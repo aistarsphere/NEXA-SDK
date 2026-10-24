@@ -1,0 +1,20 @@
+{
+  "request_payload_json": "{\"last_seq\": 0}",
+  "response": {
+    "state": "listening",
+    "last_seq": "<number>",
+    "covers": true,
+    "has_more": false,
+    "events": "<array of sealed-envelope JSON strings, oldest first; see verification>"
+  },
+  "ordered_types_excluding_session_state_and_network_quality": [
+    "agent_ready",
+    "user_speech_started",
+    "user_speech_ended",
+    "transcript",
+    "assistant_thinking",
+    "assistant_audio_started",
+    "assistant_text",
+    "assistant_turn_ended"
+  ]
+}

@@ -63,11 +63,13 @@ final class MockRealtimeVoiceTransport implements RealtimeVoiceTransport {
     _micEnabled = enabled;
   }
 
+  /// Local only, like the real transport (contract v1 has no interrupt
+  /// command). Tests emit [RealtimeInterrupted] themselves when the
+  /// scripted agent acknowledges a barge-in.
   @override
   Future<void> interrupt() async {
     _check();
     interrupts++;
-    emit(const RealtimeInterrupted());
   }
 
   @override
@@ -90,19 +92,28 @@ final class MockRealtimeVoiceTransport implements RealtimeVoiceTransport {
     if (!_controller.isClosed) _controller.add(event);
   }
 
-  /// Simulates a drop; [willReconnect] true is followed by [RealtimeConnected]
-  /// after [after] when [reconnect] is true.
+  /// Engine-level transient drop (ICE restart): [RealtimeReconnecting]
+  /// then, when [reconnect], [RealtimeConnected] after [after]. A final loss
+  /// is [simulateRoomDeleted].
   Future<void> simulateDrop({
-    bool willReconnect = true,
     bool reconnect = true,
     Duration after = Duration.zero,
   }) async {
-    emit(RealtimeDisconnected(willReconnect: willReconnect, reason: 'mock'));
-    if (willReconnect) emit(const RealtimeReconnecting());
-    if (willReconnect && reconnect) {
+    emit(const RealtimeReconnecting());
+    if (reconnect) {
       if (after != Duration.zero) await Future<void>.delayed(after);
       emit(const RealtimeConnected());
     }
+  }
+
+  /// A server-side end (DELETE elsewhere, agent lost, revoke): the room is
+  /// deleted and the client is disconnected **without** any event.
+  void simulateRoomDeleted() {
+    _connected = false;
+    _micEnabled = false;
+    emit(
+      const RealtimeDisconnected(willReconnect: false, reason: 'roomDeleted'),
+    );
   }
 
   /// Scripts one complete assistant turn: user speaks, transcript, thinking,

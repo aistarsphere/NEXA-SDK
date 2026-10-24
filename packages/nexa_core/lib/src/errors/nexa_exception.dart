@@ -112,12 +112,18 @@ final class ServerException extends NexaException {
     required this.statusCode,
     required String message,
     this.serverCode,
+    this.retryAfter,
     bool retryable = false,
     Object? cause,
   }) : super(NexaErrorCode.server, message, retryable: retryable, cause: cause);
 
   final int statusCode;
+
+  /// Stable gateway error `code` (e.g. `voice_unavailable`), when known.
   final String? serverCode;
+
+  /// `retry_after_seconds` / `Retry-After`: never retry sooner than this.
+  final Duration? retryAfter;
 }
 
 /// A payload did not match the typed contract. Never rendered blindly.

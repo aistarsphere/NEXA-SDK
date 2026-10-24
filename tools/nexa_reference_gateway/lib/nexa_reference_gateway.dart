@@ -5,4 +5,5 @@ library;
 
 export 'src/server.dart' show ReferenceGateway, contractVersion;
 export 'src/store.dart' show GatewayOptions, IssuedToken;
-export 'src/voice.dart' show VoiceOptions, VoiceService, VoiceSessionState;
+export 'src/voice.dart'
+    show VoiceOptions, VoiceService, VoiceSessionState, voiceContractV1;

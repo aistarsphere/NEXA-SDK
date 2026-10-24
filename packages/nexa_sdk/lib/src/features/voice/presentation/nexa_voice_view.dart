@@ -40,6 +40,7 @@ class NexaVoiceView extends StatelessWidget {
       valueListenable: settings,
       builder: (context, ui, _) {
         final locale = NexaLocale.fromTag(ui.languageTag);
+        controller.languageTag = locale.languageCode;
         final brightness = switch (ui.themeMode) {
           sdk.NexaThemeMode.light => Brightness.light,
           sdk.NexaThemeMode.dark => Brightness.dark,

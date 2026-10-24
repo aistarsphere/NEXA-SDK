@@ -1,0 +1,10 @@
+{
+  "status": 404,
+  "body": {
+    "error": {
+      "code": "voice_session_not_found",
+      "message": "Unknown voice session.",
+      "retryable": false
+    }
+  }
+}

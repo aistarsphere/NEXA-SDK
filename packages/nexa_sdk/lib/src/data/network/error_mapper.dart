@@ -101,10 +101,14 @@ NexaException _mapResponse(DioException e) {
     case 422:
       return ContractViolationException(message, cause: e);
     default:
+      final retryAfter =
+          body?.retryAfterSeconds ??
+          int.tryParse(response?.headers.value('retry-after') ?? '');
       return ServerException(
         statusCode: status,
         message: message,
         serverCode: body?.code,
+        retryAfter: retryAfter == null ? null : Duration(seconds: retryAfter),
         retryable: body?.retryable ?? status >= 500,
         cause: e,
       );

@@ -16,9 +16,43 @@ sealed class RealtimeVoiceEvent {
   const RealtimeVoiceEvent();
 }
 
-/// Room joined and local audio can be published.
+/// Room joined **and** the agent handshake succeeded (contract v1 §8: the
+/// `resume` RPC answered, or a verified `agent_ready` / `session_state`
+/// arrived). Emitted again after every successful rejoin.
 final class RealtimeConnected extends RealtimeVoiceEvent {
   const RealtimeConnected();
+}
+
+/// Verified `agent_ready`: the agent pipeline is up for this session.
+final class RealtimeAgentReady extends RealtimeVoiceEvent {
+  const RealtimeAgentReady();
+}
+
+/// Verified `session_state` snapshot (pushed on every (re)join) or the
+/// `state` of a `resume` RPC answer. [state] is a server state string
+/// (`listening`, `user_speaking`, `thinking`, `ai_speaking`, ...).
+final class RealtimeSessionSnapshot extends RealtimeVoiceEvent {
+  const RealtimeSessionSnapshot({required this.state, this.lastSeq});
+  final String state;
+  final int? lastSeq;
+}
+
+/// Verified agent `error{code, component, retryable}`.
+final class RealtimeAgentError extends RealtimeVoiceEvent {
+  const RealtimeAgentError({
+    required this.code,
+    required this.retryable,
+    this.component,
+  });
+  final String code;
+  final String? component;
+  final bool retryable;
+}
+
+/// The `resume` handshake kept failing for the whole handshake window
+/// (~25 s): the agent is gone. The controller asks the gateway (`GET`).
+final class RealtimeAgentUnresponsive extends RealtimeVoiceEvent {
+  const RealtimeAgentUnresponsive();
 }
 
 /// The engine lost the connection and is retrying on its own.
@@ -153,6 +187,8 @@ final class RealtimeFailed extends RealtimeVoiceEvent {
 ///
 /// The transport never provisions credentials itself: it receives a
 /// [VoiceGrant] produced by the gateway through `VoiceProvisioner`.
+/// Calling [connect] again with a refreshed grant (same identity) rejoins
+/// and resumes from the last applied event `seq`.
 abstract interface class RealtimeVoiceTransport {
   /// Joins the room described by [grant]. Completes once connected.
   Future<void> connect(VoiceGrant grant);
@@ -167,7 +203,9 @@ abstract interface class RealtimeVoiceTransport {
   /// Whether the microphone track is currently enabled.
   bool get isMicrophoneEnabled;
 
-  /// User interrupted the assistant (barge-in). Sent to the agent.
+  /// Local barge-in only. Contract v1 has **no** interrupt command: the
+  /// agent detects barge-in from the microphone and confirms with
+  /// `interrupted`. Implementations must not send anything to the server.
   Future<void> interrupt();
 
   /// Leaves the room. Safe to call when not connected.

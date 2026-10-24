@@ -1,0 +1,13 @@
+{
+  "status": 200,
+  "body": {
+    "voice_session_id": "vs_<id>",
+    "status": "ended",
+    "end_reason": "agent_lost",
+    "max_seconds": 40,
+    "reserved_seconds": 40,
+    "used_seconds": "<number>",
+    "language_tag": "en",
+    "agent_state": "unavailable"
+  }
+}

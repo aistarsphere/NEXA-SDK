@@ -1,6 +1,6 @@
 # Engineering assumptions and blockers
 
-Updated 2026-10-23 (end of Phase 5.2). Resolve or re-confirm each item before the next phase.
+Updated 2026-10-24 (end of Phase 5.3B). Resolve or re-confirm each item before the next phase.
 
 ## Assumptions made so far
 
@@ -16,9 +16,9 @@ Updated 2026-10-23 (end of Phase 5.2). Resolve or re-confirm each item before th
 | A8 | `freezed 3.2.6-dev.1` is acceptable because stable 3.2.5 cannot resolve with analyzer 12 required by retrofit/injectable generators. | root lockfile | Move to freezed 3.2.6 stable when published. |
 | A9 | Automatic reconnect: 5 attempts, exponential back-off from `eventPollInterval` (750 ms) capped at 15 s; auth/expiry/quota are never auto-retried. | `ChatBloc`, `NexaConfig.maxReconnectAttempts` | Tune with product once real network data exists. |
 | A10 | A gateway that answers `409 assistant_busy` is a contract violation the SDK never triggers (client-side `canSend` guard). | `ChatState.canSend` | Keep the server rule as backstop. |
-| A11 | Voice provisioning returns a room-scoped LiveKit participant JWT plus a per-session HMAC key; agent events are signed data packets on topic `nexa.voice`. **Proposed by the SDK team because the backend contract was unreachable.** | `docs/contracts/nexa-voice-provisioning.proposed.md`, `GatewayVoiceProvisioner._parseGrant`, `SignedVoiceEvent` | Map the real `nexa-integration` response/signing scheme in those two places. |
-| A12 | The LiveKit engine's own reconnect is sufficient; the SDK does not re-provision a grant on final loss (user retries). | `LiveKitVoiceTransport`, `NexaVoiceController` | Confirm with backend whether a grant survives a reconnect window. |
-| A13 | Speaking detection uses LiveKit active-speaker events and agent signals; no client-side VAD. | `LiveKitVoiceTransport._onSpeakers` | Revisit if latency of server detection is too high. |
+| A11 | Voice follows the backend-owned contract `nexa.voice.v1` (handoff 1.0.0, backend commit `4cd5247`), vendored in `docs/contracts/voice-v1/`. The SDK-side proposal is superseded. | `GatewayVoiceProvisioner`, `VoiceEventVerifier`, `VoiceEventPipeline` | Re-vendor and rerun consumer tests on every new handoff version. |
+| A12 | After a disconnect the SDK always asks `GET` first, then refreshes the join token and rejoins (contract §8). | `NexaVoiceController._recover` | Confirm against the real agent's grace window. |
+| A13 | Speaking/transcript state comes only from signed agent events (no client VAD, no LiveKit audio-level mapping), so the two cannot disagree. `assistant_text` chunks are concatenated in `index` order without a separator. | `VoiceEventPipeline` | Backend to confirm chunk spacing. |
 
 ## Blockers (cannot be closed by the SDK team alone)
 
@@ -26,9 +26,9 @@ Updated 2026-10-23 (end of Phase 5.2). Resolve or re-confirm each item before th
 |---|---|---|---|
 | B1 | **No NEXA gateway exists.** The SDK is validated over real HTTP/SSE against the **local reference gateway only** (`tools/nexa_reference_gateway`). | No production or staging integration can be claimed. | Backend |
 | B2 | **No tenant/session-token contract.** GPU Manager has only service-to-service API keys; tenant registry, quotas, audit and session minting are undefined. The reference gateway's dev token endpoint is a placeholder. | Auth flow is validated against a placeholder issuer only. | Backend / Security |
-| B3 | **Backend voice contract unverified.** `/home/ubuntu/nexa-integration` (branch `integration/phase4-3-phase5-voice`, commit `1b8f848`) and its `docs/voice/security-review.md` were not reachable from the SDK environment. The LiveKit client is real; provisioning + event signing are validated against the reference gateway's mock agent only. Assistant audio is synthetic. | No claim of backend compatibility or real assistant speech. | Backend (share the repo / push it) |
-| B8 | **Security sign-off needed** for the per-session event-verification-key design (threat model in the voice contract doc §4). | Verification mode is a documented assumption, not an approved design. | Security |
-| B9 | **iOS audio path unverified on hardware.** The iOS simulator (Xcode 27) aborts in CoreAudio when the WebRTC audio unit starts, after a successful room join. Full voice journey verified on the Android emulator only; no physical-device, Bluetooth or earpiece routing test. | iOS voice must be run on a physical iPhone before any claim. | SDK + QA |
+| B3 | **Live backend not verified.** The SDK is aligned to handoff 1.0.0 and passes all 23 fixtures + verification vectors, but has never talked to the real gateway or agent; the `nexa.voice.resume` RPC has never been answered (reference gateway cannot serve RPCs). Handoff received as an extracted folder: per-file SHA-256s match `MANIFEST.json`, the archive-level SHA-256 `58802eaa…` could not be checked. | No backend end-to-end claim. | Backend (staging URL or reachable host) |
+| B8 | **Owner decisions D1–D8 (handoff `security-assessment.md`) unapproved**, notably D2 (Ed25519 as contract, HMAC removal date), D3 (end users need data-publish for the RPC), D4 (LiveKit hosting: transcripts and key seeds visible to LiveKit), D7 (voice without chat), D8 (billing start). | SDK follows backend defaults. | Product / Security / Legal |
+| B9 | **iOS audio path unverified on hardware.** iOS app builds (active-arch simulator build); the simulator's CoreAudio aborts when WebRTC starts; `flutter build ios --simulator` (universal arm64+x86_64) fails in Flutter's framework arch check under Xcode 27 (toolchain issue). Physical-iPhone validation pending. | No iOS audio claim. | SDK + QA |
 | B4 | **Prototype export missing.** Tokens, motion specs and component states are reconstructed from the written contract. | Visual fidelity unverified against QA 3.1. | Design |
 | B5 | **Accessibility validation incomplete.** Automated baseline (contrast, semantics labels, live-region announcements, tap targets) exists; screen-reader and dynamic-type passes on devices are not done. | A11y certification pending. | Design + QA |
 | B6 | No CI definition in this repository. `tool/check.sh` is the intended CI entry point; `tool/e2e.sh` needs a simulator. | Quality gates are manual. | Platform |

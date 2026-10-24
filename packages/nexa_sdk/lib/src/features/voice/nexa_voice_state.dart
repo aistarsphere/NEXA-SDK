@@ -33,8 +33,8 @@ final class NexaVoiceState {
   /// agent audio is actually being received and played by the engine.
   final bool agentAudioActive;
 
-  /// False when the gateway issued no event-verification key and agent
-  /// events are being accepted unsigned (development only).
+  /// Agent events are always signature-verified under contract v1; kept
+  /// for diagnostics and API stability.
   final bool eventsVerified;
 
   /// Count of agent packets dropped by the verifier (diagnostics).
@@ -43,8 +43,9 @@ final class NexaVoiceState {
   /// Last error to surface, if any.
   final NexaException? error;
 
-  /// Why the call ended, when it did (`user`, `quota_exceeded`, `expired`,
-  /// `server:<reason>`, `failed`).
+  /// Why the call ended, when it did: `user`, `quota_exceeded`, `expired`,
+  /// `microphone_denied`, `failed`, `agent_lost` / `agent_unavailable`, or
+  /// `server:<end_reason>` for other server-side ends (contract §7).
   final String? endReason;
 
   bool get isActive =>
@@ -65,6 +66,7 @@ final class NexaVoiceState {
     NexaException? error,
     bool clearError = false,
     String? endReason,
+    bool clearEndReason = false,
   }) => NexaVoiceState(
     phase: phase ?? this.phase,
     muted: muted ?? this.muted,
@@ -75,7 +77,7 @@ final class NexaVoiceState {
     eventsVerified: eventsVerified ?? this.eventsVerified,
     rejectedEvents: rejectedEvents ?? this.rejectedEvents,
     error: clearError ? null : (error ?? this.error),
-    endReason: endReason ?? this.endReason,
+    endReason: clearEndReason ? null : (endReason ?? this.endReason),
   );
 }
 
@@ -135,7 +137,7 @@ final class NexaVoiceOptions {
     this.startMuted = false,
     this.keepTranscript = true,
     this.maxTranscriptEntries = 50,
-    this.allowUnverifiedEvents = true,
+    this.allowLegacyHmac = false,
   });
 
   /// Join with the microphone muted.
@@ -146,8 +148,8 @@ final class NexaVoiceOptions {
 
   final int maxTranscriptEntries;
 
-  /// Accept unsigned agent events when the gateway issues no verification
-  /// key (development gateways). Set false to require signatures: a grant
-  /// without a key then fails the call with `ContractViolationException`.
-  final bool allowUnverifiedEvents;
+  /// Accept the backend's legacy `events.alg: "hmac-sha256"` mode. Off by
+  /// default: the contract default is Ed25519 and the operator must enable
+  /// legacy mode explicitly (security decision D2).
+  final bool allowLegacyHmac;
 }

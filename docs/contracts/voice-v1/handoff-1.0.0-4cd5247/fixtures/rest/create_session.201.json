@@ -1,0 +1,34 @@
+{
+  "status": 201,
+  "headers": {
+    "Cache-Control": "no-store"
+  },
+  "body": {
+    "voice_session_id": "vs_<id>",
+    "contract": "nexa.voice.v1",
+    "livekit": {
+      "url": "wss://<livekit-host>",
+      "room": "nexa-vs_<id>",
+      "identity": "nexa-user-vs_<id>",
+      "token": "<livekit-join-jwt>",
+      "token_expires_at": "<iso8601-utc>"
+    },
+    "events": {
+      "topic": "nexa.voice.events",
+      "resume_rpc": "nexa.voice.resume",
+      "format": "sealed",
+      "alg": "ed25519",
+      "public_key": "<ed25519-public-key:base64url,43 chars>"
+    },
+    "limits": {
+      "max_seconds": 60,
+      "reserved_seconds": 60
+    },
+    "reconnect": {
+      "grace_seconds": 30,
+      "token_refresh_path": "/v1/sdk/voice/sessions/vs_<id>/token",
+      "max_refreshes": 30
+    },
+    "join_deadline_seconds": 60
+  }
+}

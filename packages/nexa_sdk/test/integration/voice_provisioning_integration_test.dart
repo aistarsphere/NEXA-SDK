@@ -1,7 +1,7 @@
-// Voice provisioning over real HTTP against the reference gateway, plus
-// signing compatibility between the gateway's signer and the SDK verifier.
-// Joining the LiveKit room itself needs a platform WebRTC engine and is
-// covered by apps/nexa_example/integration_test on a simulator.
+// Voice REST over real HTTP against the REFERENCE gateway (a dev mirror of
+// contract nexa.voice.v1, not the NEXA backend). The LiveKit room is the
+// labelled mock transport here; the real room path runs on devices via
+// apps/nexa_example/integration_test. Needs `livekit-server --dev`.
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -29,6 +29,11 @@ Future<bool> liveKitUp() async {
   }
 }
 
+final class _Grant implements NexaPermissionHandler {
+  @override
+  Future<bool> request(NexaPermission permission) async => true;
+}
+
 void main() {
   late ReferenceGateway gw;
   late ReferenceAuthProvider auth;
@@ -50,7 +55,8 @@ void main() {
       ),
       voice: VoiceOptions(
         liveKitUrl: lk ? liveKitUrl : null,
-        voiceQuotaPerApplication: 1,
+        voiceSecondsPerApplication: 120,
+        maxSeconds: 60,
         scriptStep: const Duration(milliseconds: 50),
       ),
     );
@@ -66,124 +72,154 @@ void main() {
 
   Future<NexaVoiceController> voice() async {
     client = await Nexa.initialize(
-      config: testConfig(gateway: gw.uri).copyWith(
-        requestedCapabilities: const {
-          NexaCapability.textChat,
-          NexaCapability.liveVoice,
-        },
-      ),
+      config: testConfig(gateway: gw.uri, lang: 'ar'),
       auth: auth,
       overrides: NexaOverrides(
-        voiceTransport: transport, // real provisioning, mock room
+        voiceTransport: transport,
         permissionHandler: _Grant(),
       ),
     );
     return client!.voice;
   }
 
-  group('voice provisioning via the reference gateway', () {
-    test(
-      'real grant: room-scoped token, key, agent identity → listening',
-      () async {
-        if (!lk) markTestSkipped('livekit-server not running');
-        if (!lk) return;
-        final v = await voice();
-        await v.start();
-        await waitFor(() => v.state.value.phase == VoiceState.listening);
-        final grant = transport.grants.single;
-        expect(grant.liveKitUrl, liveKitUrl);
-        expect(grant.agentIdentity, 'nexa-agent');
-        expect(grant.eventVerificationKey, isNotNull);
-        expect(grant.participantToken.split('.').length, 3);
-        expect(v.state.value.eventsVerified, isTrue);
-        final gwSession = gw.voice.sessions.values.single;
-        expect(gwSession.participantIdentity, grant.participantIdentity);
-        // End: the gateway releases the voice session.
-        await v.end();
-        await waitFor(() => gwSession.ended);
-        expect(gwSession.endReason, 'user_ended');
-      },
-    );
+  Future<void> phase(NexaVoiceController v, VoiceState s) => waitFor(
+    () => v.state.value.phase == s,
+    reason:
+        'phase ${s.name} (now ${v.state.value.phase.name}, error ${v.state.value.error})',
+  );
 
-    test('voice quota 402 ends in quotaExceeded', () async {
-      if (!lk) markTestSkipped('livekit-server not running');
-      if (!lk) return;
+  test(
+    'create → v1 grant over HTTP (ws:// accepted in development) → DELETE on end',
+    () async {
+      if (!lk) return markTestSkipped('livekit-server not running');
       final v = await voice();
       await v.start();
-      await waitFor(() => v.state.value.phase == VoiceState.listening);
+      await phase(v, VoiceState.listening);
+      final g = transport.grants.single;
+      expect(g.contract, 'nexa.voice.v1');
+      expect(g.eventAlgorithm, VoiceEventAlgorithm.ed25519);
+      expect(g.eventKey.length, 32);
+      expect(g.participantIdentity, 'nexa-user-${g.voiceSessionId}');
+      final server = gw.voice.sessions[g.voiceSessionId]!;
+      expect(server.languageTag, 'ar');
       await v.end();
-      await waitFor(() => v.state.value.phase == VoiceState.ended);
-      await v.start(); // quota is 1 per application
-      await waitFor(() => v.state.value.phase == VoiceState.quotaExceeded);
-      expect(v.state.value.error, isA<QuotaExceededException>());
-    });
+      await phase(v, VoiceState.ended);
+      await waitFor(() => server.status == 'ended');
+      expect(server.endReason, 'user_ended');
+    },
+  );
 
-    test(
-      'without LiveKit the gateway refuses voice (capability not granted)',
-      () async {
-        if (lk) {
-          markTestSkipped('LiveKit is running; covered by the other cases');
-        }
-        if (lk) return;
-        final v = await voice();
-        await v.start();
-        await waitFor(() => v.state.value.phase == VoiceState.disconnected);
-        expect(v.state.value.error, isA<CapabilityNotGrantedException>());
-      },
-    );
-
-    test('expired chat credential is renewed before provisioning', () async {
-      if (!lk) markTestSkipped('livekit-server not running');
-      if (!lk) return;
+  test(
+    '503 voice_unavailable → disconnected; retry honours Retry-After (5 s)',
+    () async {
+      if (!lk) return markTestSkipped('livekit-server not running');
       final v = await voice();
-      await client!.startSession();
-      gw.store.tokens.clear(); // 401 on the next call → forced refresh
+      await client!.startSession(); // forces the first token mint
+      await (HttpClient()
+          .postUrl(gw.uri.resolve('/v1/dev/voice/fail-next-create'))
+          .then((r) => r.close()));
       await v.start();
-      await waitFor(() => v.state.value.phase == VoiceState.listening);
-      expect(auth.issued, 2);
-    });
-  });
-
-  group('signing compatibility (gateway signer ↔ SDK verifier)', () {
-    test('events signed by the reference gateway verify in the SDK', () {
-      final verifier = VoiceEventVerifier(voiceSessionId: 'vs_x', key: 'k1');
-      for (var seq = 1; seq <= 3; seq++) {
-        final e = VoiceService.signEvent(
-          voiceSessionId: 'vs_x',
-          key: 'k1',
-          sequence: seq,
-          type: 'assistant_transcript',
-          payload: {'text': 'مرحبا', 'is_final': seq == 3, 'n': seq},
-        );
-        final verdict = verifier.verify(e);
-        expect(verdict, isA<VoiceEventAccepted>(), reason: 'seq $seq');
-        expect((verdict as VoiceEventAccepted).verified, isTrue);
-      }
-      // Replay of seq 3 and a forged key are rejected.
-      final replay = VoiceService.signEvent(
-        voiceSessionId: 'vs_x',
-        key: 'k1',
-        sequence: 3,
-        type: 'assistant_transcript',
-        payload: const {},
-      );
-      expect(verifier.verify(replay), isA<VoiceEventRejected>());
-      final forged = VoiceService.signEvent(
-        voiceSessionId: 'vs_x',
-        key: 'wrong',
-        sequence: 4,
-        type: 'quota_exceeded',
-        payload: const {},
+      await phase(v, VoiceState.disconnected);
+      final error = v.state.value.error! as ServerException;
+      expect(error.serverCode, 'voice_unavailable');
+      expect(error.retryAfter, const Duration(seconds: 5));
+      expect(gw.voice.sessions, isEmpty);
+      final retryAt = DateTime.now();
+      await v.start();
+      await waitFor(
+        () => v.state.value.phase == VoiceState.listening,
+        timeout: const Duration(seconds: 15),
       );
       expect(
-        (verifier.verify(forged) as VoiceEventRejected).reason,
-        VoiceEventRejection.badSignature,
+        DateTime.now().difference(retryAt).inMilliseconds,
+        greaterThan(4500),
       );
-    });
-  });
-}
+    },
+    timeout: const Timeout(Duration(seconds: 40)),
+  );
 
-final class _Grant implements NexaPermissionHandler {
-  @override
-  Future<bool> request(NexaPermission permission) async => true;
+  test(
+    'server-side agent_lost: disconnect → GET → "voice unavailable"',
+    () async {
+      if (!lk) return markTestSkipped('livekit-server not running');
+      final v = await voice();
+      await v.start();
+      await phase(v, VoiceState.listening);
+      final id = transport.grants.single.voiceSessionId;
+      await gw.voice.end(
+        gw.voice.sessions[id]!,
+        'agent_lost',
+        agentState: 'unavailable',
+      );
+      transport
+          .simulateRoomDeleted(); // what LiveKit does when the room is deleted
+      await phase(v, VoiceState.disconnected);
+      expect(
+        (v.state.value.error! as ServerException).serverCode,
+        'agent_lost',
+      );
+      expect(v.state.value.endReason, 'agent_lost');
+    },
+  );
+
+  test(
+    'server-side revoke: disconnect → GET → ended(server:revoked), no refresh',
+    () async {
+      if (!lk) return markTestSkipped('livekit-server not running');
+      final v = await voice();
+      await v.start();
+      await phase(v, VoiceState.listening);
+      final server = gw.voice.sessions[transport.grants.single.voiceSessionId]!;
+      await gw.voice.end(server, 'revoked');
+      transport.simulateRoomDeleted();
+      await phase(v, VoiceState.ended);
+      expect(v.state.value.endReason, 'server:revoked');
+      expect(server.refreshes, 0);
+    },
+  );
+
+  test(
+    'network drop while active: GET → POST token → rejoin same identity',
+    () async {
+      if (!lk) return markTestSkipped('livekit-server not running');
+      final v = await voice();
+      await v.start();
+      await phase(v, VoiceState.listening);
+      final server = gw.voice.sessions[transport.grants.single.voiceSessionId]!;
+      server.status = 'active'; // the mock room never really joined LiveKit
+      transport.simulateRoomDeleted();
+      await waitFor(() => transport.grants.length == 2);
+      await phase(v, VoiceState.listening);
+      expect(server.refreshes, 1);
+      expect(
+        transport.grants.last.participantIdentity,
+        transport.grants.first.participantIdentity,
+      );
+    },
+  );
+
+  test('quota exhausted at creation (402)', () async {
+    if (!lk) return markTestSkipped('livekit-server not running');
+    gw.voice.setQuota('app_test', 0);
+    final v = await voice();
+    await v.start();
+    await phase(v, VoiceState.quotaExceeded);
+    expect(
+      (v.state.value.error! as QuotaExceededException).quotaKind,
+      'voice_seconds',
+    );
+  });
+
+  test(
+    'expired SDK token is renewed (401 → forced refresh) before create',
+    () async {
+      if (!lk) return markTestSkipped('livekit-server not running');
+      final v = await voice();
+      await client!.startSession();
+      gw.store.tokens.clear();
+      await v.start();
+      await phase(v, VoiceState.listening);
+      expect(auth.issued, 2);
+    },
+  );
 }

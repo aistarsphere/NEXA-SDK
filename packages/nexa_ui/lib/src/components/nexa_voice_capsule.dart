@@ -78,6 +78,12 @@ class NexaVoiceCapsule extends StatelessWidget {
                 AuthenticationException() => l10n.authError,
                 SessionExpiredException() => l10n.sessionExpired,
                 CapabilityNotGrantedException() => l10n.sessionError,
+                // 503 voice_unavailable at creation, or the agent was lost
+                // mid-call (contract v1 §7): "try again".
+                ServerException(
+                  serverCode: 'voice_unavailable' || 'agent_lost',
+                ) =>
+                  l10n.voiceUnavailable,
                 _ => l10n.sessionError,
               },
               actionLabel: state == VoiceState.microphoneDenied

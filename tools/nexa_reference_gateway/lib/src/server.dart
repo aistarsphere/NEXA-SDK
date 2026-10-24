@@ -68,8 +68,11 @@ final class ReferenceGateway {
   }
 
   /// Convenience for tests: mint a token without HTTP.
-  IssuedToken mintToken(String applicationId, {Duration? ttl}) =>
-      store.mintToken(applicationId, ttl: ttl);
+  IssuedToken mintToken(
+    String applicationId, {
+    Duration? ttl,
+    Set<String> scopes = const {'chat:session'},
+  }) => store.mintToken(applicationId, ttl: ttl, scopes: scopes);
 
   /// The shelf handler (also usable without a socket).
   Handler get handler {
@@ -91,10 +94,14 @@ final class ReferenceGateway {
         _permissionResult,
       )
       ..delete('/v1/sdk/sessions/<sessionId>', _endSession)
-      // Voice (PROPOSED surface, see docs/contracts/nexa-voice-provisioning.proposed.md)
-      ..post('/v1/sdk/sessions/<sessionId>/voice', _provisionVoice)
-      ..post('/v1/sdk/sessions/<sessionId>/voice/intents', _voiceIntent)
-      ..delete('/v1/sdk/sessions/<sessionId>/voice', _endVoice);
+      // Voice nexa.voice.v1 (backend handoff 1.0.0)
+      ..post('/v1/sdk/voice/sessions', _createVoice)
+      ..post('/v1/sdk/voice/sessions/<voiceId>/token', _refreshVoiceToken)
+      ..get('/v1/sdk/voice/sessions/<voiceId>', _getVoice)
+      ..delete('/v1/sdk/voice/sessions/<voiceId>', _deleteVoice)
+      // DEV ONLY: simulate server-side ends (agent loss, tenant revoke).
+      ..post('/v1/dev/voice/sessions/<voiceId>/end', _devEndVoice)
+      ..post('/v1/dev/voice/fail-next-create', _devFailNextCreate);
     return const Pipeline()
         .addMiddleware(_logging)
         .addMiddleware(_catchErrors)
@@ -135,15 +142,22 @@ final class ReferenceGateway {
     bool retryable = false,
     int? retryAfterSeconds,
     String? quotaKind,
-  }) => _json(status, {
-    'error': {
-      'code': code,
-      'message': message,
-      'retryable': retryable,
-      'retry_after_seconds': ?retryAfterSeconds,
-      'quota_kind': ?quotaKind,
+  }) => Response(
+    status,
+    body: jsonEncode({
+      'error': {
+        'code': code,
+        'message': message,
+        'retryable': retryable,
+        'retry_after_seconds': ?retryAfterSeconds,
+        'quota_kind': ?quotaKind,
+      },
+    }),
+    headers: {
+      'content-type': 'application/json',
+      if (retryAfterSeconds != null) 'retry-after': '$retryAfterSeconds',
     },
-  });
+  );
 
   Future<Map<String, Object?>> _body(Request req) async {
     final text = await req.readAsString();
@@ -236,15 +250,19 @@ final class ReferenceGateway {
       return _error(422, 'validation_failed', 'application_id is required.');
     }
     final ttl = body['ttl_seconds'];
+    final requested = body['scopes'];
     final token = store.mintToken(
       appId,
       ttl: ttl is int ? Duration(seconds: ttl) : null,
+      scopes: requested is List
+          ? {for (final s in requested) '$s'}
+          : const {'chat:session'},
     );
     return _json(201, {
       'token': token.token,
       'expires_at': token.expiresAt.toIso8601String(),
       'application_id': token.applicationId,
-      'scopes': ['chat:session'],
+      'scopes': token.scopes.toList(),
     });
   }
 
@@ -577,90 +595,136 @@ final class ReferenceGateway {
   Response _endSession(Request req, String sessionId) {
     final token = _authenticate(req);
     final session = _session(req, token, sessionId);
-    final v = voice.forChatSession(session.id);
-    if (v != null) unawaited(voice.end(v, 'chat_ended'));
     session.end('user_ended');
     return Response(204);
   }
 
   // ----------------------------------------------------------------- voice
 
-  /// PROPOSED: provisions a LiveKit room-scoped grant for the chat session.
-  Future<Response> _provisionVoice(Request req, String sessionId) async {
+  /// Voice calls need scope `voice:session` (not a default scope).
+  IssuedToken _authenticateVoice(Request req) {
     final token = _authenticate(req);
-    final session = _session(req, token, sessionId);
-    _requireActive(session);
-    if (!session.grantedCapabilities.contains('liveVoice')) {
-      return _error(
-        403,
-        'capability_not_granted',
-        'liveVoice was not granted for this session.',
-        quotaKind: 'liveVoice',
+    if (!token.scopes.contains('voice:session')) {
+      throw _ApiError(
+        _error(403, 'forbidden', 'Token lacks scope voice:session.'),
       );
+    }
+    return token;
+  }
+
+  VoiceSessionState _voiceSession(IssuedToken token, String id) {
+    final v = voice.sessions[id];
+    // Another tenant's/user's id answers exactly like an unknown one.
+    if (v == null || v.subject != token.token) {
+      throw _ApiError(
+        _error(404, 'voice_session_not_found', 'Voice session not found.'),
+      );
+    }
+    return v;
+  }
+
+  Future<Response> _createVoice(Request req) async {
+    final token = _authenticateVoice(req);
+    final body = await _body(req);
+    final lang = body['language_tag'];
+    if (lang is! String || !const {'en', 'ar'}.contains(lang)) {
+      return _error(422, 'validation_failed', 'language_tag must be en or ar.');
+    }
+    final chatId = body['chat_session_id'];
+    if (chatId != null) {
+      final chat = store.sessions[chatId];
+      if (chat == null || chat.applicationId != token.applicationId) {
+        return _error(404, 'session_not_found', 'Chat session not found.');
+      }
     }
     final lk = voice.livekit;
     if (lk == null) {
       return _error(
-        503,
-        'voice_unavailable',
-        'No LiveKit server configured for this gateway.',
-        retryable: true,
+        403,
+        'capability_not_granted',
+        'Voice is not enabled for this application.',
+        quotaKind: 'liveVoice',
       );
     }
-    if (!await lk.isReachable()) {
+    if (voice.failNextCreate || !await lk.isReachable()) {
+      voice.failNextCreate = false;
       return _error(
         503,
         'voice_unavailable',
-        'LiveKit server unreachable at ${lk.httpBase}.',
+        'No voice capacity is available right now. Try again shortly.',
         retryable: true,
+        retryAfterSeconds: 5,
       );
     }
-    if (voice.voiceQuotaRemaining(session.applicationId) <= 0) {
+    if (voice.secondsLeft(token.applicationId) <= 0) {
       return _error(
         402,
         'quota_exceeded',
-        'Voice quota exhausted for this application.',
-        quotaKind: 'voice_minutes',
+        'Voice quota exhausted.',
+        quotaKind: 'voice_seconds',
       );
     }
-    final existing = voice.forChatSession(session.id);
-    if (existing != null) {
+    if (voice.liveFor(token.token) != null) {
       return _error(
         409,
         'voice_session_active',
-        'A voice session is already active for this chat session.',
+        'A voice session is already active for this user.',
       );
     }
-    final body = await _body(req);
     final scenario = body['scenario'];
-    final grant = await voice.provision(
-      session,
-      text: scenario is String ? scenario : null,
+    final grant = await voice.create(
+      applicationId: token.applicationId,
+      subject: token.token,
+      languageTag: lang,
+      scenario: scenario is String ? scenario : '',
     );
     return _json(201, grant);
   }
 
-  Future<Response> _voiceIntent(Request req, String sessionId) async {
-    final token = _authenticate(req);
-    final session = _session(req, token, sessionId);
-    final v = voice.forChatSession(session.id);
-    if (v == null) {
-      return _error(404, 'voice_session_not_found', 'No active voice session.');
+  Future<Response> _refreshVoiceToken(Request req, String voiceId) async {
+    final token = _authenticateVoice(req);
+    final v = _voiceSession(token, voiceId);
+    if (v.status == 'ended') {
+      return _error(
+        410,
+        'voice_session_ended',
+        'Voice session ended (${v.endReason}).',
+      );
     }
-    final body = await _body(req);
-    final type = body['type'];
-    if (type is! String) {
-      return _error(422, 'validation_failed', 'type is required.');
+    if (v.refreshes >= voice.options.maxRefreshes) {
+      return _error(429, 'rate_limited', 'Too many token refreshes.');
     }
-    unawaited(voice.onIntent(v, type));
-    return Response(202);
+    return _json(200, voice.refresh(v));
   }
 
-  Future<Response> _endVoice(Request req, String sessionId) async {
-    final token = _authenticate(req);
-    final session = _session(req, token, sessionId);
-    final v = voice.forChatSession(session.id);
-    if (v != null) await voice.end(v, 'user_ended');
+  Response _getVoice(Request req, String voiceId) {
+    final token = _authenticateVoice(req);
+    return _json(200, _voiceSession(token, voiceId).statusJson());
+  }
+
+  Future<Response> _deleteVoice(Request req, String voiceId) async {
+    final token = _authenticateVoice(req);
+    final v = _voiceSession(token, voiceId);
+    await voice.end(v, 'user_ended');
+    return _json(200, v.statusJson());
+  }
+
+  /// DEV ONLY: `{"reason": "agent_lost" | "revoked" | ...}`.
+  Future<Response> _devEndVoice(Request req, String voiceId) async {
+    final v = voice.sessions[voiceId];
+    if (v == null) return _error(404, 'voice_session_not_found', 'unknown');
+    final body = await _body(req);
+    final reason = (body['reason'] as String?) ?? 'revoked';
+    await voice.end(
+      v,
+      reason,
+      agentState: reason == 'agent_lost' ? 'unavailable' : 'ended',
+    );
+    return _json(200, v.statusJson());
+  }
+
+  Response _devFailNextCreate(Request req) {
+    voice.failNextCreate = true;
     return Response(204);
   }
 }

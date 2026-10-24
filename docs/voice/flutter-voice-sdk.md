@@ -1,122 +1,124 @@
-# NEXA Flutter SDK — Live Voice (Phase 5.2)
+# NEXA Flutter SDK — Live Voice (contract `nexa.voice.v1`)
 
-## Status
+Updated 2026-10-24 (Phase 5.3B). Backend contract: handoff 1.0.0, vendored in
+`docs/contracts/voice-v1/handoff-1.0.0-4cd5247/` (start with `voice-contract-v1.md`).
+Field-by-field comparison and migration: `docs/voice/backend-compatibility-v1.md`.
 
-| Layer | Status |
+## Status (keep these categories separate)
+
+| Category | Status |
 |---|---|
-| LiveKit room join, microphone publish, remote audio playback | implemented (`nexa_realtime`); full journey verified on the Android emulator against a local `livekit-server`; the iOS simulator joins the room and then aborts in CoreAudio (simulator limitation) — iOS audio needs a physical device |
-| Voice controller + state machine mapping | implemented, unit-tested with labelled mocks |
-| Live Voice Capsule UI (Mocha, en/ar, RTL, reduced motion, a11y) | implemented, widget-tested |
-| Gateway provisioning + signed agent events | **proposed**; validated against the reference gateway's mock agent only |
-| Backend (`nexa-integration`) compatibility | **not verified** — repository unreachable from the SDK environment |
-| Assistant speech | **synthetic** (mock agent publishes a tone); no model inference |
+| Aligned with the backend handoff (REST, grant, Ed25519 sealed events, seq rules, lifecycle, errors) | **fixture-verified**: all 23 sanitized fixtures + the published verification vectors pass in consumer tests |
+| Real LiveKit room, mic publish, agent audio track, mute/unmute, end | verified on the **Android emulator** against local `livekit-server` + the reference gateway's v1 mirror (mock agent, synthetic tone) |
+| `nexa.voice.resume` RPC handshake | implemented to spec; **never answered here** (reference gateway cannot serve RPCs) |
+| Live NEXA backend end-to-end | **not run** (backend not reachable from this machine) |
+| iOS audio path | iOS app builds; simulator CoreAudio aborts when WebRTC starts; **physical iPhone pending** |
+| Assistant speech / AI inference | **none** (mock agent; no model) |
 
 ## Public API
 
 ```dart
 final nexa = await Nexa.initialize(
   config: NexaConfig(..., requestedCapabilities: {NexaCapability.textChat, NexaCapability.liveVoice}),
-  auth: MyBackendAuthProvider(),
+  auth: MyBackendAuthProvider(),   // token minted WITH scope `voice:session`
   overrides: NexaOverrides(permissionHandler: MyPermissionHandler()), // must grant microphone
-  voiceOptions: const NexaVoiceOptions(startMuted: false, allowUnverifiedEvents: false),
+  voiceOptions: const NexaVoiceOptions(startMuted: false),
 );
 
 final voice = nexa.voice;                 // NexaVoiceController
-await voice.start();                      // permission → gateway grant → LiveKit room
+await voice.start();                      // permission → POST /v1/sdk/voice/sessions → room → handshake
 voice.state;                              // ValueListenable<NexaVoiceState>
 voice.events;                             // Stream<NexaVoiceEvent>
-await voice.setMuted(muted: true);        // or toggleMute()
-await voice.interrupt();                  // explicit barge-in
-await voice.end();
+await voice.setMuted(muted: true);        // or toggleMute(); local only
+await voice.end();                        // DELETE, then leave the room
 nexa.voiceView(onOpenSettings: ..., autoStart: false); // Live Voice Capsule widget
 ```
 
-`NexaVoiceState`: `phase` (`VoiceState`), `muted`, `transcript`,
-`agentIdentity`, `agentPresent`, `agentAudioActive` (remote audio track
-subscribed), `eventsVerified`, `rejectedEvents`, `error`, `endReason`.
+Changes from the Phase 5.2 branch API (never merged to `main`):
+* `NexaVoiceController.interrupt()` removed — contract v1 has no interrupt command; the agent
+  detects barge-in from the microphone and confirms with `interrupted`.
+* `NexaVoiceOptions.allowUnverifiedEvents` removed — events are always verified; added
+  `allowLegacyHmac` (off) for the backend's operator-enabled legacy mode.
+* Voice no longer requires or starts a chat session; `chat_session_id` is sent only when one is
+  active.
 
-`NexaVoiceEvent`: phase changed, transcript updated, agent presence, mute
-changed, error, event rejected, ended.
+`NexaVoiceState.endReason`: `user`, `quota_exceeded`, `expired`, `microphone_denied`, `failed`,
+`agent_lost` / `agent_unavailable`, or `server:<end_reason>` (e.g. `server:revoked`).
+`NexaVoiceState.error` for "voice unavailable" is a `ServerException` with `serverCode`
+`voice_unavailable` (503 at creation, `retryAfter` set) or `agent_lost`; the capsule shows a
+"try again" message for both.
 
-Hosts own navigation: the SDK never pushes a route for voice.
+## Host requirements
 
-## Required permissions and platform setup
+* The SDK token must carry scope **`voice:session`** (not a default scope); the host backend
+  requests it when minting. Without it the gateway answers `403 forbidden`.
+* iOS: `NSMicrophoneUsageDescription`; `UIBackgroundModes: audio` if calls must survive
+  backgrounding; deployment target ≥ 15.
+* Android: `RECORD_AUDIO`, `MODIFY_AUDIO_SETTINGS`, `INTERNET`, `BLUETOOTH_CONNECT`.
+* The SDK never calls OS permission APIs; implement `NexaPermissionHandler`.
+* Production LiveKit URLs must be `wss://`; `ws://` is accepted only with
+  `NexaEnvironment.development`.
 
-* iOS: `NSMicrophoneUsageDescription` in `Info.plist`; `UIBackgroundModes:
-  audio` if calls must survive backgrounding; deployment target ≥ 15.
-* Android: `RECORD_AUDIO`, `MODIFY_AUDIO_SETTINGS`, `INTERNET`,
-  `BLUETOOTH_CONNECT`; minSdk as required by `flutter_webrtc` (24 with
-  Flutter 3.44 defaults).
-* The SDK never calls OS permission APIs; implement `NexaPermissionHandler`
-  (the example uses `permission_handler`). Denied → `microphoneDenied` state
-  with an "Open settings" action (`voiceView(onOpenSettings:)`).
-* Audio session: `LiveKitAudioSetup` (echo cancellation, noise suppression,
-  speaker output). Platform specifics live only in `nexa_realtime`.
+## Session lifecycle (contract §3, §7, §8)
 
-Supported platforms: iOS and Android (via `livekit_client` 2.13 /
-`flutter_webrtc`). Web/desktop not validated.
+1. `start()` → `connecting`; host permission handler asked for the microphone.
+2. `POST /v1/sdk/voice/sessions {language_tag}` returns **after the agent joined**.
+   `503 voice_unavailable` → nothing was created; the next `start()` waits out `Retry-After`.
+3. Join the LiveKit room with `livekit.url` / `livekit.token` / fixed `livekit.identity`;
+   publish the microphone only; the agent's audio arrives as a remote track.
+4. Handshake: RPC `nexa.voice.resume {last_seq}` every ~0.3 s for ~25 s; it also completes on a
+   verified `agent_ready` / `session_state`. Then `listening`.
+5. Events on `nexa.voice.events` are verified (Ed25519 over `"nexa.voice.v1\0" + e`), applied in
+   gapless `seq` order; gaps are repaired with `resume`.
+6. Disconnect → `GET` the session: `ended` → stop (map `end_reason`); `active` →
+   `POST …/token` → rejoin with the same identity → `resume(last_seq)`.
+7. Every exit path sends `DELETE` (idempotent) **before** leaving the room.
 
-## Session lifecycle
+## Voice state mapping (v1 events → `VoiceSessionMachine`)
 
-1. `start()` → `connecting`; host permission handler is asked for the microphone.
-2. Chat session is started if needed (`SessionManager.start`), `liveVoice` must be granted.
-3. `VoiceProvisioner.provision` → `VoiceGrant` (room-scoped LiveKit token, per-session event key, expiry, max duration).
-4. `LiveKitVoiceTransport.connect(grant)` → room joined → `listening`; microphone published (or muted when `startMuted`).
-5. Agent joins (`agentPresent`), its audio track subscribes (`agentAudioActive`), signed events drive `thinking / aiSpeaking / bargeIn / modelBusy / …`.
-6. Interruptions: the LiveKit engine reconnects on its own → `reconnecting` → `listening`; final loss → `disconnected` with a retryable error and a Retry action.
-7. `end()`, grant expiry, `max_duration`, quota (`quotaExceeded`) or `session_ending` → room left, `DELETE …/voice` sent, `ended`.
-8. `NexaClient.dispose()` ends any active call.
+| Source | Machine event |
+|---|---|
+| handshake complete (resume answer / `agent_ready` / first `session_state`) | `VoiceConnected` |
+| `RoomReconnectingEvent` (engine) | `VoiceDisconnected(willReconnect: true)` |
+| room disconnected (server end or network) | `VoiceDisconnected(willReconnect: true)` then `GET` decides |
+| `session_state{state}` | reconciled: `ai_speaking`→AudioStarted, `thinking`→Thinking, `user_speaking`→SpeechStarted, `listening`→TurnEnded/ModelAvailable when applicable |
+| `user_speech_started` / `user_speech_ended` | `VoiceUserSpeechStarted/Ended` |
+| `transcript{is_final:true}` | `VoiceTranscriptFinal` (+ transcript line; interim shown italic) |
+| `assistant_thinking` | `VoiceAssistantThinking` |
+| `assistant_audio_started` | `VoiceAssistantAudioStarted` |
+| `assistant_text{index,final}` | caption line only (folded per turn) |
+| `assistant_turn_ended` (not `interrupted`) | `VoiceAssistantTurnEnded` |
+| `interrupted` | `VoiceInterruptAcknowledged` |
+| `model_busy` / `model_available` | `VoiceModelBusy` / `VoiceModelAvailable` |
+| `quota_exceeded` | `VoiceQuotaExceeded` (then DELETE) |
+| `session_ended{reason}` | quota → `VoiceQuotaExceeded`; other → `VoiceEndRequested` |
+| `network_quality{weak}` | `VoiceNetworkQualityChanged` |
+| `error{retryable:false}` | `VoiceFailed` |
+| `GET` `end_reason: agent_lost` / `agent_state: unavailable` | `VoiceFailed` → `disconnected` + "voice unavailable" |
+| `GET` `end_reason: quota_exceeded` | `VoiceQuotaExceeded` |
+| `GET` other `end_reason` | `VoiceEndRequested` → `ended` |
 
-## Voice state mapping (LiveKit / agent → `VoiceSessionMachine`)
-
-| Source | `RealtimeVoiceEvent` | `VoiceEvent` |
-|---|---|---|
-| `Room.connect` resolved / `RoomReconnectedEvent` | `RealtimeConnected` | `VoiceConnected` |
-| `RoomReconnectingEvent` | `RealtimeReconnecting` | `VoiceDisconnected(willReconnect: true)` |
-| `RoomDisconnectedEvent` | `RealtimeDisconnected(false)` | `VoiceDisconnected(false)` |
-| `ActiveSpeakersChangedEvent` (local) | user speech started/ended | `VoiceUserSpeechStarted/Ended` |
-| `ActiveSpeakersChangedEvent` (agent) or signed `assistant_speaking_*` | assistant speaking started/ended | `VoiceAssistantAudioStarted` / `VoiceAssistantTurnEnded` |
-| `TranscriptionEvent` or signed `transcript` | `RealtimeTranscript` | `VoiceTranscriptFinal` when final |
-| signed `assistant_thinking` | `RealtimeAssistantThinking` | `VoiceAssistantThinking` |
-| signed `interrupted` | `RealtimeInterrupted` | `VoiceInterruptAcknowledged` |
-| signed `model_busy` / `model_available` | … | `VoiceModelBusy` / `VoiceModelAvailable` |
-| signed `quota_exceeded` | `RealtimeQuotaExceeded` | `VoiceQuotaExceeded` |
-| signed `session_ending` | `RealtimeSessionEnding` | `VoiceEndRequested` |
-| `ParticipantConnectionQualityUpdatedEvent` (local, poor/lost) | `RealtimeNetworkQuality` | `VoiceNetworkQualityChanged` |
-| `TrackSubscribed/Unsubscribed` (agent audio) | `RealtimeAgentAudioTrack` | state flag only |
-
-The machine is total and pure, so impossible combinations (e.g. `muted` and
-`aiSpeaking` at once) cannot be displayed: there is exactly one phase.
+The machine is pure and total; snapshots and late events can only produce transitions it allows,
+so the UI cannot show contradictory states.
 
 ## Event verification
 
-See `docs/contracts/nexa-voice-provisioning.proposed.md` §3–§4. Every agent
-packet is verified (signature, session, sequence, skew) before it can affect
-state; rejections are counted in `rejectedEvents` and surfaced as
-`NexaVoiceEventRejected`. Unverified mode is visible in the UI.
+`VoiceEventVerifier` (nexa_core) implements `event-verification.md` steps 1–6 exactly and
+`VoiceReplayGuard` step 7. Verified against `fixtures/verification/test_vectors.json`: both valid
+envelopes decode to the published events; `tampered_body`, `algorithm_substitution`,
+`signed_by_another_key` and `not_json` are rejected; the replay results match. Rejected packets
+are counted (`rejectedEvents`) and surfaced as `NexaVoiceEventRejected`; they never change state.
+Security limitations: `docs/voice/backend-compatibility-v1.md` §4 and the handoff's
+`security-assessment.md` (R-1…R-11, decisions D1…D8, none approved).
 
-## Host integration example
-
-`apps/nexa_example/lib/pages/voice_page.dart` embeds `voiceView()` under a
-host app bar, logs typed events, shows the mode banner (mock vs reference
-gateway + local LiveKit), and wires `permission_handler`.
-
-Local run: `make gateway` is not enough for voice; use
-`tool/e2e.sh <device>` which also starts `livekit-server --dev` and the mock
-agent, or start them manually:
+## Local run
 
 ```bash
 livekit-server --dev --bind 127.0.0.1
 dart run tools/nexa_reference_gateway/bin/nexa_reference_gateway.dart \
   --livekit-url ws://127.0.0.1:7880 --agent-audio tools/nexa_reference_gateway/assets/agent_tone.ogg
+tool/e2e.sh emulator-5554 integration_test/voice_journey_test.dart   # starts both itself
 ```
 
-## Known backend dependencies (blockers)
-
-* The real provisioning endpoint, grant fields and signing scheme of
-  `nexa-integration` must be mapped in `GatewayVoiceProvisioner` /
-  `SignedVoiceEvent`.
-* The backend's agent lifecycle events, quota semantics and reconnection
-  behaviour must be confirmed against the state mapping above.
-* Security review of the per-session key design (threat model in the
-  contract document) requires human approval.
+The reference gateway is a dev mirror of `nexa.voice.v1` (no RPC, scripted events, synthetic tone);
+it is not the NEXA backend.

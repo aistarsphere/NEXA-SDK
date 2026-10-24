@@ -1,0 +1,10 @@
+{
+  "status": 400,
+  "body": {
+    "error": {
+      "code": "missing_sdk_version",
+      "message": "X-Nexa-Sdk-Version is required.",
+      "retryable": false
+    }
+  }
+}

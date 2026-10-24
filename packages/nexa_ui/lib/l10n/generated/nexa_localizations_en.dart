@@ -287,4 +287,8 @@ class NexaLocalizationsEn extends NexaLocalizations {
 
   @override
   String get semanticsEndCallButton => 'End voice call';
+
+  @override
+  String get voiceUnavailable =>
+      'Voice isn\'t available right now. Try again in a moment.';
 }

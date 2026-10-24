@@ -39,6 +39,8 @@ final class ReferenceAuthProvider implements NexaAuthProvider {
         jsonEncode({
           'application_id': applicationId,
           'ttl_seconds': ttlSeconds,
+          // voice:session is opt-in (contract v1 §2); hosts request it.
+          'scopes': ['chat:session', 'voice:session'],
         }),
       );
       final res = await req.close();
@@ -51,7 +53,7 @@ final class ReferenceAuthProvider implements NexaAuthProvider {
       return SessionCredential(
         token: body['token']! as String,
         expiresAt: DateTime.parse(body['expires_at']! as String),
-        scopes: const {'chat:session'},
+        scopes: const {'chat:session', 'voice:session'},
       );
     } finally {
       client.close();

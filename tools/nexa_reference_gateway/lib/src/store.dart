@@ -31,11 +31,15 @@ final class IssuedToken {
     required this.token,
     required this.applicationId,
     required this.expiresAt,
+    this.scopes = const {'chat:session'},
   });
 
   final String token;
   final String applicationId;
   final DateTime expiresAt;
+
+  /// `voice:session` is NOT a default scope (contract v1 §2).
+  final Set<String> scopes;
 
   bool get isExpired => !DateTime.now().toUtc().isBefore(expiresAt);
 }
@@ -195,11 +199,16 @@ final class GatewayStore {
     () => ApplicationState(id, options.quotaPerApplication),
   );
 
-  IssuedToken mintToken(String applicationId, {Duration? ttl}) {
+  IssuedToken mintToken(
+    String applicationId, {
+    Duration? ttl,
+    Set<String> scopes = const {'chat:session'},
+  }) {
     final token = IssuedToken(
       token: 'nrg_${_randomSuffix()}${_randomSuffix()}',
       applicationId: applicationId,
       expiresAt: DateTime.now().toUtc().add(ttl ?? options.tokenTtl),
+      scopes: scopes,
     );
     tokens[token.token] = token;
     application(applicationId);

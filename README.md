@@ -1,4 +1,4 @@
-# NEXA Flutter SDK (Phase 5.2 — chat + LiveKit live voice)
+# NEXA Flutter SDK (Phase 5.3B — chat + LiveKit voice, contract nexa.voice.v1)
 
 Embeddable chat SDK for third-party Flutter apps. Monorepo (pub workspace):
 
@@ -46,7 +46,8 @@ await nexa.openChat(context);              // or: nexa.chatView() inside your ow
 * **Validated against:** the local reference gateway only (`tools/`), over
   real sockets, in `packages/nexa_sdk/test/integration` and
   `apps/nexa_example/integration_test`.
-* **Proposed, unconfirmed by backend:** `docs/contracts/nexa-gateway-api.proposed.yaml` (0.2.0) and `docs/contracts/nexa-voice-provisioning.proposed.md` (the `nexa-integration` backend was unreachable during Phase 5.2).
+* **Voice contract:** backend-owned `nexa.voice.v1` (handoff 1.0.0 in `docs/contracts/voice-v1/`), fixture-verified; see `docs/voice/backend-compatibility-v1.md`.
+* **Proposed, unconfirmed by backend:** `docs/contracts/nexa-gateway-api.proposed.yaml` (chat, 0.2.0).
 * **Missing:** a real NEXA gateway / staging environment, tenant session-token
   minting, GPU-backed inference, a real voice agent (the mock agent plays a
   synthetic tone), CI.

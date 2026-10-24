@@ -1,0 +1,14 @@
+{
+  "status": 503,
+  "headers": {
+    "Retry-After": "5"
+  },
+  "body": {
+    "error": {
+      "code": "voice_unavailable",
+      "message": "No voice capacity is available right now. Try again shortly.",
+      "retryable": true,
+      "retry_after_seconds": 5
+    }
+  }
+}

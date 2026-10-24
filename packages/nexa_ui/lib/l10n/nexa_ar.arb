@@ -84,5 +84,6 @@
   "semanticsVoiceOrb": "حالة الصوت: {state}",
   "semanticsMuteButton": "كتم الميكروفون",
   "semanticsUnmuteButton": "إلغاء كتم الميكروفون",
-  "semanticsEndCallButton": "إنهاء المكالمة الصوتية"
+  "semanticsEndCallButton": "إنهاء المكالمة الصوتية",
+  "voiceUnavailable": "الصوت مو متوفر هسه. جرّب بعد شوية."
 }

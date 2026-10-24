@@ -58,6 +58,7 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i829.NexaConfig>(),
         gh<_i829.NexaLogger>(),
         gh<_i361.Dio>(),
+        gh<_i131.NexaVoiceOptions>(),
       ),
     );
     gh.lazySingleton<_i829.RealtimeVoiceTransport>(
@@ -101,6 +102,7 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i668.NexaPermissionHandler>(),
         gh<_i829.NexaLogger>(),
         gh<_i131.NexaVoiceOptions>(),
+        gh<_i829.NexaConfig>(),
       ),
     );
     return this;

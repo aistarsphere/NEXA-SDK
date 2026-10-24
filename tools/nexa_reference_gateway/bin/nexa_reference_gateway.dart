@@ -11,6 +11,7 @@ Future<void> main(List<String> args) async {
     ..addOption('token-ttl', defaultsTo: '900', help: 'seconds')
     ..addOption('session-ttl', defaultsTo: '3600', help: 'seconds')
     ..addOption('quota', defaultsTo: '50', help: 'messages per application')
+    ..addOption('voice-max-seconds', defaultsTo: '600')
     ..addOption('delta-ms', defaultsTo: '40')
     ..addOption(
       'livekit-url',
@@ -53,6 +54,7 @@ Future<void> main(List<String> args) async {
       liveKitApiKey: r['livekit-key'] as String,
       liveKitApiSecret: r['livekit-secret'] as String,
       agentAudioFile: r['agent-audio'] as String?,
+      maxSeconds: int.parse(r['voice-max-seconds'] as String),
     ),
   );
   if (r['livekit-url'] != null) {

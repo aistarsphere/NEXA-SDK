@@ -1,3 +1,8 @@
+> **SUPERSEDED (2026-10-24).** This SDK-side proposal is replaced by the backend-owned contract
+> `nexa.voice.v1`, handoff 1.0.0, vendored in `docs/contracts/voice-v1/handoff-1.0.0-4cd5247/`
+> (start with `voice-contract-v1.md`). Differences and the migration are in
+> `docs/voice/backend-compatibility-v1.md`. Kept for history only; do not code against it.
+
 # NEXA Voice Provisioning & Signed Agent Events — PROPOSED (SDK side)
 
 **Status: PROPOSED by the SDK team; implemented by the reference gateway

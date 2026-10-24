@@ -94,5 +94,6 @@
   "@semanticsVoiceOrb": {"placeholders": {"state": {"type": "String"}}},
   "semanticsMuteButton": "Mute microphone",
   "semanticsUnmuteButton": "Unmute microphone",
-  "semanticsEndCallButton": "End voice call"
+  "semanticsEndCallButton": "End voice call",
+  "voiceUnavailable": "Voice isn't available right now. Try again in a moment."
 }

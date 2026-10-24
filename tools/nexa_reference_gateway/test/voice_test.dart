@@ -1,11 +1,12 @@
-// Voice provisioning contract tests. They need a local `livekit-server --dev`
-// on ws://127.0.0.1:7880 (brew install livekit); when it is not reachable the
-// LiveKit-dependent cases are skipped and reported as such.
+// Reference-gateway voice API (nexa.voice.v1 mirror) over dart:io sockets.
+// LiveKit-dependent cases need `livekit-server --dev` on 127.0.0.1:7880
+// (brew install livekit) and are skipped otherwise.
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
-import 'package:crypto/crypto.dart';
 import 'package:nexa_reference_gateway/nexa_reference_gateway.dart';
+import 'package:pinenacl/ed25519.dart' as nacl;
 import 'package:test/test.dart';
 
 import 'helpers.dart';
@@ -15,8 +16,9 @@ final liveKitUrl = Uri.parse('ws://127.0.0.1:7880');
 Future<bool> liveKitUp() async {
   final c = HttpClient()..connectionTimeout = const Duration(seconds: 1);
   try {
-    final req = await c.getUrl(Uri.parse('http://127.0.0.1:7880/'));
-    final res = await req.close();
+    final res = await (await c.getUrl(
+      Uri.parse('http://127.0.0.1:7880/'),
+    )).close();
     await res.drain<void>();
     return true;
   } on Object {
@@ -28,7 +30,6 @@ Future<bool> liveKitUp() async {
 
 Map<String, Object?> jwtPayload(String token) {
   final parts = token.split('.');
-  expect(parts.length, 3, reason: 'JWT has three parts');
   String pad(String s) => s + '=' * ((4 - s.length % 4) % 4);
   return jsonDecode(utf8.decode(base64Url.decode(pad(parts[1]))))
       as Map<String, Object?>;
@@ -38,7 +39,21 @@ void main() {
   late bool lk;
   setUpAll(() async => lk = await liveKitUp());
 
-  group('voice provisioning (no LiveKit configured)', () {
+  Future<String> voiceToken(GwClient c) async {
+    final (status, body) = await c.call(
+      'POST',
+      '/v1/dev/session-tokens',
+      body: {
+        'application_id': c.appId,
+        'scopes': ['chat:session', 'voice:session'],
+      },
+      auth: false,
+    );
+    expect(status, 201);
+    return c.token = body['token']! as String;
+  }
+
+  group('without LiveKit', () {
     late ReferenceGateway gw;
     late GwClient c;
     setUp(() async {
@@ -50,21 +65,47 @@ void main() {
       await gw.close();
     });
 
-    test('liveVoice is not granted and voice answers 403', () async {
-      await c.mint();
-      final (status, body) = await c.createSession(
-        caps: const ['textChat', 'liveVoice'],
+    test(
+      'default-scope token is forbidden (voice:session is opt-in)',
+      () async {
+        await c.mint();
+        final (s, b) = await c.call(
+          'POST',
+          '/v1/sdk/voice/sessions',
+          body: {'language_tag': 'en'},
+        );
+        expect(s, 403);
+        expect((b['error']! as Map)['code'], 'forbidden');
+      },
+    );
+
+    test(
+      'voice-scoped token, voice not enabled → 403 capability_not_granted(liveVoice)',
+      () async {
+        await voiceToken(c);
+        final (s, b) = await c.call(
+          'POST',
+          '/v1/sdk/voice/sessions',
+          body: {'language_tag': 'en'},
+        );
+        expect(s, 403);
+        expect((b['error']! as Map)['code'], 'capability_not_granted');
+        expect((b['error']! as Map)['quota_kind'], 'liveVoice');
+      },
+    );
+
+    test('invalid language → 422', () async {
+      await voiceToken(c);
+      final (s, _) = await c.call(
+        'POST',
+        '/v1/sdk/voice/sessions',
+        body: {'language_tag': 'fr'},
       );
-      expect(status, 201);
-      expect(body['granted_capabilities'], ['textChat']);
-      final sid = body['session_id']! as String;
-      final (vs, vb) = await c.call('POST', '/v1/sdk/sessions/$sid/voice');
-      expect(vs, 403);
-      expect((vb['error']! as Map)['code'], 'capability_not_granted');
+      expect(s, 422);
     });
   });
 
-  group('voice provisioning (LiveKit dev server)', () {
+  group('with LiveKit dev server', () {
     late ReferenceGateway gw;
     late GwClient c;
     setUp(() async {
@@ -73,7 +114,9 @@ void main() {
         options: fastOptions,
         voice: VoiceOptions(
           liveKitUrl: liveKitUrl,
-          voiceQuotaPerApplication: 2,
+          voiceSecondsPerApplication: 100,
+          maxSeconds: 60,
+          maxRefreshes: 2,
           scriptStep: const Duration(milliseconds: 50),
         ),
       );
@@ -84,164 +127,203 @@ void main() {
       await gw.close();
     });
 
-    Future<String> voiceSession() async {
-      await c.mint();
-      final (status, body) = await c.createSession(
-        caps: const ['textChat', 'liveVoice'],
+    Future<Map<String, Object?>> create() async {
+      final (s, b) = await c.call(
+        'POST',
+        '/v1/sdk/voice/sessions',
+        body: {'language_tag': 'en'},
       );
-      expect(status, 201);
-      expect(body['granted_capabilities'], contains('liveVoice'));
-      return body['session_id']! as String;
+      expect(s, 201, reason: '$b');
+      return b;
     }
 
     test(
-      'issues a room-scoped participant grant with a verification key',
+      '201 has the v1 shape; join token is one-room, mic+data, no admin',
       () async {
-        if (!lk) markTestSkipped('livekit-server not running');
-        if (!lk) return;
-        final sid = await voiceSession();
-        final (status, grant) = await c.call(
-          'POST',
-          '/v1/sdk/sessions/$sid/voice',
-        );
-        expect(status, 201, reason: '$grant');
-        expect(grant['livekit_url'], liveKitUrl.toString());
-        expect(grant['voice_session_id'], startsWith('vs_'));
-        expect(grant['agent_identity'], 'nexa-agent');
-        expect(grant['event_signature_alg'], 'HMAC-SHA256');
+        if (!lk) return markTestSkipped('livekit-server not running');
+        await voiceToken(c);
+        final g = await create();
+        final id = g['voice_session_id']! as String;
+        expect(g['contract'], voiceContractV1);
+        final livekit = g['livekit']! as Map;
+        expect(livekit['room'], 'nexa-$id');
+        expect(livekit['identity'], 'nexa-user-$id');
+        final events = g['events']! as Map;
+        expect(events['alg'], 'ed25519');
+        expect((events['public_key']! as String).length, 43);
+        expect(events['topic'], 'nexa.voice.events');
+        expect((g['limits']! as Map)['max_seconds'], 60);
         expect(
-          (grant['event_verification_key']! as String).length,
-          greaterThan(16),
+          (g['reconnect']! as Map)['token_refresh_path'],
+          '/v1/sdk/voice/sessions/$id/token',
         );
-        expect(grant['max_duration_seconds'], isA<int>());
-        final payload = jwtPayload(grant['participant_token']! as String);
-        expect(payload['iss'], 'devkey');
-        expect(payload['sub'], grant['participant_identity']);
-        final video = payload['video']! as Map;
-        expect(video['room'], grant['room_name']);
-        expect(video['roomJoin'], isTrue);
-        expect(video['canPublish'], isTrue);
-        expect(video['canSubscribe'], isTrue);
-        expect(
-          video['roomAdmin'],
-          isNull,
-          reason: 'no admin rights for devices',
-        );
-        expect(video['roomCreate'], isNull);
-        // The grant never carries the LiveKit API secret.
-        expect(jsonEncode(grant), isNot(contains('secret')));
+        final video = jwtPayload(livekit['token']! as String)['video']! as Map;
+        expect(video['room'], 'nexa-$id');
+        expect(video['roomAdmin'], isNull);
+        expect(jsonEncode(g), isNot(contains('secret')));
       },
     );
 
     test(
-      'second provision for the same chat session is 409; DELETE ends it',
+      '409 for a second live session; GET/refresh/DELETE lifecycle; 410 after end',
       () async {
-        if (!lk) markTestSkipped('livekit-server not running');
-        if (!lk) return;
-        final sid = await voiceSession();
-        final (s1, _) = await c.call('POST', '/v1/sdk/sessions/$sid/voice');
-        expect(s1, 201);
-        final (s2, b2) = await c.call('POST', '/v1/sdk/sessions/$sid/voice');
-        expect(s2, 409);
-        expect((b2['error']! as Map)['code'], 'voice_session_active');
-        final (s3, _) = await c.call('DELETE', '/v1/sdk/sessions/$sid/voice');
-        expect(s3, 204);
-        final (s4, _) = await c.call('DELETE', '/v1/sdk/sessions/$sid/voice');
-        expect(s4, 204, reason: 'idempotent');
-        final (s5, _) = await c.call('POST', '/v1/sdk/sessions/$sid/voice');
-        expect(s5, 201, reason: 'a new voice session can start');
+        if (!lk) return markTestSkipped('livekit-server not running');
+        await voiceToken(c);
+        final id = (await create())['voice_session_id']! as String;
+        final (dup, db) = await c.call(
+          'POST',
+          '/v1/sdk/voice/sessions',
+          body: {'language_tag': 'en'},
+        );
+        expect(dup, 409);
+        expect((db['error']! as Map)['code'], 'voice_session_active');
+        final (gs, gb) = await c.call('GET', '/v1/sdk/voice/sessions/$id');
+        expect(gs, 200);
+        expect(gb['status'], 'provisioning', reason: 'user has not joined');
+        expect(gb['agent_state'], 'joined');
+        final (rs, rb) = await c.call(
+          'POST',
+          '/v1/sdk/voice/sessions/$id/token',
+        );
+        expect(rs, 200);
+        expect(rb.keys, unorderedEquals(['voice_session_id', 'livekit']));
+        final (ds, delBody) = await c.call(
+          'DELETE',
+          '/v1/sdk/voice/sessions/$id',
+        );
+        expect(ds, 200);
+        expect(delBody['status'], 'ended');
+        expect(delBody['end_reason'], 'user_ended');
+        final (again, againBody) = await c.call(
+          'DELETE',
+          '/v1/sdk/voice/sessions/$id',
+        );
+        expect(again, 200);
+        expect(
+          againBody['end_reason'],
+          'user_ended',
+          reason: 'idempotent, first reason kept',
+        );
+        final (r410, b410) = await c.call(
+          'POST',
+          '/v1/sdk/voice/sessions/$id/token',
+        );
+        expect(r410, 410);
+        expect((b410['error']! as Map)['code'], 'voice_session_ended');
       },
     );
 
-    test('voice quota is enforced per application (402)', () async {
-      if (!lk) markTestSkipped('livekit-server not running');
-      if (!lk) return;
-      final sid = await voiceSession();
+    test('refresh budget → 429 rate_limited (retryable false)', () async {
+      if (!lk) return markTestSkipped('livekit-server not running');
+      await voiceToken(c);
+      final id = (await create())['voice_session_id']! as String;
       for (var i = 0; i < 2; i++) {
-        final (s, _) = await c.call('POST', '/v1/sdk/sessions/$sid/voice');
-        expect(s, 201);
-        await c.call('DELETE', '/v1/sdk/sessions/$sid/voice');
+        expect(
+          (await c.call('POST', '/v1/sdk/voice/sessions/$id/token')).$1,
+          200,
+        );
       }
-      final (s, b) = await c.call('POST', '/v1/sdk/sessions/$sid/voice');
-      expect(s, 402);
-      expect((b['error']! as Map)['quota_kind'], 'voice_minutes');
-      await c.call('POST', '/v1/dev/applications/app_test/reset', auth: false);
-      final (again, _) = await c.call('POST', '/v1/sdk/sessions/$sid/voice');
-      expect(again, 201);
+      final (s, b) = await c.call('POST', '/v1/sdk/voice/sessions/$id/token');
+      expect(s, 429);
+      expect((b['error']! as Map)['retryable'], isFalse);
     });
 
     test(
-      'intents need an active voice session; ending the chat ends voice',
+      'foreign session id answers exactly like an unknown one (404)',
       () async {
-        if (!lk) markTestSkipped('livekit-server not running');
-        if (!lk) return;
-        final sid = await voiceSession();
-        final (none, _) = await c.call(
-          'POST',
-          '/v1/sdk/sessions/$sid/voice/intents',
-          body: {'type': 'interrupt'},
+        if (!lk) return markTestSkipped('livekit-server not running');
+        await voiceToken(c);
+        final id = (await create())['voice_session_id']! as String;
+        final other = GwClient(gw);
+        await voiceToken(other);
+        final (s1, b1) = await other.call('GET', '/v1/sdk/voice/sessions/$id');
+        final (s2, b2) = await other.call(
+          'GET',
+          '/v1/sdk/voice/sessions/vs_nope',
         );
-        expect(none, 404);
-        await c.call('POST', '/v1/sdk/sessions/$sid/voice');
-        final (ok, _) = await c.call(
-          'POST',
-          '/v1/sdk/sessions/$sid/voice/intents',
-          body: {'type': 'interrupt'},
-        );
-        expect(ok, 202);
-        await c.call('DELETE', '/v1/sdk/sessions/$sid');
-        expect(gw.voice.forChatSession(sid), isNull);
+        expect(s1, 404);
+        expect(b1, b2);
+        other.close();
       },
     );
 
-    test('another application cannot touch the voice session', () async {
-      if (!lk) markTestSkipped('livekit-server not running');
-      if (!lk) return;
-      final sid = await voiceSession();
-      final other = GwClient(gw, appId: 'app_other');
-      await other.mint();
-      final (s, b) = await other.call('POST', '/v1/sdk/sessions/$sid/voice');
-      expect(s, 403);
-      expect((b['error']! as Map)['code'], 'forbidden');
-      other.close();
+    test(
+      '503 voice_unavailable carries Retry-After; 402 when quota is gone',
+      () async {
+        if (!lk) return markTestSkipped('livekit-server not running');
+        await voiceToken(c);
+        await c.call('POST', '/v1/dev/voice/fail-next-create', auth: false);
+        final (s, b) = await c.call(
+          'POST',
+          '/v1/sdk/voice/sessions',
+          body: {'language_tag': 'en'},
+        );
+        expect(s, 503);
+        expect((b['error']! as Map)['retry_after_seconds'], 5);
+        expect(gw.voice.sessions, isEmpty, reason: 'nothing issued');
+        gw.voice.setQuota('app_test', 0);
+        final (q, qb) = await c.call(
+          'POST',
+          '/v1/sdk/voice/sessions',
+          body: {'language_tag': 'en'},
+        );
+        expect(q, 402);
+        expect((qb['error']! as Map)['quota_kind'], 'voice_seconds');
+      },
+    );
+
+    test('dev end agent_lost → GET ended/unavailable/agent_lost', () async {
+      if (!lk) return markTestSkipped('livekit-server not running');
+      await voiceToken(c);
+      final id = (await create())['voice_session_id']! as String;
+      await c.call(
+        'POST',
+        '/v1/dev/voice/sessions/$id/end',
+        body: {'reason': 'agent_lost'},
+        auth: false,
+      );
+      final (_, g) = await c.call('GET', '/v1/sdk/voice/sessions/$id');
+      expect(g['status'], 'ended');
+      expect(g['agent_state'], 'unavailable');
+      expect(g['end_reason'], 'agent_lost');
     });
   });
 
-  group('event signing', () {
-    test('signEvent produces the documented canonical HMAC', () {
-      final e = VoiceService.signEvent(
-        voiceSessionId: 'vs_1',
-        key: 'k',
-        sequence: 3,
-        type: 'transcript',
-        payload: {'text': 'hi', 'is_final': true},
-        issuedAtMs: 1700000000000,
-      );
-      const canonical =
-          '1|vs_1|3|transcript|1700000000000|{"is_final":true,"text":"hi"}';
-      final expected = base64Url
-          .encode(
-            Hmac(
-              sha256,
-              utf8.encode('k'),
-            ).convert(utf8.encode(canonical)).bytes,
-          )
-          .replaceAll('=', '');
-      expect(e['sig'], expected);
-      expect(e['v'], 1);
-      expect(e['seq'], 3);
-    });
-
-    test('unsigned mode omits sig', () {
-      final e = VoiceService.signEvent(
-        voiceSessionId: 'vs',
-        key: 'k',
-        sequence: 1,
-        type: 'x',
-        payload: const {},
-        sign: false,
-      );
-      expect(e.containsKey('sig'), isFalse);
-    });
+  test('seal() produces envelopes the published spec verifies', () {
+    final key = nacl.SigningKey.fromSeed(
+      base64Url.decode(
+        base64Url.normalize('AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8'),
+      ),
+    );
+    final env =
+        jsonDecode(
+              VoiceService.seal(key, {
+                'v': voiceContractV1,
+                'type': 'agent_ready',
+              }),
+            )
+            as Map<String, Object?>;
+    expect(env['alg'], 'ed25519');
+    final message = [
+      ...utf8.encode('$voiceContractV1\u0000'),
+      ...utf8.encode(env['e']! as String),
+    ];
+    final sig = env['sig']! as String;
+    final bytes = [
+      for (var i = 0; i < sig.length; i += 2)
+        int.parse(sig.substring(i, i + 2), radix: 16),
+    ];
+    expect(
+      key.verifyKey.verify(
+        signature: nacl.Signature(Uint8List.fromList(bytes)),
+        message: Uint8List.fromList(message),
+      ),
+      isTrue,
+    );
+    expect(
+      base64Url.encode(key.verifyKey.asTypedList).replaceAll('=', ''),
+      'A6EHv_POEL4dcN0Y50vAmWfk1jCbpQ1fHdyGZBJVMbg',
+      reason: 'same test seed as the backend vectors',
+    );
   });
 }

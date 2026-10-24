@@ -285,4 +285,7 @@ class NexaLocalizationsAr extends NexaLocalizations {
 
   @override
   String get semanticsEndCallButton => 'إنهاء المكالمة الصوتية';
+
+  @override
+  String get voiceUnavailable => 'الصوت مو متوفر هسه. جرّب بعد شوية.';
 }

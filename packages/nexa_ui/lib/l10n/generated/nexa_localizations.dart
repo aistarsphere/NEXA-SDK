@@ -607,6 +607,12 @@ abstract class NexaLocalizations {
   /// In en, this message translates to:
   /// **'End voice call'**
   String get semanticsEndCallButton;
+
+  /// No description provided for @voiceUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Voice isn\'t available right now. Try again in a moment.'**
+  String get voiceUnavailable;
 }
 
 class _NexaLocalizationsDelegate

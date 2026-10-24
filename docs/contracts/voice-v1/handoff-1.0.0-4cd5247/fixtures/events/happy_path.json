@@ -1,0 +1,138 @@
+{
+  "ordered_types_excluding_session_state_and_network_quality": [
+    "agent_ready",
+    "user_speech_started",
+    "user_speech_ended",
+    "transcript",
+    "assistant_thinking",
+    "assistant_audio_started",
+    "assistant_text",
+    "assistant_turn_ended"
+  ],
+  "first_example_per_type": {
+    "agent_ready": {
+      "v": "nexa.voice.v1",
+      "type": "agent_ready",
+      "seq": 1,
+      "event_id": "vev_<id>",
+      "voice_session_id": "vs_<id>",
+      "occurred_at": "<iso8601-utc>",
+      "mono_ms": "<number>",
+      "state": "listening",
+      "capabilities": {
+        "stt": {
+          "streaming": false,
+          "interim_results": false
+        },
+        "llm": {
+          "token_streaming": false
+        },
+        "tts": {
+          "streaming_audio": false
+        }
+      }
+    },
+    "session_state": {
+      "v": "nexa.voice.v1",
+      "type": "session_state",
+      "seq": 2,
+      "event_id": "vev_<id>",
+      "voice_session_id": "vs_<id>",
+      "occurred_at": "<iso8601-utc>",
+      "mono_ms": "<number>",
+      "state": "listening",
+      "current_turn_id": null,
+      "last_seq": "<number>",
+      "elapsed_s": "<number>",
+      "max_seconds": 60
+    },
+    "network_quality": {
+      "v": "nexa.voice.v1",
+      "type": "network_quality",
+      "seq": 4,
+      "event_id": "vev_<id>",
+      "voice_session_id": "vs_<id>",
+      "occurred_at": "<iso8601-utc>",
+      "mono_ms": "<number>",
+      "weak": false,
+      "quality": "excellent"
+    },
+    "user_speech_started": {
+      "v": "nexa.voice.v1",
+      "type": "user_speech_started",
+      "seq": 5,
+      "event_id": "vev_<id>",
+      "voice_session_id": "vs_<id>",
+      "occurred_at": "<iso8601-utc>",
+      "mono_ms": "<number>",
+      "turn_id": "turn_1"
+    },
+    "user_speech_ended": {
+      "v": "nexa.voice.v1",
+      "type": "user_speech_ended",
+      "seq": 6,
+      "event_id": "vev_<id>",
+      "voice_session_id": "vs_<id>",
+      "occurred_at": "<iso8601-utc>",
+      "mono_ms": "<number>",
+      "turn_id": "turn_1"
+    },
+    "transcript": {
+      "v": "nexa.voice.v1",
+      "type": "transcript",
+      "seq": 7,
+      "event_id": "vev_<id>",
+      "voice_session_id": "vs_<id>",
+      "occurred_at": "<iso8601-utc>",
+      "mono_ms": "<number>",
+      "text": "what time is it",
+      "is_final": true,
+      "language": "en",
+      "turn_id": "turn_1"
+    },
+    "assistant_thinking": {
+      "v": "nexa.voice.v1",
+      "type": "assistant_thinking",
+      "seq": 8,
+      "event_id": "vev_<id>",
+      "voice_session_id": "vs_<id>",
+      "occurred_at": "<iso8601-utc>",
+      "mono_ms": "<number>",
+      "turn_id": "turn_1"
+    },
+    "assistant_audio_started": {
+      "v": "nexa.voice.v1",
+      "type": "assistant_audio_started",
+      "seq": 9,
+      "event_id": "vev_<id>",
+      "voice_session_id": "vs_<id>",
+      "occurred_at": "<iso8601-utc>",
+      "mono_ms": "<number>",
+      "turn_id": "turn_1"
+    },
+    "assistant_text": {
+      "v": "nexa.voice.v1",
+      "type": "assistant_text",
+      "seq": 10,
+      "event_id": "vev_<id>",
+      "voice_session_id": "vs_<id>",
+      "occurred_at": "<iso8601-utc>",
+      "mono_ms": "<number>",
+      "text": "You said: what time is it. This is a mock reply.",
+      "index": 0,
+      "final": true,
+      "turn_id": "turn_1"
+    },
+    "assistant_turn_ended": {
+      "v": "nexa.voice.v1",
+      "type": "assistant_turn_ended",
+      "seq": 11,
+      "event_id": "vev_<id>",
+      "voice_session_id": "vs_<id>",
+      "occurred_at": "<iso8601-utc>",
+      "mono_ms": "<number>",
+      "reason": "completed",
+      "turn_id": "turn_1"
+    }
+  }
+}

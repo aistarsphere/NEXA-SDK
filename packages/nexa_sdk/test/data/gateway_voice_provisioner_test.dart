@@ -1,13 +1,45 @@
+// Consumer contract tests: the SDK's real GatewayVoiceProvisioner + error
+// mapper against the backend's sanitized fixtures (handoff 1.0.0). Each
+// fixture is replayed with its HTTP status and headers through a fake Dio
+// adapter. FIXTURE-BASED: no live backend is involved.
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nexa_core/nexa_core.dart';
 import 'package:nexa_sdk/src/data/gateway/gateway_voice_provisioner.dart';
 
-/// Dio adapter answering from a map so the provisioner's wire mapping can be
-/// tested without sockets.
-final class _Adapter implements HttpClientAdapter {
-  _Adapter(this.respond);
-  final (int, Object?) Function(RequestOptions) respond;
+const handoff = '../../docs/contracts/voice-v1/handoff-1.0.0-4cd5247/fixtures';
+
+/// A real 43-char base64url Ed25519 public key (the published TEST key).
+const testPublicKey = 'A6EHv_POEL4dcN0Y50vAmWfk1jCbpQ1fHdyGZBJVMbg';
+
+Map<String, Object?> fixture(String path) =>
+    jsonDecode(File('$handoff/$path').readAsStringSync())
+        as Map<String, Object?>;
+
+/// Replaces the documented placeholders with concrete, valid values.
+Object? concretize(Object? v) {
+  if (v is Map) {
+    return {for (final e in v.entries) e.key as String: concretize(e.value)};
+  }
+  if (v is List) return v.map(concretize).toList();
+  if (v == '<number>') return 12;
+  if (v is String) {
+    return v
+        .replaceAll('vs_<id>', 'vs_FIXTURE01')
+        .replaceAll('wss://<livekit-host>', 'wss://livekit.example')
+        .replaceAll('<livekit-join-jwt>', 'header.payload.signature')
+        .replaceAll('<iso8601-utc>', '2030-01-01T00:00:00Z')
+        .replaceAll('<ed25519-public-key:base64url,43 chars>', testPublicKey);
+  }
+  return v;
+}
+
+final class FixtureAdapter implements HttpClientAdapter {
+  FixtureAdapter(this.respond);
+  final (int, Object?, Map<String, String>) Function(RequestOptions) respond;
   final List<RequestOptions> requests = [];
 
   @override
@@ -17,190 +49,339 @@ final class _Adapter implements HttpClientAdapter {
     Future<void>? cancelFuture,
   ) async {
     requests.add(options);
-    final (status, body) = respond(options);
+    final (status, body, headers) = respond(options);
     return ResponseBody.fromString(
-      body == null ? '' : _json(body),
+      body == null ? '' : jsonEncode(body),
       status,
       headers: {
         'content-type': ['application/json'],
+        for (final h in headers.entries) h.key.toLowerCase(): [h.value],
       },
     );
   }
-
-  static String _json(Object body) =>
-      body is String ? body : jsonEncodeOf(body);
 
   @override
   void close({bool force = false}) {}
 }
 
-String jsonEncodeOf(Object body) {
-  // Minimal encoder to avoid importing dart:convert in the adapter signature.
-  return const _Enc().convert(body);
+/// Serves a fixture file `{status, headers?, body}`.
+FixtureAdapter serve(String path, {Object? Function(Object?)? edit}) {
+  final f = concretize(fixture(path))! as Map<String, Object?>;
+  final headers = (f['headers'] as Map?)?.cast<String, String>() ?? const {};
+  final body = edit == null ? f['body'] : edit(f['body']);
+  return FixtureAdapter((_) => (f['status']! as int, body, headers));
 }
 
-final class _Enc {
-  const _Enc();
-  String convert(Object body) => _encode(body);
-  static String _encode(Object? v) {
-    if (v == null) return 'null';
-    if (v is num || v is bool) return '$v';
-    if (v is String) return '"${v.replaceAll('"', r'\"')}"';
-    if (v is Map) {
-      return '{${v.entries.map((e) => '"${e.key}":${_encode(e.value)}').join(',')}}';
-    }
-    if (v is List) return '[${v.map(_encode).join(',')}]';
-    throw ArgumentError('unsupported $v');
-  }
+GatewayVoiceProvisioner make(
+  FixtureAdapter adapter, {
+  bool legacy = false,
+  bool insecure = false,
+}) {
+  final dio = Dio(BaseOptions(baseUrl: 'https://gw.example'))
+    ..httpClientAdapter = adapter;
+  return GatewayVoiceProvisioner(
+    dio: dio,
+    logger: const NoopNexaLogger(),
+    allowLegacyHmac: legacy,
+    allowInsecureWebSocket: insecure,
+  );
 }
 
-Map<String, Object?> grantJson({Map<String, Object?> overrides = const {}}) => {
-  'voice_session_id': 'vs_1',
-  'livekit_url': 'wss://lk.example/x',
-  'participant_token': 'tok',
-  'room_name': 'room',
-  'participant_identity': 'user-1',
-  'agent_identity': 'nexa-agent',
-  'expires_at': '2030-01-01T00:00:00Z',
-  'event_verification_key': 'key',
-  'event_signature_alg': 'HMAC-SHA256',
-  'max_duration_seconds': 300,
-  ...overrides,
-};
+VoiceGrant sampleGrant() => GatewayVoiceProvisioner.parseGrant(
+  concretize(fixture('rest/create_session.201.json')['body'])!
+      as Map<String, Object?>,
+);
 
 void main() {
-  GatewayVoiceProvisioner make(_Adapter adapter) {
-    final dio = Dio(BaseOptions(baseUrl: 'http://gw'))
-      ..httpClientAdapter = adapter;
-    return GatewayVoiceProvisioner(dio: dio, logger: const NoopNexaLogger());
-  }
-
-  group('GatewayVoiceProvisioner', () {
-    test('maps a full grant and posts to the proposed path', () async {
-      final adapter = _Adapter((_) => (201, grantJson()));
-      final g = await make(adapter).provision(const SessionId('s1'));
-      expect(adapter.requests.single.path, '/v1/sdk/sessions/s1/voice');
-      expect(g.voiceSessionId, 'vs_1');
-      expect(g.liveKitUrl.scheme, 'wss');
-      expect(g.agentIdentity, 'nexa-agent');
-      expect(g.eventVerificationKey, 'key');
-      expect(g.maxDuration, const Duration(seconds: 300));
-      expect(g.isExpired, isFalse);
+  group('POST /v1/sdk/voice/sessions (rest/create_session.201.json)', () {
+    test('parses every field of the 201 body', () async {
+      final adapter = serve('rest/create_session.201.json');
+      final g = await make(
+        adapter,
+      ).create(languageTag: 'ar', chatSessionId: const SessionId('chat_1'));
+      final req = adapter.requests.single;
+      expect(req.method, 'POST');
+      expect(req.path, '/v1/sdk/voice/sessions');
+      expect(req.data, {'language_tag': 'ar', 'chat_session_id': 'chat_1'});
+      expect(g.voiceSessionId, 'vs_FIXTURE01');
+      expect(g.contract, 'nexa.voice.v1');
+      expect(g.liveKitUrl, Uri.parse('wss://livekit.example'));
+      expect(g.roomName, 'nexa-vs_FIXTURE01');
+      expect(g.participantIdentity, 'nexa-user-vs_FIXTURE01');
+      expect(g.agentIdentity, 'nexa-agent-vs_FIXTURE01');
+      expect(g.participantToken, 'header.payload.signature');
+      expect(g.tokenExpiresAt, DateTime.utc(2030));
+      expect(g.eventsTopic, 'nexa.voice.events');
+      expect(g.resumeRpc, 'nexa.voice.resume');
+      expect(g.eventAlgorithm, VoiceEventAlgorithm.ed25519);
+      expect(g.eventKey.length, 32);
+      expect(g.maxSeconds, 60);
+      expect(g.reservedSeconds, 60);
+      expect(g.reconnectGraceSeconds, 30);
+      expect(g.tokenRefreshPath, '/v1/sdk/voice/sessions/vs_FIXTURE01/token');
+      expect(g.maxRefreshes, 30);
+      expect(g.joinDeadlineSeconds, 60);
+      expect(g.toString(), isNot(contains('header.payload.signature')));
     });
 
-    test('missing required fields are contract violations', () async {
-      for (final key in [
-        'voice_session_id',
-        'livekit_url',
-        'participant_token',
-        'room_name',
-        'participant_identity',
-        'expires_at',
-      ]) {
-        final adapter = _Adapter((_) => (201, grantJson()..remove(key)));
-        await expectLater(
-          make(adapter).provision(const SessionId('s')),
-          throwsA(
-            isA<ContractViolationException>().having(
-              (e) => e.path,
-              'path',
-              key,
-            ),
-          ),
-          reason: key,
-        );
-      }
+    test('chat_session_id is omitted when there is no chat session', () async {
+      final adapter = serve('rest/create_session.201.json');
+      await make(adapter).create(languageTag: 'en');
+      expect(adapter.requests.single.data, {'language_tag': 'en'});
     });
 
-    test(
-      'non-websocket url and unknown signature algorithm are rejected',
-      () async {
-        await expectLater(
-          make(
-            _Adapter(
-              (_) => (201, grantJson(overrides: {'livekit_url': 'https://x'})),
-            ),
-          ).provision(const SessionId('s')),
-          throwsA(isA<ContractViolationException>()),
-        );
-        await expectLater(
-          make(
-            _Adapter(
-              (_) =>
-                  (201, grantJson(overrides: {'event_signature_alg': 'RSA'})),
-            ),
-          ).provision(const SessionId('s')),
-          throwsA(isA<ContractViolationException>()),
-        );
-      },
+    Future<void> rejects(
+      Object? Function(Map<String, Object?>) edit,
+      String path,
+    ) => expectLater(
+      make(
+        serve(
+          'rest/create_session.201.json',
+          edit: (b) => edit(Map<String, Object?>.from(b! as Map)),
+        ),
+      ).create(languageTag: 'en'),
+      throwsA(
+        isA<ContractViolationException>().having((e) => e.path, 'path', path),
+      ),
     );
 
     test(
-      'optional fields may be absent (dev gateway without signing)',
+      'refuses a different contract',
+      () => rejects((b) => b..['contract'] = 'nexa.voice.v2', 'contract'),
+    );
+
+    test('refuses algorithm other than ed25519 (no negotiation)', () async {
+      await rejects(
+        (b) => b..['events'] = {...b['events']! as Map, 'alg': 'none'},
+        'events.alg',
+      );
+      await rejects(
+        (b) => b..['events'] = {...b['events']! as Map, 'alg': 'hmac-sha256'},
+        'events.alg',
+      );
+    });
+
+    test(
+      'refuses a public key that is not 43 base64url chars',
+      () => rejects(
+        (b) => b..['events'] = {...b['events']! as Map, 'public_key': 'AAAA'},
+        'events.public_key',
+      ),
+    );
+
+    test(
+      'refuses non-sealed event format',
+      () => rejects(
+        (b) => b..['events'] = {...b['events']! as Map, 'format': 'plain'},
+        'events.format',
+      ),
+    );
+
+    test(
+      'refuses ws:// outside development',
+      () => rejects(
+        (b) => b..['livekit'] = {...b['livekit']! as Map, 'url': 'ws://lk'},
+        'livekit.url',
+      ),
+    );
+
+    test(
+      'legacy hmac-sha256 accepted only when enabled; uses events.key',
       () async {
         final g = await make(
-          _Adapter(
-            (_) => (
-              201,
-              grantJson()
-                ..remove('event_verification_key')
-                ..remove('event_signature_alg')
-                ..remove('agent_identity')
-                ..remove('max_duration_seconds'),
-            ),
+          serve(
+            'rest/create_session.201.json',
+            edit: (b) {
+              final m = Map<String, Object?>.from(b! as Map);
+              final events = Map<String, Object?>.from(m['events']! as Map)
+                ..remove('public_key')
+                ..['alg'] = 'hmac-sha256'
+                ..['key'] = 'c2VjcmV0LWtleS1ieXRlcw';
+              return m..['events'] = events;
+            },
           ),
-        ).provision(const SessionId('s'));
-        expect(g.eventVerificationKey, isNull);
-        expect(g.agentIdentity, isNull);
-        expect(g.maxDuration, isNull);
+          legacy: true,
+        ).create(languageTag: 'en');
+        expect(g.eventAlgorithm, VoiceEventAlgorithm.hmacSha256);
+        expect(utf8.decode(g.eventKey), 'secret-key-bytes');
+      },
+    );
+  });
+
+  group('token refresh / GET / DELETE', () {
+    test(
+      'refresh (rest/refresh_token.200.json) keeps id, key and limits',
+      () async {
+        final adapter = serve('rest/refresh_token.200.json');
+        final before = sampleGrant();
+        final after = await make(adapter).refreshToken(before);
+        expect(
+          adapter.requests.single.path,
+          '/v1/sdk/voice/sessions/vs_FIXTURE01/token',
+        );
+        expect(adapter.requests.single.method, 'POST');
+        expect(after.participantIdentity, before.participantIdentity);
+        expect(
+          after.eventKey,
+          same(before.eventKey),
+          reason: 'refresh never re-sends the key',
+        );
+        expect(after.maxSeconds, before.maxSeconds);
       },
     );
 
-    test('gateway errors map to the public hierarchy', () async {
-      Future<void> expectError(int status, String code, Matcher m) async {
-        final adapter = _Adapter(
-          (_) => (
-            status,
-            {
-              'error': {
-                'code': code,
-                'message': 'x',
-                'quota_kind': 'voice_minutes',
-              },
-            },
+    test(
+      'refresh after end (errors/refresh_after_end.410.json) → session over',
+      () async {
+        await expectLater(
+          make(
+            serve('errors/refresh_after_end.410.json'),
+          ).refreshToken(sampleGrant()),
+          throwsA(isA<VoiceSessionOverException>()),
+        );
+      },
+    );
+
+    test(
+      'refresh budget used (errors/refresh_limit.429.json) → session over',
+      () async {
+        await expectLater(
+          make(
+            serve('errors/refresh_limit.429.json'),
+          ).refreshToken(sampleGrant()),
+          throwsA(
+            isA<VoiceSessionOverException>().having(
+              (e) => e.code,
+              'code',
+              'rate_limited',
+            ),
           ),
         );
-        await expectLater(
-          make(adapter).provision(const SessionId('s')),
-          throwsA(m),
-        );
-      }
+      },
+    );
 
-      await expectError(402, 'quota_exceeded', isA<QuotaExceededException>());
-      await expectError(
-        403,
-        'capability_not_granted',
-        isA<CapabilityNotGrantedException>(),
-      );
-      await expectError(401, 'token_expired', isA<AuthenticationException>());
-      await expectError(410, 'session_expired', isA<SessionExpiredException>());
-      await expectError(503, 'voice_unavailable', isA<ServerException>());
+    test('GET joined / agent_lost / ended_user', () async {
+      final joined = await make(
+        serve('rest/get_session.joined.200.json'),
+      ).status('vs_FIXTURE01');
+      expect(joined.status, 'active');
+      expect(joined.agentState, 'joined');
+      expect(joined.remainingSeconds, 12);
+      expect(joined.isEnded, isFalse);
+
+      final lost = await make(
+        serve('rest/get_session.agent_lost.200.json'),
+      ).status('vs_FIXTURE01');
+      expect(lost.isEnded, isTrue);
+      expect(lost.endReason, 'agent_lost');
+      expect(lost.isAgentUnavailable, isTrue);
+
+      final user = await make(
+        serve('rest/get_session.ended_user.200.json'),
+      ).status('vs_FIXTURE01');
+      expect(user.endReason, 'user_ended');
+      expect(user.isAgentUnavailable, isFalse);
+      expect(user.usedSeconds, 12);
     });
 
-    test('intents and end are best effort and never throw', () async {
-      final adapter = _Adapter(
-        (_) => (
-          500,
-          {
-            'error': {'code': 'boom', 'message': 'x'},
-          },
+    test(
+      'DELETE (rest/delete_session.200.json) returns the final status; errors never throw',
+      () async {
+        final adapter = serve('rest/delete_session.200.json');
+        final s = await make(adapter).end('vs_FIXTURE01');
+        expect(adapter.requests.single.method, 'DELETE');
+        expect(s!.endReason, 'user_ended');
+        expect(
+          await make(serve('errors/foreign_session.404.json')).end('vs_X'),
+          isNull,
+        );
+      },
+    );
+  });
+
+  group('error catalogue (fixtures/errors/*.json → NexaException)', () {
+    final expectations = <String, Matcher>{
+      'capability_not_granted.403.json': isA<CapabilityNotGrantedException>()
+          .having((e) => e.capability, 'capability', 'liveVoice'),
+      'expired_credential.401.json': isA<AuthenticationException>(),
+      'invalid_credential.401.json': isA<AuthenticationException>(),
+      'missing_credential.401.json': isA<AuthenticationException>(),
+      'missing_scope.403.json': isA<AuthenticationException>(),
+      'foreign_session.404.json': isA<ServerException>().having(
+        (e) => e.serverCode,
+        'code',
+        'voice_session_not_found',
+      ),
+      'invalid_language.422.json': isA<ContractViolationException>(),
+      'missing_app_id.400.json': isA<ServerException>().having(
+        (e) => e.serverCode,
+        'code',
+        'bad_request',
+      ),
+      'missing_sdk_version.400.json': isA<ServerException>().having(
+        (e) => e.serverCode,
+        'code',
+        'missing_sdk_version',
+      ),
+      'quota_exceeded_on_create.402.json': isA<QuotaExceededException>().having(
+        (e) => e.quotaKind,
+        'quotaKind',
+        'voice_seconds',
+      ),
+      'refresh_after_end.410.json': isA<SessionExpiredException>(),
+      'refresh_limit.429.json': isA<RateLimitedException>(),
+      'session_already_active.409.json': isA<ServerException>().having(
+        (e) => e.serverCode,
+        'code',
+        'voice_session_active',
+      ),
+      'voice_unavailable_no_capacity.503.json': isA<ServerException>()
+          .having((e) => e.serverCode, 'code', 'voice_unavailable')
+          .having((e) => e.retryable, 'retryable', isTrue)
+          .having(
+            (e) => e.retryAfter,
+            'retryAfter',
+            const Duration(seconds: 5),
+          ),
+    };
+
+    test('all 14 error fixtures are covered', () {
+      final files = Directory(
+        '$handoff/errors',
+      ).listSync().map((f) => f.uri.pathSegments.last).toSet();
+      expect(files, expectations.keys.toSet());
+    });
+
+    for (final entry in expectations.entries) {
+      test(entry.key, () async {
+        await expectLater(
+          make(serve('errors/${entry.key}')).status('vs_FIXTURE01'),
+          throwsA(entry.value),
+        );
+      });
+    }
+
+    test('503 on create keeps Retry-After from the header too', () async {
+      await expectLater(
+        make(
+          serve(
+            'errors/voice_unavailable_no_capacity.503.json',
+            edit: (b) {
+              final m = Map<String, Object?>.from(b! as Map);
+              final err = Map<String, Object?>.from(m['error']! as Map)
+                ..remove('retry_after_seconds');
+              return m..['error'] = err;
+            },
+          ),
+        ).create(languageTag: 'en'),
+        throwsA(
+          isA<ServerException>().having(
+            (e) => e.retryAfter,
+            'retryAfter',
+            const Duration(seconds: 5),
+          ),
         ),
       );
-      final p = make(adapter);
-      await p.sendIntent(const SessionId('s'), 'interrupt');
-      await p.end(const SessionId('s'));
-      expect(adapter.requests.map((r) => r.method), ['POST', 'DELETE']);
-      expect(adapter.requests.first.path, '/v1/sdk/sessions/s/voice/intents');
     });
   });
 }

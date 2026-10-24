@@ -1,0 +1,11 @@
+{
+  "status": 403,
+  "body": {
+    "error": {
+      "code": "capability_not_granted",
+      "message": "liveVoice is not enabled.",
+      "retryable": false,
+      "quota_kind": "liveVoice"
+    }
+  }
+}

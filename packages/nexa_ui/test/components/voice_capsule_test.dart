@@ -229,5 +229,60 @@ void main() {
       expect(label.flagsCollection.isLiveRegion, isTrue);
       handle.dispose();
     });
+    testWidgets(
+      'voice unavailable (503 / agent_lost) shows try-again, en + ar',
+      (tester) async {
+        for (final code in ['voice_unavailable', 'agent_lost']) {
+          var retried = 0;
+          await tester.pumpWidget(
+            capsule(
+              state: VoiceState.disconnected,
+              error: ServerException(
+                statusCode: 503,
+                serverCode: code,
+                message: 'x',
+                retryable: true,
+              ),
+              onRetry: () => retried++,
+            ),
+          );
+          expect(
+            find.text(
+              "Voice isn't available right now. Try again in a moment.",
+            ),
+            findsOneWidget,
+            reason: code,
+          );
+          await tester.tap(find.text('Try again'));
+          expect(retried, 1);
+        }
+        await tester.pumpWidget(
+          capsule(
+            state: VoiceState.disconnected,
+            error: const ServerException(
+              statusCode: 0,
+              serverCode: 'agent_lost',
+              message: 'x',
+            ),
+            locale: const Locale('ar'),
+          ),
+        );
+        expect(find.text('الصوت مو متوفر هسه. جرّب بعد شوية.'), findsOneWidget);
+      },
+    );
+
+    testWidgets('other server errors keep the generic message', (tester) async {
+      await tester.pumpWidget(
+        capsule(
+          state: VoiceState.disconnected,
+          error: const ServerException(
+            statusCode: 409,
+            serverCode: 'voice_session_active',
+            message: 'x',
+          ),
+        ),
+      );
+      expect(find.textContaining('Something went wrong'), findsOneWidget);
+    });
   });
 }
