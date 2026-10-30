@@ -134,7 +134,7 @@ class WakeEngine(
         if (now - lastAcceptedAt < refractoryMs) {
             return WakeDecision(false, "refractory", Float.NaN, threshold, durationMs = ms)
         }
-        val features = bank.mfcc(bank.compute(segment))
+        val features = bank.phraseFeatures(segment)
         val distance = model.distance(features)
         if (distance > threshold) {
             return WakeDecision(false, "phrase_mismatch", distance, threshold, durationMs = ms)

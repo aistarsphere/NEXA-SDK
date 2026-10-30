@@ -326,3 +326,40 @@ not". Real owner and second-speaker tests: NOT_TESTED.
    second person 3×.
 4. «يا لبيب» with the app open, in the background, with the screen off,
    and locked. Each attempt logs `NexaWake decision=… phrase=d/t voice=s/t`.
+
+### Wake phrase «يا لبيب» with the owner's real voice: FAIL_REPRODUCED
+
+Xiaomi 2ba15772, 2026-10-30 22:36–22:43. The log has numbers only, no
+audio.
+
+**Changes made during this test:**
+
+* The segmenter now waits 0.6 s of quiet before ending an utterance (it
+  was 0.3 s). The pause between «يا» and «لبيب» was splitting the phrase.
+* Leading and trailing silence are trimmed from the features.
+* The enrolment consistency limit was raised to 0.55: the owner's own
+  takes were being rejected as "different".
+* The threshold cap was raised to 0.30.
+
+**Enrolment after these fixes:**
+
+* Five takes of 1.5–2.4 s.
+* Nearest-take distances 0.307, 0.220, 0.406, 0.220, 0.270.
+* Threshold 0.300 (at the cap).
+
+**Five owner attempts:** 0.354, 0.422, 0.360, 0.395, 0.382. All were
+rejected. The attempts lasted about 0.85 s, against 1.5–2.4 s at
+enrolment, so the owner speaks the phrase much faster in normal use.
+
+**Finding.** The personal template matcher (MFCC + DTW) separated the
+phrase well on synthetic speech: owner 0.04–0.06, other phrases 0.13 and
+up. On a real voice the owner's own takes already differ by 0.22–0.41.
+That overlaps the range where other phrases fall, so no threshold gives
+both reliable acceptance and few false wakes. Raising the threshold
+blindly would make other speech open the assistant and spend call quota.
+
+**Required.** A trained Arabic «يا لبيب» keyword model run on the device
+(ONNX Runtime is already bundled). It needs commercially usable training
+data, for example synthetic Arabic TTS plus consented owner samples, and
+a licence decision. Until then the reliable entry points are the assist
+gesture or button and the in-app voice button.

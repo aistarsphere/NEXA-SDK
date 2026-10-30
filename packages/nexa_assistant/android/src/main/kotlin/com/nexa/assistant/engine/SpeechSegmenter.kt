@@ -15,7 +15,8 @@ import kotlin.math.max
 class SpeechSegmenter(
     private val minMs: Int = 300,
     private val maxMs: Int = 2500,
-    private val hangoverMs: Int = 300,
+    /** Quiet needed to end an utterance: long enough not to split «يا | لبيب». */
+    private val hangoverMs: Int = 600,
     private val leadInMs: Int = 150,
     /** Speech must be this many dB above the tracked noise floor. */
     private val marginDb: Double = 10.0,

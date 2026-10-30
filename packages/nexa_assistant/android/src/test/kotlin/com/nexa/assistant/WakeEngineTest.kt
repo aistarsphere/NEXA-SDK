@@ -40,7 +40,7 @@ class WakeEngineTest {
     /** Quiet room noise around the clip, as a microphone would deliver it. */
     private fun inRoom(clip: FloatArray, seed: Int = 1): FloatArray {
         val r = Random(seed)
-        val pad = 8000
+        val pad = 16000
         return FloatArray(clip.size + 2 * pad) { i ->
             val noise = (r.nextFloat() - 0.5f) * 0.002f
             noise + if (i in pad until pad + clip.size) clip[i - pad] else 0f
@@ -61,7 +61,7 @@ class WakeEngineTest {
     }
 
     private val bank = FilterBank()
-    private fun features(name: String) = bank.mfcc(bank.compute(segments(inRoom(wav(name))).single()))
+    private fun features(name: String) = bank.phraseFeatures(segments(inRoom(wav(name))).single())
 
     private val enrolled by lazy { (1..4).map { features("enroll_$it") } }
     private val model by lazy { WakePhraseModel.fromSamples(enrolled) }

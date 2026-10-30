@@ -32,10 +32,15 @@ class WakePhraseModel(
     companion object {
         const val MIN_SAMPLES = 3
 
-        /** A new enrolment sample this far from all others is another phrase. */
-        const val INCONSISTENT = 0.25f
+        /**
+         * A new enrolment sample this far from all others is another phrase.
+         * Real voices vary far more between takes than synthetic speech
+         * (first device data: 0.33-0.44 between the owner's own takes), so
+         * this only catches clearly different utterances.
+         */
+        const val INCONSISTENT = 0.55f
         private const val MIN_THRESHOLD = 0.05f
-        private const val MAX_THRESHOLD = 0.16f
+        private const val MAX_THRESHOLD = 0.30f
 
         /**
          * Builds the model from enrolment features. Matching uses the
@@ -61,13 +66,13 @@ class WakePhraseModel(
         /**
          * Length-normalised DTW over cosine frame distances (robust to
          * loudness and steady noise) with a Sakoe-Chiba band. Utterances
-         * whose lengths differ by more than 2x cannot be the same phrase.
+         * whose lengths differ by more than 2.5x cannot be the same phrase.
          */
         fun dtw(a: Array<FloatArray>, b: Array<FloatArray>): Float {
             val n = a.size
             val m = b.size
             if (n == 0 || m == 0) return Float.MAX_VALUE
-            if (max(n, m) > 2 * min(n, m)) return Float.MAX_VALUE
+            if (max(n, m) * 2 > 5 * min(n, m)) return Float.MAX_VALUE
             val band = max(abs(n - m), max(n, m) / 4) + 2
             val inf = Float.MAX_VALUE / 4
             var prev = FloatArray(m + 1) { inf }

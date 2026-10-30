@@ -482,9 +482,14 @@ class NexaAssistantPlugin :
         val s = segment!!
         if (enrolment.isNotEmpty()) {
             // A very different utterance is probably not the phrase.
-            val feats = bank.mfcc(bank.compute(s))
-            val previous = enrolment.map { bank.mfcc(bank.compute(it)) }
-            if (WakePhraseModel.nearest(feats, previous) > WakePhraseModel.INCONSISTENT) {
+            val feats = bank.phraseFeatures(s)
+            val previous = enrolment.map { bank.phraseFeatures(it) }
+            val nearest = WakePhraseModel.nearest(feats, previous)
+            android.util.Log.i(
+                "NexaWake",
+                "enrol sample ${enrolment.size + 1}: ms=${s.size / 16} nearest=${"%.3f".format(nearest)}",
+            )
+            if (nearest > WakePhraseModel.INCONSISTENT) {
                 return mapOf("ok" to false, "reason" to "inconsistent", "count" to enrolment.size)
             }
         }
@@ -500,7 +505,15 @@ class NexaAssistantPlugin :
         enrolment.clear()
         thread(name = "nexa-enrol-finish") {
             val out = try {
-                val phrase = WakePhraseModel.fromSamples(samples.map { bank.mfcc(bank.compute(it)) })
+                val feats = samples.map { bank.phraseFeatures(it) }
+                val phrase = WakePhraseModel.fromSamples(feats)
+                // Calibration evidence (numbers only, no audio).
+                android.util.Log.i(
+                    "NexaWake",
+                    "enrolled n=${feats.size} ms=${samples.map { it.size / 16 }} " +
+                        "nearest=${feats.indices.map { i -> "%.3f".format(WakePhraseModel.nearest(feats[i], feats.filterIndexed { j, _ -> j != i })) }} " +
+                        "threshold=${"%.3f".format(phrase.threshold)}",
+                )
                 val embedder = OnnxSpeakerEmbedder.load(context)
                 val speaker = embedder?.use { e ->
                     samples.mapNotNull { e.embed(it) }.takeIf { it.size >= 2 }

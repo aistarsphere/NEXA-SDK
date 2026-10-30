@@ -101,6 +101,22 @@ class FilterBank(
     }
 
     /**
+     * Wake-phrase features: MFCCs of the voiced part only. Frames quieter
+     * than the loudest by more than ~22 dB at either end (lead-in, room
+     * noise, the pause after the phrase) are cut, so recordings with more
+     * or less silence around the phrase still compare well.
+     */
+    fun phraseFeatures(samples: FloatArray): Array<FloatArray> {
+        val logMel = compute(samples)
+        if (logMel.isEmpty()) return logMel
+        val energy = FloatArray(logMel.size) { t -> logMel[t].average().toFloat() }
+        val floor = energy.max() - 5f
+        val first = energy.indexOfFirst { it >= floor }
+        val last = energy.indexOfLast { it >= floor }
+        return mfcc(logMel.copyOfRange(first, last + 1))
+    }
+
+    /**
      * MFCCs from the log-mel energies: orthonormal DCT-II, coefficients
      * 1..[count] (energy term dropped), mean-normalised over the utterance.
      */
