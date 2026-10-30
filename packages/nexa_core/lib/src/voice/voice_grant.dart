@@ -56,7 +56,20 @@ final class VoiceGrant {
     this.tokenRefreshPath,
     this.maxRefreshes = 30,
     this.joinDeadlineSeconds = 60,
+    this.voicePath,
+    this.tools = const VoiceToolsGrant(),
+    this.voiceIdentity,
   });
+
+  /// `voice_identity`: whether the user's own voice is used in this call.
+  /// Null when the gateway does not report it.
+  final VoiceIdentity? voiceIdentity;
+
+  /// `voice_path`: `realtime|standard`.
+  final String? voicePath;
+
+  /// What the call got for tools (labeeb.sdk/1 `tools`).
+  final VoiceToolsGrant tools;
 
   /// Allowed clock skew when comparing [tokenExpiresAt] (contract §5).
   static const tokenClockSkew = Duration(seconds: 60);
@@ -147,6 +160,9 @@ final class VoiceGrant {
     tokenRefreshPath: tokenRefreshPath,
     maxRefreshes: maxRefreshes,
     joinDeadlineSeconds: joinDeadlineSeconds,
+    voicePath: voicePath,
+    tools: tools,
+    voiceIdentity: voiceIdentity,
   );
 
   /// Decodes base64url without padding (as used for `events.public_key`).
@@ -205,4 +221,68 @@ final class VoiceSessionStatus {
       agentState == 'unavailable' ||
       endReason == 'agent_lost' ||
       endReason == 'agent_unavailable';
+}
+
+/// The `tools` block of a voice session: whether tools are on and, if so,
+/// the hidden chat session device tools are answered in.
+@immutable
+final class VoiceToolsGrant {
+  const VoiceToolsGrant({
+    this.enabled = false,
+    this.sessionId,
+    this.clientTools = const [],
+    this.tools = const [],
+    this.voicePath,
+    this.reason,
+  });
+
+  factory VoiceToolsGrant.fromJson(Object? v) {
+    if (v is! Map) return const VoiceToolsGrant();
+    List<String> names(Object? l) => [
+      for (final n in (l as List?) ?? const [])
+        if (n is String) n,
+    ];
+    return VoiceToolsGrant(
+      enabled: v['enabled'] == true,
+      sessionId: v['session_id'] as String?,
+      clientTools: names(v['client_tools']),
+      tools: names(v['tools']),
+      voicePath: v['voice_path'] as String?,
+      reason: v['reason'] as String?,
+    );
+  }
+
+  final bool enabled;
+
+  /// `tools.session_id` (`ses_*`): where device tools are answered.
+  final String? sessionId;
+  final List<String> clientTools;
+  final List<String> tools;
+  final String? voicePath;
+
+  /// Why tools are off: `not_requested|tools_disabled|scope_missing|
+  /// conversation_required|no_tools_available`.
+  final String? reason;
+}
+
+/// `voice_identity` of a voice session: `{applied, voice_id?, reason?}`.
+/// The voice is chosen when the session starts; activating another voice
+/// applies to the next session only.
+@immutable
+final class VoiceIdentity {
+  const VoiceIdentity({required this.applied, this.voiceId, this.reason});
+
+  static VoiceIdentity? fromJson(Object? v) => v is Map
+      ? VoiceIdentity(
+          applied: v['applied'] == true,
+          voiceId: v['voice_id'] as String?,
+          reason: v['reason'] as String?,
+        )
+      : null;
+
+  final bool applied;
+  final String? voiceId;
+
+  /// Why it was not applied (server vocabulary, shown generically).
+  final String? reason;
 }

@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:livekit_client/livekit_client.dart' as lk;
 import 'package:nexa_core/nexa_core.dart';
 import 'package:nexa_realtime/src/livekit_audio_setup.dart';
+import 'package:nexa_realtime/src/livekit_stats_sampler.dart';
 
 /// [RealtimeVoiceTransport] over the official LiveKit Flutter SDK, for
 /// contract `nexa.voice.v1` (backend handoff 1.0.0).
@@ -26,15 +27,18 @@ import 'package:nexa_realtime/src/livekit_audio_setup.dart';
 final class LiveKitVoiceTransport implements RealtimeVoiceTransport {
   LiveKitVoiceTransport({
     required NexaLogger logger,
+    NexaDiagnostics diagnostics = const NoopNexaDiagnostics(),
     lk.Room Function()? roomFactory,
     this.handshakeWindow = const Duration(seconds: 25),
     this.handshakeInterval = const Duration(milliseconds: 300),
   }) : _logger = logger,
+       _diagnostics = diagnostics,
        _roomFactory =
            roomFactory ??
            (() => lk.Room(roomOptions: LiveKitAudioSetup.roomOptions()));
 
   final NexaLogger _logger;
+  final NexaDiagnostics _diagnostics;
   final lk.Room Function() _roomFactory;
 
   /// How long the `resume` handshake is retried (contract §8: ~25 s).
@@ -53,6 +57,8 @@ final class LiveKitVoiceTransport implements RealtimeVoiceTransport {
   bool _disposed = false;
   bool _resuming = false;
   int _connection = 0;
+  bool _mediaWeak = false;
+  LiveKitStatsSampler? _sampler;
 
   @override
   Stream<RealtimeVoiceEvent> get events => _events.stream;
@@ -81,12 +87,17 @@ final class LiveKitVoiceTransport implements RealtimeVoiceTransport {
         emit: _emit,
         requestResume: () => unawaited(_resume()),
         logger: _logger,
+        diagnostics: _diagnostics,
       );
     }
     _grant = grant;
     final room = _roomFactory();
     _room = room;
     _listener = room.createListener()..on<lk.RoomEvent>(_onRoomEvent);
+    final connectWatch = Stopwatch()..start();
+    _diagnostics.record('voice.room_connect_started', {
+      'voice_session_id': grant.voiceSessionId,
+    });
     try {
       await room.connect(
         grant.liveKitUrl.toString(),
@@ -94,9 +105,21 @@ final class LiveKitVoiceTransport implements RealtimeVoiceTransport {
         connectOptions: const lk.ConnectOptions(autoSubscribe: true),
       );
     } on Object catch (e) {
+      _diagnostics.record('voice.room_connect_failed', {
+        'ms': connectWatch.elapsedMilliseconds,
+        'error': e.runtimeType.toString(),
+      });
       await _teardownRoom();
       throw _mapConnectError(e);
     }
+    // After the join: LiveKit's iOS audio device module exists only once a
+    // room is connected; the microphone is enabled later (StartCapture).
+    await _beginAudioSession();
+    _diagnostics.record('voice.room_connected', {
+      'ms': connectWatch.elapsedMilliseconds,
+      'remote_participants': room.remoteParticipants.length,
+    });
+    _sampler = LiveKitStatsSampler(room, _diagnostics)..start();
     for (final p in room.remoteParticipants.values) {
       _onParticipantJoined(p);
     }
@@ -116,7 +139,12 @@ final class LiveKitVoiceTransport implements RealtimeVoiceTransport {
         enabled,
         audioCaptureOptions: LiveKitAudioSetup.capture,
       );
+      _diagnostics.record('voice.microphone', {'enabled': enabled});
     } on Object catch (e) {
+      _diagnostics.record('voice.microphone_failed', {
+        'enabled': enabled,
+        'error': e.runtimeType.toString(),
+      });
       throw TransportException('Microphone toggle failed: $e', cause: e);
     }
   }
@@ -146,6 +174,20 @@ final class LiveKitVoiceTransport implements RealtimeVoiceTransport {
   }
 
   // ------------------------------------------------------------ internals
+
+  Future<void> _beginAudioSession() async {
+    try {
+      await LiveKitAudioSetup.beginCall();
+      _diagnostics.record('voice.audio_session', {'mute_mode': 'inputMixer'});
+    } on Object catch (e) {
+      // Not fatal: the call works; only re-calls on iOS may be affected.
+      _logger.log(NexaLogLevel.warning, 'audio setup failed: $e');
+      _diagnostics.record('voice.audio_session', {
+        'state': 'setup_failed',
+        'error': e.runtimeType.toString(),
+      });
+    }
+  }
 
   /// Contract §8 step 1: call `resume` until it answers, for ~25 s.
   Future<void> _handshake(int connection) async {
@@ -204,6 +246,10 @@ final class LiveKitVoiceTransport implements RealtimeVoiceTransport {
   Future<void> _teardownRoom() async {
     final room = _room;
     _room = null;
+    _mediaWeak = false;
+    final sampler = _sampler;
+    _sampler = null;
+    await sampler?.stop();
     _connection++;
     await _listener?.dispose();
     _listener = null;
@@ -223,6 +269,7 @@ final class LiveKitVoiceTransport implements RealtimeVoiceTransport {
 
   void _onRoomEvent(lk.RoomEvent event) {
     final grant = _grant;
+    if (_diagnostics.enabled) _recordRoomEvent(event, grant);
     switch (event) {
       case lk.RoomReconnectingEvent():
         _emit(const RealtimeReconnecting());
@@ -239,6 +286,18 @@ final class LiveKitVoiceTransport implements RealtimeVoiceTransport {
             reason: reason?.name ?? 'unknown',
           ),
         );
+      case lk.ParticipantConnectionQualityUpdatedEvent(
+        :final participant,
+        :final connectionQuality,
+      ):
+        // Server-measured quality of OUR media. It arrives over signaling,
+        // so it still reports when media has stopped (e.g. ICE lost) while
+        // the WebSocket is up and the agent cannot tell us.
+        if (participant is! lk.LocalParticipant) return;
+        final weak = isWeakConnectionQuality(connectionQuality);
+        if (weak == _mediaWeak) return;
+        _mediaWeak = weak;
+        _emit(RealtimeNetworkQuality(weak: weak));
       case lk.ParticipantConnectedEvent(:final participant):
         _onParticipantJoined(participant);
       case lk.ParticipantDisconnectedEvent(:final participant):
@@ -265,6 +324,80 @@ final class LiveKitVoiceTransport implements RealtimeVoiceTransport {
           return;
         }
         _pipeline?.onPacket(text);
+      default:
+        break;
+    }
+  }
+
+  /// Media-level facts for QA (identities only for the agent; no tokens).
+  void _recordRoomEvent(lk.RoomEvent event, VoiceGrant? grant) {
+    bool isAgent(lk.Participant p) => p.identity == grant?.agentIdentity;
+    switch (event) {
+      case lk.RoomReconnectingEvent():
+        _diagnostics.record('voice.room_reconnecting');
+      case lk.RoomReconnectedEvent():
+        _diagnostics.record('voice.room_reconnected');
+      case lk.RoomDisconnectedEvent(:final reason):
+        _diagnostics.record('voice.room_disconnected', {
+          'reason': reason?.name,
+          'own_teardown': _room == null,
+        });
+      case lk.LocalTrackPublishedEvent(:final publication):
+        _diagnostics.record('voice.local_track_published', {
+          'kind': publication.kind.name,
+          'source': publication.source.name,
+        });
+      case lk.LocalTrackUnpublishedEvent(:final publication):
+        _diagnostics.record('voice.local_track_unpublished', {
+          'kind': publication.kind.name,
+        });
+      case lk.ParticipantConnectedEvent(:final participant):
+        _diagnostics.record('voice.participant_joined', {
+          'agent': isAgent(participant),
+        });
+      case lk.ParticipantDisconnectedEvent(:final participant):
+        _diagnostics.record('voice.participant_left', {
+          'agent': isAgent(participant),
+        });
+      case lk.TrackSubscribedEvent(:final participant, :final track):
+        _diagnostics.record('voice.remote_track_subscribed', {
+          'agent': isAgent(participant),
+          'kind': track.kind.name,
+        });
+      case lk.TrackUnsubscribedEvent(:final participant, :final track):
+        _diagnostics.record('voice.remote_track_unsubscribed', {
+          'agent': isAgent(participant),
+          'kind': track.kind.name,
+        });
+      case lk.TrackSubscriptionExceptionEvent(:final reason):
+        _diagnostics.record('voice.remote_track_failed', {
+          'reason': reason.name,
+        });
+      case lk.ActiveSpeakersChangedEvent(:final speakers):
+        _diagnostics.record('voice.active_speakers', {
+          'agent': speakers.any(isAgent),
+          'local': speakers.any((p) => p is lk.LocalParticipant),
+        });
+        double level(bool Function(lk.Participant) who) =>
+            speakers.where(who).firstOrNull?.audioLevel ?? 0;
+        _emit(
+          RealtimeAudioLevels(
+            local: level((p) => p is lk.LocalParticipant),
+            agent: level(isAgent),
+          ),
+        );
+      case lk.ParticipantConnectionQualityUpdatedEvent(
+        :final participant,
+        :final connectionQuality,
+      ):
+        if (participant is lk.LocalParticipant || isAgent(participant)) {
+          _diagnostics.record('voice.connection_quality', {
+            'local': participant is lk.LocalParticipant,
+            'quality': connectionQuality.name,
+          });
+        }
+      case lk.AudioPlaybackStatusChanged(:final isPlaying):
+        _diagnostics.record('voice.audio_playback', {'playing': isPlaying});
       default:
         break;
     }
@@ -297,3 +430,8 @@ final class LiveKitVoiceTransport implements RealtimeVoiceTransport {
     }
   }
 }
+
+/// Whether LiveKit's server-measured [quality] should show "weak network".
+bool isWeakConnectionQuality(lk.ConnectionQuality quality) =>
+    quality == lk.ConnectionQuality.poor ||
+    quality == lk.ConnectionQuality.lost;

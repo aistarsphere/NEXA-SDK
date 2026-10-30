@@ -16,6 +16,12 @@ abstract class CreateSessionRequestDto with _$CreateSessionRequestDto {
     @Default(<String, String>{}) Map<String, String> clientMetadata,
     required String sdkVersion,
     required String platform,
+
+    /// labeeb.sdk/1: the device tool *names* this client can run.
+    List<String>? clientTools,
+
+    /// labeeb.sdk/1: join this server-owned conversation.
+    String? conversationId,
   }) = _CreateSessionRequestDto;
 
   factory CreateSessionRequestDto.fromJson(Map<String, Object?> json) =>
@@ -29,6 +35,7 @@ abstract class SessionDto with _$SessionDto {
     required DateTime expiresAt,
     required List<String> grantedCapabilities,
     @Default(0) int lastSequence,
+    String? conversationId,
   }) = _SessionDto;
 
   factory SessionDto.fromJson(Map<String, Object?> json) =>
@@ -55,8 +62,14 @@ abstract class EventPageDto with _$EventPageDto {
 abstract class MessageRequestDto with _$MessageRequestDto {
   const factory MessageRequestDto({
     required String clientMessageId,
-    required String text,
+    String? text,
     String? languageTag,
+
+    /// Up to 4 asset ids (`ast_*`).
+    List<String>? attachments,
+
+    /// A `nexa.ui/1` touch event (`NexaUiEvent.toJson`).
+    Map<String, Object?>? uiEvent,
   }) = _MessageRequestDto;
 
   factory MessageRequestDto.fromJson(Map<String, Object?> json) =>

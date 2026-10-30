@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:nexa_example/dev_token_auth_provider.dart';
 import 'package:nexa_example/example_config.dart';
 import 'package:nexa_example/host_auth_provider.dart';
 import 'package:nexa_sdk/nexa_sdk.dart';
@@ -11,7 +12,7 @@ class HomePage extends StatefulWidget {
   const HomePage({required this.client, required this.auth, super.key});
 
   final NexaClient client;
-  final HostAuthProvider auth;
+  final NexaAuthProvider auth;
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -29,6 +30,12 @@ class _HomePageState extends State<HomePage> {
   Future<void> _checkGateway() async {
     if (ExampleConfig.useMock) {
       setState(() => _gatewayStatus = 'MOCK transport (no server)');
+      return;
+    }
+    if (ExampleConfig.realBackend) {
+      // The real backend has no unauthenticated health route for SDKs;
+      // connectivity shows when chat or voice starts.
+      setState(() => _gatewayStatus = 'real NEXA backend (development token)');
       return;
     }
     final http = HttpClient()..connectionTimeout = const Duration(seconds: 3);
@@ -55,6 +62,17 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  String _authStatus() => switch (widget.auth) {
+    HostAuthProvider(:final issued) => 'tokens issued by host backend: $issued',
+    final DevTokenAuthProvider dev =>
+      !dev.hasToken
+          ? 'SDK token: missing (set NEXA_DEV_SDK_TOKEN in the secrets file)'
+          : dev.isExpired
+          ? 'SDK token: EXPIRED (rebuild with a fresh one)'
+          : 'SDK token: set${dev.expiresAt == null ? '' : ', expires ${dev.expiresAt!.toIso8601String()}'}',
+    _ => 'custom auth provider',
+  };
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -79,20 +97,31 @@ class _HomePageState extends State<HomePage> {
             key: const Key('open_embedded'),
             icon: const Icon(Icons.view_agenda_outlined),
             label: const Text('Embedded chat page'),
-            onPressed: () => context.go('/embedded'),
+            onPressed: () => context.go('/dev/embedded'),
           ),
           const SizedBox(height: 12),
           OutlinedButton.icon(
             key: const Key('open_voice'),
             icon: const Icon(Icons.mic_rounded),
             label: const Text('Live voice page'),
-            onPressed: () => context.go('/voice'),
+            onPressed: () => context.go('/dev/voice'),
+          ),
+          const SizedBox(height: 12),
+          OutlinedButton.icon(
+            key: const Key('open_dynamic_ui'),
+            icon: const Icon(Icons.dashboard_customize_outlined),
+            label: const Text('Dynamic UI gallery (demo data)'),
+            onPressed: () => context.go('/dev/dynamic-ui'),
           ),
           const SizedBox(height: 12),
           TextButton.icon(
             icon: const Icon(Icons.tune),
-            label: const Text('SDK settings (language / theme / token TTL)'),
-            onPressed: () => context.go('/settings'),
+            label: const Text(
+              ExampleConfig.realBackend
+                  ? 'SDK settings (language / theme / SDK token)'
+                  : 'SDK settings (language / theme / token TTL)',
+            ),
+            onPressed: () => context.go('/dev/settings'),
           ),
           const SizedBox(height: 32),
           Card(
@@ -117,7 +146,7 @@ class _HomePageState extends State<HomePage> {
                     builder: (context, settings, _) => Text(
                       'SDK language: ${settings.languageTag} · '
                       'session: ${widget.client.currentSession?.sessionId.value ?? 'none'} · '
-                      'tokens issued by host backend: ${widget.auth.issued}',
+                      '${_authStatus()}',
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                   ),
@@ -134,12 +163,13 @@ class _HomePageState extends State<HomePage> {
             ),
           ),
           const SizedBox(height: 16),
-          const Text(
-            'Scripted scenarios (type a keyword): "long", "slow" (then Stop), '
-            '"fail", "reject", "interrupt" (stream dropped → reconnect), '
-            '"duplicate", "ratelimit" (429 → Retry), "quota", "expire", '
-            '"weather", "book", "mic".',
-          ),
+          if (!ExampleConfig.realBackend)
+            const Text(
+              'Scripted scenarios (type a keyword): "long", "slow" (then Stop), '
+              '"fail", "reject", "interrupt" (stream dropped → reconnect), '
+              '"duplicate", "ratelimit" (429 → Retry), "quota", "expire", '
+              '"weather", "book", "mic".',
+            ),
         ],
       ),
     );

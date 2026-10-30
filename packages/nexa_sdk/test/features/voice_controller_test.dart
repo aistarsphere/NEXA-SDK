@@ -5,6 +5,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nexa_core/testing.dart';
 import 'package:nexa_sdk/nexa_sdk.dart';
+import 'package:nexa_sdk/src/session/session_manager.dart';
 
 import '../helpers.dart';
 
@@ -222,6 +223,115 @@ void main() {
       expect(t.map((e) => e.text), ['شكد الساعة', 'Sure.']);
       expect(t.first.isFinal, isTrue);
     });
+
+    test('voice_identity from the grant is exposed on the state', () async {
+      provisioner.voiceIdentity = const VoiceIdentity(
+        applied: true,
+        voiceId: 'vp_1',
+      );
+      final v = await voice();
+      await v.start();
+      await phase(v, VoiceState.listening);
+      expect(v.state.value.voiceIdentity!.voiceId, 'vp_1');
+    });
+
+    test(
+      'a new voice: the call ends (DELETE) and restarts in the same conversation',
+      () async {
+        final v = await voice();
+        client.injector<SessionManager>().conversationId = 'conv_1';
+        await v.start();
+        await phase(v, VoiceState.listening);
+        provisioner.voiceIdentity = const VoiceIdentity(
+          applied: true,
+          voiceId: 'vp_new',
+        );
+        final restart = v.restartForNewVoice();
+        await waitFor(() => v.state.value.switchingVoice);
+        await restart;
+        await phase(v, VoiceState.listening);
+        expect(provisioner.ended, ['vs_mock_1']);
+        expect(provisioner.created, 2);
+        expect(provisioner.conversationIds, ['conv_1', 'conv_1']);
+        expect(v.state.value.switchingVoice, isFalse);
+        expect(v.state.value.voiceIdentity!.voiceId, 'vp_new');
+      },
+    );
+
+    test('voice.profile.activate during a call triggers the restart', () async {
+      final v = await voice();
+      await v.start();
+      await phase(v, VoiceState.listening);
+      client.toolCalls.ingest(
+        ConversationEvent.tryParse({
+          'type': 'tool_call_completed',
+          'event_id': 'evt_1',
+          'session_id': 'ses_1',
+          'sequence': 1,
+          'occurred_at': '2026-10-29T10:00:00.000Z',
+          'tool_call_id': 'tc_act',
+          'tool': 'voice.profile.activate',
+          'side': 'server',
+          'arguments': {'voice_id': 'vp_1'},
+          'status': 'succeeded',
+          'result': <String, Object?>{},
+        })!,
+      );
+      await waitFor(() => provisioner.created == 2);
+      await phase(v, VoiceState.listening);
+      expect(provisioner.ended, ['vs_mock_1']);
+    });
+
+    test('restart is off when the host disables it', () async {
+      final v = await voice(
+        options: const NexaVoiceOptions(restartOnVoiceActivation: false),
+      );
+      await v.start();
+      await phase(v, VoiceState.listening);
+      client.toolCalls.ingest(
+        ConversationEvent.tryParse({
+          'type': 'tool_call_completed',
+          'event_id': 'evt_1',
+          'session_id': 'ses_1',
+          'sequence': 1,
+          'occurred_at': '2026-10-29T10:00:00.000Z',
+          'tool_call_id': 'tc_act',
+          'tool': 'voice.profile.activate',
+          'side': 'server',
+          'arguments': {'voice_id': 'vp_1'},
+          'status': 'succeeded',
+          'result': <String, Object?>{},
+        })!,
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      expect(provisioner.created, 1);
+      expect(provisioner.ended, isEmpty);
+    });
+
+    test(
+      'final turns are reported with ids production accepts; failures stay quiet',
+      () async {
+        final v = await voice();
+        client.injector<SessionManager>().conversationId = 'conv_1';
+        final ids = <String>[];
+        // A typed reporter (`Future<bool>`, like `reportVoiceTurns`) that
+        // fails: the controller must swallow it, not throw unhandled.
+        v.turnReporter = (cid, vsid, role, text, turnId) {
+          ids.add(turnId);
+          return Future<bool>.error(
+            const ServerException(statusCode: 422, message: 'invalid'),
+          );
+        };
+        await v.start();
+        await phase(v, VoiceState.listening);
+        await transport.scriptedTurn(userText: 'hello', assistantText: 'Hi.');
+        await phase(v, VoiceState.listening);
+        expect(ids, ['vs_mock_1_1', 'vs_mock_1_2']);
+        for (final id in ids) {
+          expect(id, matches(RegExp(r'^[A-Za-z0-9._-]{1,64}$')));
+        }
+      },
+    );
 
     test(
       'barge-in: local only, nothing sent to the server; agent confirms',

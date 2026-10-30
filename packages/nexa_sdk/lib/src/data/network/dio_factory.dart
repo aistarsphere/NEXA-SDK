@@ -10,6 +10,7 @@ abstract final class DioFactory {
     required NexaConfig config,
     required CredentialManager credentials,
     required NexaLogger logger,
+    NexaDiagnostics diagnostics = const NoopNexaDiagnostics(),
   }) {
     final dio = Dio(
       BaseOptions(
@@ -25,6 +26,8 @@ abstract final class DioFactory {
     );
     dio.interceptors.addAll([
       _RequestIdInterceptor(),
+      // Before auth, so a 401 is recorded before the one refresh-and-retry.
+      if (diagnostics.enabled) _DiagnosticsInterceptor(diagnostics),
       _AuthInterceptor(credentials, dio, logger),
       if (config.environment.allowsVerboseLogging) _LogInterceptor(logger),
     ]);
@@ -132,5 +135,66 @@ final class _LogInterceptor extends Interceptor {
       '✗ ${err.response?.statusCode ?? err.type.name} ${err.requestOptions.uri.path}',
     );
     handler.next(err);
+  }
+}
+
+/// One `http.request` diagnostic per call: method, path (no query), status,
+/// duration to response headers, our `X-Request-Id`, the server's request id
+/// header and the gateway error code. Never headers or bodies.
+final class _DiagnosticsInterceptor extends Interceptor {
+  _DiagnosticsInterceptor(this._diagnostics);
+  final NexaDiagnostics _diagnostics;
+  static const _watchKey = 'nexa.diag.watch';
+
+  @override
+  void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
+    options.extra[_watchKey] = Stopwatch()..start();
+    handler.next(options);
+  }
+
+  @override
+  void onResponse(
+    Response<Object?> response,
+    ResponseInterceptorHandler handler,
+  ) {
+    _record(response.requestOptions, response, null);
+    handler.next(response);
+  }
+
+  @override
+  void onError(DioException err, ErrorInterceptorHandler handler) {
+    _record(err.requestOptions, err.response, err);
+    handler.next(err);
+  }
+
+  void _record(
+    RequestOptions options,
+    Response<Object?>? response,
+    DioException? error,
+  ) {
+    final watch = options.extra[_watchKey];
+    final path = options.uri.path;
+    String? errorCode;
+    final data = response?.data;
+    if (data is Map && data['error'] is Map) {
+      final code = (data['error'] as Map)['code'];
+      if (code is String) errorCode = code;
+    }
+    _diagnostics.record('http.request', {
+      'channel': path.contains('/voice/') ? 'voice' : 'chat',
+      'method': options.method,
+      'path': path,
+      'status': response?.statusCode,
+      'ms': watch is Stopwatch ? watch.elapsedMilliseconds : null,
+      'stream': options.responseType == ResponseType.stream,
+      'request_id': options.headers['X-Request-Id']?.toString(),
+      'server_request_id':
+          response?.headers.value('x-request-id') ??
+          response?.headers.value('x-nexa-request-id'),
+      'error_code': errorCode,
+      'retry_after': response?.headers.value('retry-after'),
+      if (error != null) 'dio_error': error.type.name,
+      'auth_retry': options.extra[_AuthInterceptor._retriedKey] == true,
+    });
   }
 }

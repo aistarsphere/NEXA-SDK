@@ -13,8 +13,11 @@ final class ChatStarted extends ChatEvent {
 
 /// User submitted text.
 final class ChatMessageSent extends ChatEvent {
-  const ChatMessageSent(this.text);
+  const ChatMessageSent(this.text, {this.attachments = const []});
   final String text;
+
+  /// Uploaded asset ids (`ast_*`, up to 4) sent with the text.
+  final List<String> attachments;
 }
 
 /// User asked to retry a failed message.

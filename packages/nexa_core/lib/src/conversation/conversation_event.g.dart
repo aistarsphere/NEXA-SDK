@@ -466,6 +466,153 @@ Map<String, dynamic> _$QuotaUpdatedEventToJson(QuotaUpdatedEvent instance) =>
       'type': instance.$type,
     };
 
+ClientToolCallEvent _$ClientToolCallEventFromJson(Map<String, dynamic> json) =>
+    ClientToolCallEvent(
+      eventId: const EventIdConverter().fromJson(json['event_id'] as String),
+      sessionId: const SessionIdConverter().fromJson(
+        json['session_id'] as String,
+      ),
+      sequence: (json['sequence'] as num).toInt(),
+      occurredAt: DateTime.parse(json['occurred_at'] as String),
+      call: json['call'] as Map<String, dynamic>,
+      $type: json['type'] as String?,
+    );
+
+Map<String, dynamic> _$ClientToolCallEventToJson(
+  ClientToolCallEvent instance,
+) => <String, dynamic>{
+  'event_id': const EventIdConverter().toJson(instance.eventId),
+  'session_id': const SessionIdConverter().toJson(instance.sessionId),
+  'sequence': instance.sequence,
+  'occurred_at': instance.occurredAt.toIso8601String(),
+  'call': instance.call,
+  'type': instance.$type,
+};
+
+ServerToolResultEvent _$ServerToolResultEventFromJson(
+  Map<String, dynamic> json,
+) => ServerToolResultEvent(
+  eventId: const EventIdConverter().fromJson(json['event_id'] as String),
+  sessionId: const SessionIdConverter().fromJson(json['session_id'] as String),
+  sequence: (json['sequence'] as num).toInt(),
+  occurredAt: DateTime.parse(json['occurred_at'] as String),
+  result: json['result'] as Map<String, dynamic>,
+  $type: json['type'] as String?,
+);
+
+Map<String, dynamic> _$ServerToolResultEventToJson(
+  ServerToolResultEvent instance,
+) => <String, dynamic>{
+  'event_id': const EventIdConverter().toJson(instance.eventId),
+  'session_id': const SessionIdConverter().toJson(instance.sessionId),
+  'sequence': instance.sequence,
+  'occurred_at': instance.occurredAt.toIso8601String(),
+  'result': instance.result,
+  'type': instance.$type,
+};
+
+ContractToolCallEvent _$ContractToolCallEventFromJson(
+  Map<String, dynamic> json,
+) => ContractToolCallEvent(
+  eventId: const EventIdConverter().fromJson(json['event_id'] as String),
+  sessionId: const SessionIdConverter().fromJson(json['session_id'] as String),
+  sequence: (json['sequence'] as num).toInt(),
+  occurredAt: DateTime.parse(json['occurred_at'] as String),
+  phase: json['phase'] as String,
+  call: json['call'] as Map<String, dynamic>,
+  $type: json['type'] as String?,
+);
+
+Map<String, dynamic> _$ContractToolCallEventToJson(
+  ContractToolCallEvent instance,
+) => <String, dynamic>{
+  'event_id': const EventIdConverter().toJson(instance.eventId),
+  'session_id': const SessionIdConverter().toJson(instance.sessionId),
+  'sequence': instance.sequence,
+  'occurred_at': instance.occurredAt.toIso8601String(),
+  'phase': instance.phase,
+  'call': instance.call,
+  'type': instance.$type,
+};
+
+ToolCallProgressEvent _$ToolCallProgressEventFromJson(
+  Map<String, dynamic> json,
+) => ToolCallProgressEvent(
+  eventId: const EventIdConverter().fromJson(json['event_id'] as String),
+  sessionId: const SessionIdConverter().fromJson(json['session_id'] as String),
+  sequence: (json['sequence'] as num).toInt(),
+  occurredAt: DateTime.parse(json['occurred_at'] as String),
+  toolCallId: json['tool_call_id'] as String,
+  tool: json['tool'] as String? ?? '',
+  state: json['state'] as String? ?? '',
+  waitedS: (json['waited_s'] as num?)?.toInt(),
+  $type: json['type'] as String?,
+);
+
+Map<String, dynamic> _$ToolCallProgressEventToJson(
+  ToolCallProgressEvent instance,
+) => <String, dynamic>{
+  'event_id': const EventIdConverter().toJson(instance.eventId),
+  'session_id': const SessionIdConverter().toJson(instance.sessionId),
+  'sequence': instance.sequence,
+  'occurred_at': instance.occurredAt.toIso8601String(),
+  'tool_call_id': instance.toolCallId,
+  'tool': instance.tool,
+  'state': instance.state,
+  'waited_s': ?instance.waitedS,
+  'type': instance.$type,
+};
+
+AssetCreatedEvent _$AssetCreatedEventFromJson(Map<String, dynamic> json) =>
+    AssetCreatedEvent(
+      eventId: const EventIdConverter().fromJson(json['event_id'] as String),
+      sessionId: const SessionIdConverter().fromJson(
+        json['session_id'] as String,
+      ),
+      sequence: (json['sequence'] as num).toInt(),
+      occurredAt: DateTime.parse(json['occurred_at'] as String),
+      asset: json['asset'] as Map<String, dynamic>,
+      toolCallId: json['tool_call_id'] as String?,
+      messageId: json['message_id'] as String?,
+      $type: json['type'] as String?,
+    );
+
+Map<String, dynamic> _$AssetCreatedEventToJson(AssetCreatedEvent instance) =>
+    <String, dynamic>{
+      'event_id': const EventIdConverter().toJson(instance.eventId),
+      'session_id': const SessionIdConverter().toJson(instance.sessionId),
+      'sequence': instance.sequence,
+      'occurred_at': instance.occurredAt.toIso8601String(),
+      'asset': instance.asset,
+      'tool_call_id': ?instance.toolCallId,
+      'message_id': ?instance.messageId,
+      'type': instance.$type,
+    };
+
+UiPresentedEvent _$UiPresentedEventFromJson(Map<String, dynamic> json) =>
+    UiPresentedEvent(
+      eventId: const EventIdConverter().fromJson(json['event_id'] as String),
+      sessionId: const SessionIdConverter().fromJson(
+        json['session_id'] as String,
+      ),
+      sequence: (json['sequence'] as num).toInt(),
+      occurredAt: DateTime.parse(json['occurred_at'] as String),
+      ui: json['ui'] as Map<String, dynamic>,
+      toolCallId: json['tool_call_id'] as String?,
+      $type: json['type'] as String?,
+    );
+
+Map<String, dynamic> _$UiPresentedEventToJson(UiPresentedEvent instance) =>
+    <String, dynamic>{
+      'event_id': const EventIdConverter().toJson(instance.eventId),
+      'session_id': const SessionIdConverter().toJson(instance.sessionId),
+      'sequence': instance.sequence,
+      'occurred_at': instance.occurredAt.toIso8601String(),
+      'ui': instance.ui,
+      'tool_call_id': ?instance.toolCallId,
+      'type': instance.$type,
+    };
+
 UnsupportedEvent _$UnsupportedEventFromJson(Map<String, dynamic> json) =>
     UnsupportedEvent(
       eventId: const EventIdConverter().fromJson(json['event_id'] as String),

@@ -59,6 +59,11 @@ abstract class NexaConfig with _$NexaConfig {
     /// Opaque metadata echoed to the gateway for support/diagnostics
     /// (e.g. host app version). Never put secrets here.
     @Default(<String, String>{}) Map<String, String> clientMetadata,
+
+    /// Superseded by contract `labeeb.sdk/1` (tool calls, `client_tools`
+    /// and `ui_event` are always spoken now). Kept for source
+    /// compatibility; it has no effect.
+    @Default(false) bool clientToolProtocol,
   }) = _NexaConfig;
 
   /// Languages the SDK UI ships localisations for.

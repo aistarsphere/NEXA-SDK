@@ -206,6 +206,33 @@ void main() {
         expect(utf8.decode(g.eventKey), 'secret-key-bytes');
       },
     );
+
+    test('voice_identity is read when present, absent otherwise', () async {
+      final none = await make(
+        serve('rest/create_session.201.json'),
+      ).create(languageTag: 'en');
+      expect(none.voiceIdentity, isNull);
+      final g = await make(
+        serve(
+          'rest/create_session.201.json',
+          edit: (b) => Map<String, Object?>.from(b! as Map)
+            ..['voice_identity'] = {
+              'applied': false,
+              'reason': 'voice_not_ready',
+            },
+        ),
+      ).create(languageTag: 'en');
+      expect(g.voiceIdentity!.applied, isFalse);
+      expect(g.voiceIdentity!.reason, 'voice_not_ready');
+      final refreshed = g.withRefreshedToken(
+        liveKitUrl: g.liveKitUrl,
+        roomName: g.roomName,
+        participantIdentity: g.participantIdentity,
+        participantToken: 't2',
+        tokenExpiresAt: DateTime.utc(2031),
+      );
+      expect(refreshed.voiceIdentity!.reason, 'voice_not_ready');
+    });
   });
 
   group('token refresh / GET / DELETE', () {

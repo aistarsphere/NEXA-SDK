@@ -33,7 +33,9 @@ void main() {
     );
     addTearDown(client.dispose);
 
-    await tester.pumpWidget(ExampleApp(client: client, auth: auth));
+    await tester.pumpWidget(
+      ExampleApp(client: client, auth: auth, initialLocation: '/dev'),
+    );
     await tester.tap(find.byKey(const Key('open_chat')));
     await tester.pumpAndSettle();
 

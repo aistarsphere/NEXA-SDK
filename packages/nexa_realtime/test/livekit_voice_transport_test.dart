@@ -4,6 +4,7 @@
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:livekit_client/livekit_client.dart' show ConnectionQuality;
 import 'package:nexa_core/nexa_core.dart';
 import 'package:nexa_realtime/nexa_realtime.dart';
 
@@ -59,5 +60,13 @@ void main() {
       expect(options.defaultAudioCaptureOptions.noiseSuppression, isTrue);
       expect(options.defaultAudioOutputOptions.speakerOn, isTrue);
     });
+  });
+
+  test('server-measured poor/lost media quality counts as weak network', () {
+    expect(isWeakConnectionQuality(ConnectionQuality.lost), isTrue);
+    expect(isWeakConnectionQuality(ConnectionQuality.poor), isTrue);
+    expect(isWeakConnectionQuality(ConnectionQuality.good), isFalse);
+    expect(isWeakConnectionQuality(ConnectionQuality.excellent), isFalse);
+    expect(isWeakConnectionQuality(ConnectionQuality.unknown), isFalse);
   });
 }

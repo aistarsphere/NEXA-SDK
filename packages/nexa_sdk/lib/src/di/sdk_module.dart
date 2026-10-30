@@ -24,6 +24,10 @@ abstract class SdkModule {
       overrides.logger ?? const NoopNexaLogger();
 
   @lazySingleton
+  NexaDiagnostics diagnostics(NexaOverrides overrides) =>
+      overrides.diagnostics ?? const NoopNexaDiagnostics();
+
+  @lazySingleton
   NexaPermissionHandler permissionHandler(NexaOverrides overrides) =>
       overrides.permissionHandler ?? const DenyAllPermissionHandler();
 
@@ -36,10 +40,12 @@ abstract class SdkModule {
     NexaConfig config,
     CredentialManager credentials,
     NexaLogger logger,
+    NexaDiagnostics diagnostics,
   ) => DioFactory.create(
     config: config,
     credentials: credentials,
     logger: logger,
+    diagnostics: diagnostics,
   );
 
   @lazySingleton
@@ -79,11 +85,13 @@ abstract class SdkModule {
     CredentialManager credentials,
     NexaConfig config,
     NexaLogger logger,
+    NexaDiagnostics diagnostics,
   ) => SessionManager(
     transport: transport,
     credentials: credentials,
     config: config,
     logger: logger,
+    diagnostics: diagnostics,
   );
 
   @lazySingleton
@@ -95,13 +103,14 @@ abstract class SdkModule {
     NexaOverrides overrides,
     NexaConfig config,
     NexaLogger logger,
+    NexaDiagnostics diagnostics,
   ) {
     final override = overrides.voiceTransport;
     if (override != null) {
       _warnOverride(config, logger, 'RealtimeVoiceTransport');
       return override;
     }
-    return LiveKitVoiceTransport(logger: logger);
+    return LiveKitVoiceTransport(logger: logger, diagnostics: diagnostics);
   }
 
   @lazySingleton
@@ -135,12 +144,14 @@ abstract class SdkModule {
     NexaLogger logger,
     NexaVoiceOptions options,
     NexaConfig config,
+    NexaDiagnostics diagnostics,
   ) => NexaVoiceController(
     sessions: sessions,
     provisioner: provisioner,
     transport: transport,
     permissions: permissions,
     logger: logger,
+    diagnostics: diagnostics,
     options: options,
     languageTag: config.languageTag,
   );

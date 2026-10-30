@@ -1,10 +1,26 @@
+import 'dart:async';
+import 'dart:io';
+import 'dart:math' as math;
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nexa_core/nexa_core.dart';
+import 'package:nexa_device/nexa_device.dart' show PluginUrlOpener;
+import 'package:nexa_sdk/src/data/network/error_mapper.dart';
 import 'package:nexa_sdk/src/features/chat/bloc/chat_bloc.dart';
 import 'package:nexa_sdk/src/features/chat/bloc/chat_event.dart';
 import 'package:nexa_sdk/src/features/chat/bloc/chat_state.dart';
+import 'package:nexa_sdk/src/features/dynamic_ui/nexa_surface_controller.dart';
+import 'package:nexa_sdk/src/features/dynamic_ui/nexa_surface_presentation.dart';
+import 'package:nexa_sdk/src/features/dynamic_ui/nexa_ui_view.dart';
+import 'package:nexa_sdk/src/features/history/nexa_history.dart';
+import 'package:nexa_sdk/src/features/media/nexa_conversation_media.dart';
+import 'package:nexa_sdk/src/features/media/nexa_device_actions.dart';
+import 'package:nexa_sdk/src/features/media/nexa_media_widgets.dart';
+import 'package:nexa_sdk/src/features/tools/labeeb_device_tools.dart';
+import 'package:nexa_sdk/src/features/tools/labeeb_tool_call_card.dart';
+import 'package:nexa_sdk/src/features/tools/labeeb_tool_calls.dart';
 import 'package:nexa_sdk/src/nexa_ui_settings.dart' as sdk;
 import 'package:nexa_ui/nexa_ui.dart';
 
@@ -19,8 +35,30 @@ class NexaChatView extends StatefulWidget {
     required this.settings,
     this.showEndAction = false,
     this.onEnded,
+    this.suggestions,
+    this.onVoice,
+    this.media,
+    this.deviceActions,
+    this.history,
+    this.surfaces,
+    this.toolCalls,
     super.key,
   });
+
+  /// Host-local Dynamic UI surfaces (e.g. the theme picker).
+  final NexaSurfaceController? surfaces;
+
+  /// labeeb.sdk/1 tool calls, jobs, assets and `nexa.ui/1` documents.
+  final LabeebToolCallController? toolCalls;
+
+  /// Records the conversation in the local history (null: off).
+  final NexaHistoryController? history;
+
+  /// Attachments / tool runs shared with live voice (null: text only).
+  final NexaConversationMedia? media;
+
+  /// Device actions behind the composer's attach button (null: hidden).
+  final NexaDeviceActions? deviceActions;
 
   /// Factory for the screen's bloc (injected from the SDK container).
   final ChatBloc Function() createBloc;
@@ -33,6 +71,13 @@ class NexaChatView extends StatefulWidget {
 
   /// Called after the user ends the chat.
   final VoidCallback? onEnded;
+
+  /// Suggested first messages for the empty conversation, per language code
+  /// (`en`, `ar`). Tapping one sends it.
+  final List<String> Function(String languageCode)? suggestions;
+
+  /// When set, the composer shows a live-voice button that calls this.
+  final VoidCallback? onVoice;
 
   @override
   State<NexaChatView> createState() => _NexaChatViewState();
@@ -54,17 +99,7 @@ class _NexaChatViewState extends State<NexaChatView> {
       builder: (context, settings, _) {
         final locale = NexaLocale.fromTag(settings.languageTag);
         _bloc.languageTag = locale.languageCode;
-        final platformBrightness = MediaQuery.platformBrightnessOf(context);
-        final brightness = switch (settings.themeMode) {
-          sdk.NexaThemeMode.light => Brightness.light,
-          sdk.NexaThemeMode.dark => Brightness.dark,
-          sdk.NexaThemeMode.system => platformBrightness,
-        };
-        final theme = NexaTheme.forBrightness(
-          brightness,
-          locale,
-          overrides: settings.themeOverrides,
-        );
+        final theme = settings.resolveTheme(context, locale);
         return Localizations(
           locale: locale,
           delegates: NexaLocale.delegates,
@@ -77,6 +112,14 @@ class _NexaChatViewState extends State<NexaChatView> {
                 child: _ChatBody(
                   showEndAction: widget.showEndAction,
                   onEnded: widget.onEnded,
+                  suggestions:
+                      widget.suggestions?.call(locale.languageCode) ?? const [],
+                  onVoice: widget.onVoice,
+                  media: widget.media,
+                  actions: widget.deviceActions,
+                  history: widget.history,
+                  surfaces: widget.surfaces,
+                  toolCalls: widget.toolCalls,
                 ),
               ),
             ),
@@ -88,9 +131,26 @@ class _NexaChatViewState extends State<NexaChatView> {
 }
 
 class _ChatBody extends StatefulWidget {
-  const _ChatBody({required this.showEndAction, this.onEnded});
+  const _ChatBody({
+    required this.showEndAction,
+    required this.suggestions,
+    this.onEnded,
+    this.onVoice,
+    this.media,
+    this.actions,
+    this.history,
+    this.surfaces,
+    this.toolCalls,
+  });
+  final NexaSurfaceController? surfaces;
+  final LabeebToolCallController? toolCalls;
+  final NexaHistoryController? history;
+  final NexaConversationMedia? media;
+  final NexaDeviceActions? actions;
   final bool showEndAction;
   final VoidCallback? onEnded;
+  final List<String> suggestions;
+  final VoidCallback? onVoice;
 
   @override
   State<_ChatBody> createState() => _ChatBodyState();
@@ -114,18 +174,216 @@ class _ChatBodyState extends State<_ChatBody> {
   final Set<MessageId> _announcedCompleted = {};
   final Set<ClientMessageId> _announcedFailed = {};
 
+  int _mediaCount = 0;
+  StreamSubscription<ConversationEvent>? _toolEvents;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final bloc = context.read<ChatBloc>();
+    final tc = widget.toolCalls;
+    if (tc != null && _toolEvents == null) {
+      // Tool calls are answered in this chat's session; device UI
+      // (camera, pickers) is presented from this view.
+      tc
+        ..chatSession = (() => bloc.sessionId?.value)
+        ..conversation = (() => bloc.conversationId)
+        ..presenter = (() => mounted ? context : null)
+        ..uiEventSink = bloc.sendUiEvent;
+      _toolEvents = bloc.toolEvents.listen(tc.ingest);
+    }
+  }
+
+  Future<bool> _openExternal(Uri url) {
+    final opener = widget.actions?.options.urlOpener ?? const PluginUrlOpener();
+    return opener.openInBrowser(url);
+  }
+
+  /// Sends [text]; an image the message refers to is uploaded to the
+  /// conversation first and sent as an attachment (labeeb.sdk/1).
+  Future<void> _send(ChatBloc bloc, String text) async {
+    final media = widget.media;
+    final ref = media?.reference.value;
+    final tc = widget.toolCalls;
+    var attachments = const <String>[];
+    if (ref != null && ref.localPath != null && tc != null) {
+      final l10n = NexaLocalizations.of(context);
+      final messenger = ScaffoldMessenger.maybeOf(context);
+      final cid = bloc.conversationId;
+      if (cid == null) {
+        messenger?.showSnackBar(
+          SnackBar(content: Text(l10n.tcUploadUnavailable)),
+        );
+        return;
+      }
+      try {
+        final name = ref.name ?? ref.localPath!.split('/').last;
+        final asset = await tc.api.uploadAsset(
+          cid,
+          await File(ref.localPath!).readAsBytes(),
+          mime: uploadMimeFor(name) ?? ref.mimeType,
+          filename: name,
+        );
+        attachments = [asset.id];
+        media!.reference.value = ref.copyWith(
+          remoteId: asset.id,
+          status: NexaAttachmentStatus.uploaded,
+        );
+      } on Object catch (e) {
+        final code = gatewayErrorCode(e);
+        messenger?.showSnackBar(
+          SnackBar(
+            content: Text(
+              code == 'forbidden' || code == null
+                  ? l10n.tcUploadUnavailable
+                  : labeebErrorText(l10n, code),
+            ),
+          ),
+        );
+        return;
+      }
+    }
+    bloc.add(ChatMessageSent(text, attachments: attachments));
+    widget.actions?.onMessageSent(text);
+  }
+
   @override
   void initState() {
     super.initState();
     _scroll.addListener(_onScroll);
+    widget.media?.addListener(_onMedia);
+    _mediaCount = widget.media?.items.length ?? 0;
   }
 
   @override
   void dispose() {
+    widget.media?.removeListener(_onMedia);
+    unawaited(_toolEvents?.cancel());
     _scroll
       ..removeListener(_onScroll)
       ..dispose();
     super.dispose();
+  }
+
+  void _onMedia() {
+    if (!mounted) return;
+    final n = widget.media!.items.length;
+    final added = n > _mediaCount;
+    _mediaCount = n;
+    setState(() {});
+    if (added) _scrollToEnd(force: true);
+  }
+
+  Future<void> _directions(
+    BuildContext context,
+    NexaDeviceActions actions,
+    NexaPlace place,
+  ) async {
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    final failed = NexaLocalizations.of(context).directionsFailed;
+    final r = await actions.openDirections(context, place);
+    if (!r.isSuccess) {
+      messenger?.showSnackBar(SnackBar(content: Text(failed)));
+    }
+  }
+
+  /// Messages and media items in time order.
+  List<Object> _timeline(List<ChatMessage> messages) {
+    final items = widget.media?.items ?? const <NexaConversationItem>[];
+    if (items.isEmpty) return messages;
+    final out =
+        <(DateTime, int, Object)>[
+          for (final (i, m) in messages.indexed) (m.createdAt, i, m),
+          for (final (i, it) in items.indexed)
+            (it.createdAt, messages.length + i, it),
+        ]..sort((a, b) {
+          final c = a.$1.compareTo(b.$1);
+          return c != 0 ? c : a.$2.compareTo(b.$2);
+        });
+    return [for (final e in out) e.$3];
+  }
+
+  Widget _mediaRow(BuildContext context, NexaConversationItem item) {
+    final actions = widget.actions;
+    return switch (item) {
+      NexaAttachmentItem() => NexaAttachmentBubble(
+        item: item,
+        onOpen: () => openNexaImage(context, item.attachment, actions),
+      ),
+      NexaToolRunItem() => NexaToolRunCard(item: item, actions: actions),
+      NexaPlacesItem() => NexaPlacesCard(
+        item: item,
+        selectedPlaceId: widget.media?.selectedPlaceId,
+        onSelect: widget.media?.selectPlace,
+        onDirections: actions == null || !actions.canOpenDirections
+            ? null
+            : (place) => _directions(context, actions, place),
+        onRetry: actions == null || !actions.canShareLocation
+            ? null
+            : () => actions.shareLocation(context),
+        onOpenSettings: actions?.options.onOpenSettings,
+      ),
+      NexaSurfaceItem(:final surfaceId) => _surfaceRow(context, surfaceId),
+      NexaTranscriptRefItem() => const SizedBox.shrink(),
+      NexaToolCallItem(:final toolCallId) => switch (widget.toolCalls) {
+        final tc? => LabeebToolCallCard(
+          toolCallId: toolCallId,
+          controller: tc,
+          openExternal: _openExternal,
+        ),
+        null => const SizedBox.shrink(),
+      },
+      NexaUiDocumentItem(:final uiId) => switch (widget.toolCalls) {
+        final tc? => NexaUiDocumentCard(
+          uiId: uiId,
+          controller: tc,
+          openExternal: _openExternal,
+        ),
+        null => const SizedBox.shrink(),
+      },
+      NexaAssetItem(:final asset, :final toolCallId) =>
+        // Shown inside its tool card when that card is on screen.
+        widget.toolCalls == null ||
+                (toolCallId != null &&
+                    widget.toolCalls!.activity(toolCallId) != null)
+            ? const SizedBox.shrink()
+            : LabeebAssetView(
+                asset: asset,
+                bytes: widget.toolCalls!.assetBytes,
+                onDelete: widget.toolCalls!.deleteAsset,
+              ),
+    };
+  }
+
+  Widget _surfaceRow(BuildContext context, String surfaceId) {
+    final surfaces = widget.surfaces;
+    final s = surfaces?.surface(surfaceId);
+    if (surfaces == null || s == null) return const SizedBox.shrink();
+    if (s.presentation == NexaPresentation.expandable) {
+      return NexaSurfaceExpandable(surfaceId: surfaceId, controller: surfaces);
+    }
+    final overlay = const {
+      NexaPresentation.bottomSheet,
+      NexaPresentation.modal,
+      NexaPresentation.fullScreen,
+      NexaPresentation.floatingPanel,
+    }.contains(s.presentation);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        NexaSurfaceCard(surfaceId: surfaceId, controller: surfaces),
+        if (overlay)
+          Align(
+            alignment: AlignmentDirectional.centerEnd,
+            child: TextButton.icon(
+              key: Key('nexa_surface_open_$surfaceId'),
+              onPressed: () => showNexaSurface(context, surfaces, surfaceId),
+              icon: const Icon(Icons.open_in_full_rounded),
+              label: Text(NexaLocalizations.of(context).duiOpen),
+            ),
+          ),
+      ],
+    );
   }
 
   void _onScroll() {
@@ -140,9 +398,15 @@ class _ChatBodyState extends State<_ChatBody> {
     }
   }
 
-  void _scrollToEnd({bool force = false}) {
+  void _scrollToEnd({bool force = false, int retries = 2}) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || !_scroll.hasClients) return;
+      // The list may have attached this frame (first message after the
+      // empty state) without being laid out yet: try again next frame.
+      if (!_scroll.position.hasContentDimensions) {
+        if (retries > 0) _scrollToEnd(force: force, retries: retries - 1);
+        return;
+      }
       if (!force && !_atBottom) {
         if (!_unseen) setState(() => _unseen = true);
         return;
@@ -229,10 +493,16 @@ class _ChatBodyState extends State<_ChatBody> {
           _promptPermission(context, p);
         }
         _announce(prev, state, l10n);
+        final history = widget.history;
+        if (history != null &&
+            prev.conversation.messages != state.conversation.messages) {
+          history.recordChat(state.conversation);
+        }
       },
       builder: (context, state) {
         final bloc = context.read<ChatBloc>();
         final conv = state.conversation;
+        final timeline = _timeline(conv.messages);
         final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
         return ColoredBox(
           color: Theme.of(context).colorScheme.surface,
@@ -248,8 +518,15 @@ class _ChatBodyState extends State<_ChatBody> {
                   child: Stack(
                     alignment: AlignmentDirectional.bottomCenter,
                     children: [
-                      if (conv.messages.isEmpty)
-                        _EmptyState(connection: state.connection, l10n: l10n)
+                      if (conv.messages.isEmpty &&
+                          (widget.media?.items.isEmpty ?? true))
+                        _EmptyState(
+                          l10n: l10n,
+                          suggestions: widget.suggestions,
+                          onSuggestion: state.canSend
+                              ? (text) => bloc.add(ChatMessageSent(text))
+                              : null,
+                        )
                       else
                         ListView.separated(
                           key: const Key('nexa_message_list'),
@@ -257,16 +534,23 @@ class _ChatBodyState extends State<_ChatBody> {
                           keyboardDismissBehavior:
                               ScrollViewKeyboardDismissBehavior.onDrag,
                           padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                          itemCount: conv.messages.length,
+                          itemCount: timeline.length,
                           separatorBuilder: (_, _) =>
                               const SizedBox(height: 12),
-                          itemBuilder: (context, i) => _MessageRow(
-                            message: conv.messages[i],
-                            state: state,
-                            onRetry: (id) => bloc.add(ChatMessageRetried(id)),
-                            onToolAction: (a) =>
-                                bloc.add(ChatToolActionSubmitted(a)),
-                          ),
+                          itemBuilder: (context, i) => switch (timeline[i]) {
+                            final ChatMessage m => _MessageRow(
+                              message: m,
+                              state: state,
+                              onRetry: (id) => bloc.add(ChatMessageRetried(id)),
+                              onToolAction: (a) =>
+                                  bloc.add(ChatToolActionSubmitted(a)),
+                            ),
+                            final NexaConversationItem it => _mediaRow(
+                              context,
+                              it,
+                            ),
+                            _ => const SizedBox.shrink(),
+                          },
                         ),
                       Padding(
                         padding: const EdgeInsets.only(bottom: 8),
@@ -293,13 +577,28 @@ class _ChatBodyState extends State<_ChatBody> {
                       style: Theme.of(context).textTheme.bodyMedium,
                     ),
                   )
-                else
+                else ...[
+                  if (widget.media case final media?)
+                    ValueListenableBuilder(
+                      valueListenable: media.reference,
+                      builder: (context, ref, _) => ref == null
+                          ? const SizedBox.shrink()
+                          : NexaReferenceChip(
+                              attachment: ref,
+                              onClear: () => media.reference.value = null,
+                            ),
+                    ),
                   NexaComposer(
                     enabled: state.canSend,
                     isGenerating: state.generating != null,
-                    onSend: (text) => bloc.add(ChatMessageSent(text)),
+                    onSend: (text) => _send(bloc, text),
                     onStop: () => bloc.add(const ChatGenerationCancelled()),
+                    onVoice: widget.onVoice,
+                    onAttach: widget.actions == null
+                        ? null
+                        : () => showNexaAttachSheet(context, widget.actions!),
                   ),
+                ],
                 if (widget.showEndAction &&
                     conv.phase != ConversationPhase.ended)
                   TextButton(
@@ -374,27 +673,123 @@ class _Banners extends StatelessWidget {
   }
 }
 
+/// Design (NEXA Assistant Phone, empty conversation): a greeting anchored
+/// to the bottom, near the composer, with optional suggested prompts.
 class _EmptyState extends StatelessWidget {
-  const _EmptyState({required this.connection, required this.l10n});
-  final ChatConnection connection;
+  const _EmptyState({
+    required this.l10n,
+    required this.suggestions,
+    this.onSuggestion,
+  });
   final NexaLocalizations l10n;
+  final List<String> suggestions;
+  final ValueChanged<String>? onSuggestion;
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.forum_outlined, size: 48, color: scheme.primary),
-          const SizedBox(height: 12),
-          Text(
-            l10n.poweredBy,
-            style: Theme.of(
-              context,
-            ).textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    return LayoutBuilder(
+      builder: (context, constraints) => SingleChildScrollView(
+        key: const Key('nexa_chat_empty'),
+        padding: const EdgeInsets.fromLTRB(18, 16, 18, 12),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            minHeight: math.max(0, constraints.maxHeight - 28),
           ),
-        ],
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.end,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: scheme.primaryContainer,
+                  borderRadius: const BorderRadiusDirectional.only(
+                    topStart: Radius.circular(16),
+                    topEnd: Radius.circular(24),
+                    bottomStart: Radius.circular(24),
+                    bottomEnd: Radius.circular(24),
+                  ),
+                ),
+                child: Icon(
+                  Icons.auto_awesome_rounded,
+                  color: scheme.onPrimaryContainer,
+                ),
+              ),
+              const SizedBox(height: 18),
+              Text(
+                l10n.chatEmptyTitle,
+                style: theme.textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                l10n.chatEmptyBody,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: scheme.onSurfaceVariant,
+                ),
+              ),
+              if (suggestions.isNotEmpty) ...[
+                const SizedBox(height: 18),
+                for (final (i, s) in suggestions.indexed) ...[
+                  if (i > 0) const SizedBox(height: 8),
+                  _Suggestion(
+                    key: Key('nexa_suggestion_$i'),
+                    text: s,
+                    onTap: onSuggestion == null ? null : () => onSuggestion!(s),
+                  ),
+                ],
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _Suggestion extends StatelessWidget {
+  const _Suggestion({required this.text, this.onTap, super.key});
+  final String text;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    return Material(
+      color: scheme.surfaceContainer,
+      borderRadius: BorderRadius.circular(20),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(20),
+        onTap: onTap,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 52),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.chat_bubble_outline_rounded,
+                  size: 20,
+                  color: scheme.primary,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    text,
+                    style: theme.textTheme.bodyLarge?.copyWith(
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

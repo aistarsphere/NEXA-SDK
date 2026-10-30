@@ -68,6 +68,33 @@ final class VoiceSessionMachine {
         break;
     }
 
+    // Mute is a privacy control: it must reach the microphone in every
+    // live state, including while the assistant transcribes, thinks or is
+    // being interrupted. (Connecting / reconnecting apply it on connect.)
+    if (event case VoiceMuteToggled(:final muted)) {
+      switch (state) {
+        case VoiceState.listening ||
+            VoiceState.userSpeaking ||
+            VoiceState.transcribing ||
+            VoiceState.thinking ||
+            VoiceState.aiSpeaking ||
+            VoiceState.bargeIn ||
+            VoiceState.weakNetwork ||
+            VoiceState.modelBusy:
+          return muted
+              ? const VoiceTransition(VoiceState.muted, [
+                  SetTransportMuted(muted: true),
+                ])
+              : VoiceTransition(state, const [SetTransportMuted(muted: false)]);
+        case VoiceState.muted when !muted:
+          return const VoiceTransition(VoiceState.listening, [
+            SetTransportMuted(muted: false),
+          ]);
+        default:
+          break;
+      }
+    }
+
     return switch (state) {
       VoiceState.idle => switch (event) {
         VoiceStartRequested() => const VoiceTransition(VoiceState.connecting, [

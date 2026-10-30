@@ -77,6 +77,9 @@ void main() {
   testWidgets('Arabic + dark theme at runtime inside the capsule', (
     tester,
   ) async {
+    // NexaThemeMode applies to the built-in theme; with the default
+    // (host) source the host's MaterialApp decides light/dark.
+    client.setThemeSource(NexaThemeSource.builtIn);
     await tester.pumpWidget(host(client.voiceView()));
     await tester.pumpAndSettle();
     client

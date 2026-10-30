@@ -80,6 +80,15 @@ final class RealtimeAgentLeft extends RealtimeVoiceEvent {
   final String identity;
 }
 
+/// Speaking levels from the media server's active-speaker updates, each
+/// 0..1 (0 when that side is not speaking). Coarse (a few per second) but
+/// real: for visualisation only.
+final class RealtimeAudioLevels extends RealtimeVoiceEvent {
+  const RealtimeAudioLevels({required this.local, required this.agent});
+  final double local;
+  final double agent;
+}
+
 /// Local participant started speaking (engine audio-level detection or
 /// server VAD relayed by the agent).
 final class RealtimeUserSpeechStarted extends RealtimeVoiceEvent {
@@ -170,6 +179,15 @@ final class RealtimeDisconnected extends RealtimeVoiceEvent {
 final class RealtimeEventRejected extends RealtimeVoiceEvent {
   const RealtimeEventRejected(this.reason);
   final String reason;
+}
+
+/// labeeb.sdk/1 tool lifecycle inside a call (`tool_call_*`,
+/// `asset_created`, `ui_presented`): same fields as the chat SSE events.
+/// Device tools are answered over HTTPS with `tools.session_id`.
+final class RealtimeToolEvent extends RealtimeVoiceEvent {
+  const RealtimeToolEvent(this.type, this.fields);
+  final String type;
+  final Map<String, Object?> fields;
 }
 
 /// Unrecoverable failure.

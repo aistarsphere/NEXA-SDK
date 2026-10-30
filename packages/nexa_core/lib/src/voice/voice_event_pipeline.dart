@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:nexa_core/src/logging/nexa_diagnostics.dart';
 import 'package:nexa_core/src/logging/nexa_logger.dart';
 import 'package:nexa_core/src/transport/realtime_voice_transport.dart';
 import 'package:nexa_core/src/voice/voice_events_v1.dart';
@@ -27,16 +28,19 @@ final class VoiceEventPipeline {
     required void Function(RealtimeVoiceEvent event) emit,
     required void Function() requestResume,
     NexaLogger logger = const NoopNexaLogger(),
+    NexaDiagnostics diagnostics = const NoopNexaDiagnostics(),
   }) : verifier = VoiceEventVerifier.forGrant(grant),
        _emit = emit,
        _requestResume = requestResume,
-       _logger = logger;
+       _logger = logger,
+       _diagnostics = diagnostics;
 
   final VoiceEventVerifier verifier;
   final VoiceReplayGuard guard = VoiceReplayGuard();
   final void Function(RealtimeVoiceEvent) _emit;
   final void Function() _requestResume;
   final NexaLogger _logger;
+  final NexaDiagnostics _diagnostics;
 
   bool _connected = false;
   final Map<String, Map<int, String>> _captions = {};
@@ -101,6 +105,9 @@ final class VoiceEventPipeline {
     switch (verdict) {
       case VoiceEventRejected():
         _logger.log(NexaLogLevel.warning, 'voice event rejected: $verdict');
+        _diagnostics.record('voice.event_rejected', {
+          'reason': verdict.toString(),
+        });
         _emit(RealtimeEventRejected(verdict.toString()));
       case VoiceEventAuthentic(:final event):
         final result = guard.accept(event);
@@ -108,6 +115,10 @@ final class VoiceEventPipeline {
           case VoiceReplayVerdict.duplicate:
             return; // dropped silently (spec step 7)
           case VoiceReplayVerdict.gap:
+            _diagnostics.record('voice.event_gap', {
+              'seq': event.seq,
+              'last_applied': guard.lastApplied,
+            });
             _requestResume();
           case VoiceReplayVerdict.apply:
             result.ready.forEach(_apply);
@@ -116,6 +127,7 @@ final class VoiceEventPipeline {
   }
 
   void _apply(VoiceEventV1 event) {
+    if (_diagnostics.enabled) _recordAgentEvent(event);
     if (event.type == 'agent_ready' || event.type == 'session_state') {
       _markConnected();
     }
@@ -142,6 +154,47 @@ final class VoiceEventPipeline {
         isFinal: event['final'] == true,
       ),
     );
+  }
+
+  /// Scalar, non-content fields worth keeping for QA. Backend timing fields
+  /// are kept as sent (any `*_ms` number); nothing is derived here.
+  static const _safeFields = {
+    'is_final',
+    'final',
+    'index',
+    'reason',
+    'state',
+    'last_seq',
+    'code',
+    'component',
+    'retryable',
+    'weak',
+    'quota_kind',
+    'cancel_id',
+    'language',
+  };
+
+  void _recordAgentEvent(VoiceEventV1 event) {
+    final data = <String, Object?>{
+      'type': event.type,
+      'seq': event.seq,
+      'turn_id': event.turnId,
+      'occurred_at': event.occurredAt,
+    };
+    event.fields.forEach((key, value) {
+      final scalar =
+          value == null || value is num || value is bool || value is String;
+      if (!scalar) return;
+      if (_safeFields.contains(key) || (key.endsWith('_ms') && value is num)) {
+        data[key] = value;
+      }
+    });
+    final text = event['text'];
+    if (text is String) {
+      data['text_len'] = text.length;
+      if (_diagnostics.captureContent) data['text'] = text;
+    }
+    _diagnostics.record('voice.agent_event', data);
   }
 
   void _markConnected() {

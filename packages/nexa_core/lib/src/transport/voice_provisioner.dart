@@ -12,6 +12,11 @@ abstract interface class VoiceProvisioner {
   Future<VoiceGrant> create({
     required String languageTag,
     SessionId? chatSessionId,
+
+    /// labeeb.sdk/1: the shared conversation; with [clientTools] it also
+    /// requests tools (`tools: true`).
+    String? conversationId,
+    List<String> clientTools = const [],
   });
 
   /// `POST /v1/sdk/voice/sessions/{id}/token`: fresh join token for the

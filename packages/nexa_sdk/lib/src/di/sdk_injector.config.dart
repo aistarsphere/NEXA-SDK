@@ -39,14 +39,26 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i829.NexaLogger>(
       () => sdkModule.logger(gh<_i480.NexaOverrides>()),
     );
+    gh.lazySingleton<_i829.NexaDiagnostics>(
+      () => sdkModule.diagnostics(gh<_i480.NexaOverrides>()),
+    );
     gh.lazySingleton<_i668.NexaPermissionHandler>(
       () => sdkModule.permissionHandler(gh<_i480.NexaOverrides>()),
+    );
+    gh.lazySingleton<_i829.RealtimeVoiceTransport>(
+      () => sdkModule.voiceTransport(
+        gh<_i480.NexaOverrides>(),
+        gh<_i829.NexaConfig>(),
+        gh<_i829.NexaLogger>(),
+        gh<_i829.NexaDiagnostics>(),
+      ),
     );
     gh.lazySingleton<_i361.Dio>(
       () => sdkModule.dio(
         gh<_i829.NexaConfig>(),
         gh<_i829.CredentialManager>(),
         gh<_i829.NexaLogger>(),
+        gh<_i829.NexaDiagnostics>(),
       ),
     );
     gh.lazySingleton<_i969.NexaGatewayApi>(
@@ -59,13 +71,6 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i829.NexaLogger>(),
         gh<_i361.Dio>(),
         gh<_i131.NexaVoiceOptions>(),
-      ),
-    );
-    gh.lazySingleton<_i829.RealtimeVoiceTransport>(
-      () => sdkModule.voiceTransport(
-        gh<_i480.NexaOverrides>(),
-        gh<_i829.NexaConfig>(),
-        gh<_i829.NexaLogger>(),
       ),
     );
     gh.lazySingleton<_i829.ChatTransport>(
@@ -83,6 +88,7 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i829.CredentialManager>(),
         gh<_i829.NexaConfig>(),
         gh<_i829.NexaLogger>(),
+        gh<_i829.NexaDiagnostics>(),
       ),
     );
     gh.factory<_i292.ChatBloc>(
@@ -92,6 +98,7 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i668.NexaPermissionHandler>(),
         gh<_i829.NexaLogger>(),
         gh<_i829.NexaConfig>(),
+        gh<_i829.NexaDiagnostics>(),
       ),
     );
     gh.lazySingleton<_i1004.NexaVoiceController>(
@@ -103,6 +110,7 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i829.NexaLogger>(),
         gh<_i131.NexaVoiceOptions>(),
         gh<_i829.NexaConfig>(),
+        gh<_i829.NexaDiagnostics>(),
       ),
     );
     return this;

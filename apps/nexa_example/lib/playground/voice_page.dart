@@ -12,7 +12,8 @@ import 'package:nexa_sdk/nexa_sdk.dart';
 /// 2. `client.voice.start()` → microphone permission (host handler) →
 ///    `POST .../voice` on the gateway → scoped LiveKit grant.
 /// 3. The SDK joins the LiveKit room and publishes the microphone.
-/// 4. Agent audio (synthetic, mock agent) is received and played.
+/// 4. Agent audio is received and played (real agent with
+///    `NEXA_REAL_BACKEND`, synthetic with the reference gateway).
 /// 5. Signed agent events drive the capsule states.
 /// 6. Mute/unmute, network recovery (engine reconnect), end.
 ///
@@ -65,8 +66,11 @@ class _VoicePageState extends State<VoicePage> {
 
   @override
   Widget build(BuildContext context) {
-    const mode = ExampleConfig.useMock
+    final mode = ExampleConfig.useMock
         ? 'MOCK transport (no LiveKit, no gateway)'
+        : ExampleConfig.realBackend
+        ? 'REAL NEXA backend ${ExampleConfig.gatewayUri.host} '
+              '(real agent; LiveKit URL from the API)'
         : 'reference gateway + local LiveKit (mock agent, synthetic audio)';
     return Scaffold(
       appBar: AppBar(title: const Text('Live voice (host page)')),

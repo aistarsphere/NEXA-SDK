@@ -9,16 +9,26 @@ import 'package:nexa_core/src/tools/tool_action.dart';
 final class OutgoingMessage {
   const OutgoingMessage({
     required this.clientMessageId,
-    required this.text,
+    this.text,
     this.languageTag,
+    this.attachments = const [],
+    this.uiEvent,
   });
 
   /// Idempotency key; identical across retries of the same message.
   final ClientMessageId clientMessageId;
-  final String text;
+
+  /// `text` and/or [uiEvent] (labeeb.sdk/1 `POST /messages`).
+  final String? text;
 
   /// Language hint for the backend (`en`, `ar`).
   final String? languageTag;
+
+  /// Up to 4 uploaded asset ids (`ast_*`).
+  final List<String> attachments;
+
+  /// A `nexa.ui/1` touch event (`NexaUiEvent.toJson`).
+  final Map<String, Object?>? uiEvent;
 }
 
 /// Transport-independent contract between the SDK and the NEXA gateway for
@@ -38,6 +48,12 @@ abstract interface class ChatTransport {
     required Set<NexaCapability> requestedCapabilities,
     required String languageTag,
     Map<String, String> clientMetadata = const {},
+
+    /// labeeb.sdk/1 device tool names this client can run.
+    List<String> clientTools = const [],
+
+    /// labeeb.sdk/1: join this server-owned conversation.
+    String? conversationId,
   });
 
   /// Ordered event stream for [sessionId], starting after [afterSequence].

@@ -5,11 +5,15 @@ import 'package:nexa_ui/src/theme/nexa_shapes.dart';
 import 'package:nexa_ui/src/theme/nexa_theme_overrides.dart';
 import 'package:nexa_ui/src/theme/nexa_typography.dart';
 
-/// Builds the NEXA Material 3 Expressive [ThemeData].
+/// Builds the SDK's Material 3 Expressive [ThemeData].
 ///
-/// Usage inside the SDK: `NexaTheme.light(locale)` / `NexaTheme.dark(locale)`.
-/// Hosts never construct the theme directly; they pass [NexaThemeOverrides]
-/// through the SDK configuration.
+/// Two sources:
+/// * [adapt] (the SDK default): the **host app's** `ThemeData` (colours,
+///   fonts, component themes) plus the SDK's [NexaColors] roles, derived from
+///   the host scheme when the host does not supply them.
+/// * [light] / [dark]: the SDK's built-in neutral theme, for hosts that do
+///   not theme their app.
+/// [NexaThemeOverrides] apply on top of either.
 abstract final class NexaTheme {
   /// Light theme.
   static ThemeData light(
@@ -33,6 +37,32 @@ abstract final class NexaTheme {
     return effective == Brightness.dark
         ? dark(locale, overrides: overrides)
         : light(locale, overrides: overrides);
+  }
+
+  /// The host's [host] theme with the SDK roles added. Keeps the host's
+  /// colours, typography and component themes; [NexaColors] comes from the
+  /// host's extension if present, otherwise from its colour scheme. A
+  /// `seedColor` / `userBubbleColor` override still applies.
+  static ThemeData adapt(
+    ThemeData host, {
+    NexaThemeOverrides overrides = NexaThemeOverrides.none,
+  }) {
+    var scheme = host.colorScheme;
+    final seed = overrides.seedColor;
+    if (seed != null) scheme = _seeded(scheme, seed, scheme.brightness);
+    final colors = _withBubble(
+      seed == null
+          ? host.extension<NexaColors>() ?? NexaColors.fromScheme(scheme)
+          : NexaColors.fromScheme(scheme),
+      overrides.userBubbleColor,
+    );
+    return host.copyWith(
+      colorScheme: scheme,
+      extensions: [
+        ...host.extensions.values.where((e) => e is! NexaColors),
+        colors,
+      ],
+    );
   }
 
   static ColorScheme _scheme(Brightness brightness, NexaThemeOverrides o) {
@@ -105,7 +135,15 @@ abstract final class NexaTheme {
 
     final seed = o.seedColor;
     if (seed == null) return base;
-    // Brand seed: derive accent roles, keep Mocha neutrals/surfaces.
+    return _seeded(base, seed, brightness);
+  }
+
+  /// Brand seed: derive accent roles, keep [base]'s neutrals/surfaces.
+  static ColorScheme _seeded(
+    ColorScheme base,
+    Color seed,
+    Brightness brightness,
+  ) {
     final seeded = ColorScheme.fromSeed(
       seedColor: seed,
       brightness: brightness,
@@ -141,13 +179,16 @@ abstract final class NexaTheme {
             onUserBubble: scheme.onPrimary,
           )
         : base;
-    final bubble = o.userBubbleColor;
-    if (bubble == null) return seeded;
+    return _withBubble(seeded, o.userBubbleColor);
+  }
+
+  static NexaColors _withBubble(NexaColors colors, Color? bubble) {
+    if (bubble == null) return colors;
     final onBubble =
         ThemeData.estimateBrightnessForColor(bubble) == Brightness.dark
         ? Colors.white
         : MochaPalette.espresso;
-    return seeded.copyWith(userBubble: bubble, onUserBubble: onBubble);
+    return colors.copyWith(userBubble: bubble, onUserBubble: onBubble);
   }
 
   static ThemeData _build(

@@ -18,6 +18,9 @@ abstract class SessionHandle with _$SessionHandle {
 
     /// Sequence to resume from when reconnecting (0 for a new session).
     @Default(0) int lastSequence,
+
+    /// labeeb.sdk/1: the server-owned conversation this session joined.
+    String? conversationId,
   }) = _SessionHandle;
 
   /// Whether [capability] was granted.

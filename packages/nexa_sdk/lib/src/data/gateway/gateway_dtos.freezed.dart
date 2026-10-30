@@ -15,7 +15,9 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$CreateSessionRequestDto {
 
- String get applicationId; List<String> get requestedCapabilities; String get languageTag; Map<String, String> get clientMetadata; String get sdkVersion; String get platform;
+ String get applicationId; List<String> get requestedCapabilities; String get languageTag; Map<String, String> get clientMetadata; String get sdkVersion; String get platform;/// labeeb.sdk/1: the device tool *names* this client can run.
+ List<String>? get clientTools;/// labeeb.sdk/1: join this server-owned conversation.
+ String? get conversationId;
 /// Create a copy of CreateSessionRequestDto
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -28,16 +30,16 @@ $CreateSessionRequestDtoCopyWith<CreateSessionRequestDto> get copyWith => _$Crea
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is CreateSessionRequestDto&&(identical(other.applicationId, applicationId) || other.applicationId == applicationId)&&const DeepCollectionEquality().equals(other.requestedCapabilities, requestedCapabilities)&&(identical(other.languageTag, languageTag) || other.languageTag == languageTag)&&const DeepCollectionEquality().equals(other.clientMetadata, clientMetadata)&&(identical(other.sdkVersion, sdkVersion) || other.sdkVersion == sdkVersion)&&(identical(other.platform, platform) || other.platform == platform));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is CreateSessionRequestDto&&(identical(other.applicationId, applicationId) || other.applicationId == applicationId)&&const DeepCollectionEquality().equals(other.requestedCapabilities, requestedCapabilities)&&(identical(other.languageTag, languageTag) || other.languageTag == languageTag)&&const DeepCollectionEquality().equals(other.clientMetadata, clientMetadata)&&(identical(other.sdkVersion, sdkVersion) || other.sdkVersion == sdkVersion)&&(identical(other.platform, platform) || other.platform == platform)&&const DeepCollectionEquality().equals(other.clientTools, clientTools)&&(identical(other.conversationId, conversationId) || other.conversationId == conversationId));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,applicationId,const DeepCollectionEquality().hash(requestedCapabilities),languageTag,const DeepCollectionEquality().hash(clientMetadata),sdkVersion,platform);
+int get hashCode => Object.hash(runtimeType,applicationId,const DeepCollectionEquality().hash(requestedCapabilities),languageTag,const DeepCollectionEquality().hash(clientMetadata),sdkVersion,platform,const DeepCollectionEquality().hash(clientTools),conversationId);
 
 @override
 String toString() {
-  return 'CreateSessionRequestDto(applicationId: $applicationId, requestedCapabilities: $requestedCapabilities, languageTag: $languageTag, clientMetadata: $clientMetadata, sdkVersion: $sdkVersion, platform: $platform)';
+  return 'CreateSessionRequestDto(applicationId: $applicationId, requestedCapabilities: $requestedCapabilities, languageTag: $languageTag, clientMetadata: $clientMetadata, sdkVersion: $sdkVersion, platform: $platform, clientTools: $clientTools, conversationId: $conversationId)';
 }
 
 
@@ -48,7 +50,7 @@ abstract mixin class $CreateSessionRequestDtoCopyWith<$Res>  {
   factory $CreateSessionRequestDtoCopyWith(CreateSessionRequestDto value, $Res Function(CreateSessionRequestDto) _then) = _$CreateSessionRequestDtoCopyWithImpl;
 @useResult
 $Res call({
- String applicationId, List<String> requestedCapabilities, String languageTag, Map<String, String> clientMetadata, String sdkVersion, String platform
+ String applicationId, List<String> requestedCapabilities, String languageTag, Map<String, String> clientMetadata, String sdkVersion, String platform, List<String>? clientTools, String? conversationId
 });
 
 
@@ -65,7 +67,7 @@ class _$CreateSessionRequestDtoCopyWithImpl<$Res>
 
 /// Create a copy of CreateSessionRequestDto
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? applicationId = null,Object? requestedCapabilities = null,Object? languageTag = null,Object? clientMetadata = null,Object? sdkVersion = null,Object? platform = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? applicationId = null,Object? requestedCapabilities = null,Object? languageTag = null,Object? clientMetadata = null,Object? sdkVersion = null,Object? platform = null,Object? clientTools = freezed,Object? conversationId = freezed,}) {
   return _then(_self.copyWith(
 applicationId: null == applicationId ? _self.applicationId : applicationId // ignore: cast_nullable_to_non_nullable
 as String,requestedCapabilities: null == requestedCapabilities ? _self.requestedCapabilities : requestedCapabilities // ignore: cast_nullable_to_non_nullable
@@ -73,7 +75,9 @@ as List<String>,languageTag: null == languageTag ? _self.languageTag : languageT
 as String,clientMetadata: null == clientMetadata ? _self.clientMetadata : clientMetadata // ignore: cast_nullable_to_non_nullable
 as Map<String, String>,sdkVersion: null == sdkVersion ? _self.sdkVersion : sdkVersion // ignore: cast_nullable_to_non_nullable
 as String,platform: null == platform ? _self.platform : platform // ignore: cast_nullable_to_non_nullable
-as String,
+as String,clientTools: freezed == clientTools ? _self.clientTools : clientTools // ignore: cast_nullable_to_non_nullable
+as List<String>?,conversationId: freezed == conversationId ? _self.conversationId : conversationId // ignore: cast_nullable_to_non_nullable
+as String?,
   ));
 }
 
@@ -158,10 +162,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String applicationId,  List<String> requestedCapabilities,  String languageTag,  Map<String, String> clientMetadata,  String sdkVersion,  String platform)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String applicationId,  List<String> requestedCapabilities,  String languageTag,  Map<String, String> clientMetadata,  String sdkVersion,  String platform,  List<String>? clientTools,  String? conversationId)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _CreateSessionRequestDto() when $default != null:
-return $default(_that.applicationId,_that.requestedCapabilities,_that.languageTag,_that.clientMetadata,_that.sdkVersion,_that.platform);case _:
+return $default(_that.applicationId,_that.requestedCapabilities,_that.languageTag,_that.clientMetadata,_that.sdkVersion,_that.platform,_that.clientTools,_that.conversationId);case _:
   return orElse();
 
 }
@@ -179,10 +183,10 @@ return $default(_that.applicationId,_that.requestedCapabilities,_that.languageTa
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String applicationId,  List<String> requestedCapabilities,  String languageTag,  Map<String, String> clientMetadata,  String sdkVersion,  String platform)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String applicationId,  List<String> requestedCapabilities,  String languageTag,  Map<String, String> clientMetadata,  String sdkVersion,  String platform,  List<String>? clientTools,  String? conversationId)  $default,) {final _that = this;
 switch (_that) {
 case _CreateSessionRequestDto():
-return $default(_that.applicationId,_that.requestedCapabilities,_that.languageTag,_that.clientMetadata,_that.sdkVersion,_that.platform);case _:
+return $default(_that.applicationId,_that.requestedCapabilities,_that.languageTag,_that.clientMetadata,_that.sdkVersion,_that.platform,_that.clientTools,_that.conversationId);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -199,10 +203,10 @@ return $default(_that.applicationId,_that.requestedCapabilities,_that.languageTa
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String applicationId,  List<String> requestedCapabilities,  String languageTag,  Map<String, String> clientMetadata,  String sdkVersion,  String platform)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String applicationId,  List<String> requestedCapabilities,  String languageTag,  Map<String, String> clientMetadata,  String sdkVersion,  String platform,  List<String>? clientTools,  String? conversationId)?  $default,) {final _that = this;
 switch (_that) {
 case _CreateSessionRequestDto() when $default != null:
-return $default(_that.applicationId,_that.requestedCapabilities,_that.languageTag,_that.clientMetadata,_that.sdkVersion,_that.platform);case _:
+return $default(_that.applicationId,_that.requestedCapabilities,_that.languageTag,_that.clientMetadata,_that.sdkVersion,_that.platform,_that.clientTools,_that.conversationId);case _:
   return null;
 
 }
@@ -214,7 +218,7 @@ return $default(_that.applicationId,_that.requestedCapabilities,_that.languageTa
 @JsonSerializable()
 
 class _CreateSessionRequestDto implements CreateSessionRequestDto {
-  const _CreateSessionRequestDto({required this.applicationId, required final  List<String> requestedCapabilities, required this.languageTag, final  Map<String, String> clientMetadata = const <String, String>{}, required this.sdkVersion, required this.platform}): _requestedCapabilities = requestedCapabilities,_clientMetadata = clientMetadata;
+  const _CreateSessionRequestDto({required this.applicationId, required final  List<String> requestedCapabilities, required this.languageTag, final  Map<String, String> clientMetadata = const <String, String>{}, required this.sdkVersion, required this.platform, final  List<String>? clientTools, this.conversationId}): _requestedCapabilities = requestedCapabilities,_clientMetadata = clientMetadata,_clientTools = clientTools;
   factory _CreateSessionRequestDto.fromJson(Map<String, dynamic> json) => _$CreateSessionRequestDtoFromJson(json);
 
 @override final  String applicationId;
@@ -235,6 +239,19 @@ class _CreateSessionRequestDto implements CreateSessionRequestDto {
 
 @override final  String sdkVersion;
 @override final  String platform;
+/// labeeb.sdk/1: the device tool *names* this client can run.
+ final  List<String>? _clientTools;
+/// labeeb.sdk/1: the device tool *names* this client can run.
+@override List<String>? get clientTools {
+  final value = _clientTools;
+  if (value == null) return null;
+  if (_clientTools is EqualUnmodifiableListView) return _clientTools;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableListView(value);
+}
+
+/// labeeb.sdk/1: join this server-owned conversation.
+@override final  String? conversationId;
 
 /// Create a copy of CreateSessionRequestDto
 /// with the given fields replaced by the non-null parameter values.
@@ -249,16 +266,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _CreateSessionRequestDto&&(identical(other.applicationId, applicationId) || other.applicationId == applicationId)&&const DeepCollectionEquality().equals(other._requestedCapabilities, _requestedCapabilities)&&(identical(other.languageTag, languageTag) || other.languageTag == languageTag)&&const DeepCollectionEquality().equals(other._clientMetadata, _clientMetadata)&&(identical(other.sdkVersion, sdkVersion) || other.sdkVersion == sdkVersion)&&(identical(other.platform, platform) || other.platform == platform));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _CreateSessionRequestDto&&(identical(other.applicationId, applicationId) || other.applicationId == applicationId)&&const DeepCollectionEquality().equals(other._requestedCapabilities, _requestedCapabilities)&&(identical(other.languageTag, languageTag) || other.languageTag == languageTag)&&const DeepCollectionEquality().equals(other._clientMetadata, _clientMetadata)&&(identical(other.sdkVersion, sdkVersion) || other.sdkVersion == sdkVersion)&&(identical(other.platform, platform) || other.platform == platform)&&const DeepCollectionEquality().equals(other._clientTools, _clientTools)&&(identical(other.conversationId, conversationId) || other.conversationId == conversationId));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,applicationId,const DeepCollectionEquality().hash(_requestedCapabilities),languageTag,const DeepCollectionEquality().hash(_clientMetadata),sdkVersion,platform);
+int get hashCode => Object.hash(runtimeType,applicationId,const DeepCollectionEquality().hash(_requestedCapabilities),languageTag,const DeepCollectionEquality().hash(_clientMetadata),sdkVersion,platform,const DeepCollectionEquality().hash(_clientTools),conversationId);
 
 @override
 String toString() {
-  return 'CreateSessionRequestDto(applicationId: $applicationId, requestedCapabilities: $requestedCapabilities, languageTag: $languageTag, clientMetadata: $clientMetadata, sdkVersion: $sdkVersion, platform: $platform)';
+  return 'CreateSessionRequestDto(applicationId: $applicationId, requestedCapabilities: $requestedCapabilities, languageTag: $languageTag, clientMetadata: $clientMetadata, sdkVersion: $sdkVersion, platform: $platform, clientTools: $clientTools, conversationId: $conversationId)';
 }
 
 
@@ -269,7 +286,7 @@ abstract mixin class _$CreateSessionRequestDtoCopyWith<$Res> implements $CreateS
   factory _$CreateSessionRequestDtoCopyWith(_CreateSessionRequestDto value, $Res Function(_CreateSessionRequestDto) _then) = __$CreateSessionRequestDtoCopyWithImpl;
 @override @useResult
 $Res call({
- String applicationId, List<String> requestedCapabilities, String languageTag, Map<String, String> clientMetadata, String sdkVersion, String platform
+ String applicationId, List<String> requestedCapabilities, String languageTag, Map<String, String> clientMetadata, String sdkVersion, String platform, List<String>? clientTools, String? conversationId
 });
 
 
@@ -286,7 +303,7 @@ class __$CreateSessionRequestDtoCopyWithImpl<$Res>
 
 /// Create a copy of CreateSessionRequestDto
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? applicationId = null,Object? requestedCapabilities = null,Object? languageTag = null,Object? clientMetadata = null,Object? sdkVersion = null,Object? platform = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? applicationId = null,Object? requestedCapabilities = null,Object? languageTag = null,Object? clientMetadata = null,Object? sdkVersion = null,Object? platform = null,Object? clientTools = freezed,Object? conversationId = freezed,}) {
   return _then(_CreateSessionRequestDto(
 applicationId: null == applicationId ? _self.applicationId : applicationId // ignore: cast_nullable_to_non_nullable
 as String,requestedCapabilities: null == requestedCapabilities ? _self._requestedCapabilities : requestedCapabilities // ignore: cast_nullable_to_non_nullable
@@ -294,7 +311,9 @@ as List<String>,languageTag: null == languageTag ? _self.languageTag : languageT
 as String,clientMetadata: null == clientMetadata ? _self._clientMetadata : clientMetadata // ignore: cast_nullable_to_non_nullable
 as Map<String, String>,sdkVersion: null == sdkVersion ? _self.sdkVersion : sdkVersion // ignore: cast_nullable_to_non_nullable
 as String,platform: null == platform ? _self.platform : platform // ignore: cast_nullable_to_non_nullable
-as String,
+as String,clientTools: freezed == clientTools ? _self._clientTools : clientTools // ignore: cast_nullable_to_non_nullable
+as List<String>?,conversationId: freezed == conversationId ? _self.conversationId : conversationId // ignore: cast_nullable_to_non_nullable
+as String?,
   ));
 }
 
@@ -305,7 +324,7 @@ as String,
 /// @nodoc
 mixin _$SessionDto {
 
- String get sessionId; DateTime get expiresAt; List<String> get grantedCapabilities; int get lastSequence;
+ String get sessionId; DateTime get expiresAt; List<String> get grantedCapabilities; int get lastSequence; String? get conversationId;
 /// Create a copy of SessionDto
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -318,16 +337,16 @@ $SessionDtoCopyWith<SessionDto> get copyWith => _$SessionDtoCopyWithImpl<Session
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is SessionDto&&(identical(other.sessionId, sessionId) || other.sessionId == sessionId)&&(identical(other.expiresAt, expiresAt) || other.expiresAt == expiresAt)&&const DeepCollectionEquality().equals(other.grantedCapabilities, grantedCapabilities)&&(identical(other.lastSequence, lastSequence) || other.lastSequence == lastSequence));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is SessionDto&&(identical(other.sessionId, sessionId) || other.sessionId == sessionId)&&(identical(other.expiresAt, expiresAt) || other.expiresAt == expiresAt)&&const DeepCollectionEquality().equals(other.grantedCapabilities, grantedCapabilities)&&(identical(other.lastSequence, lastSequence) || other.lastSequence == lastSequence)&&(identical(other.conversationId, conversationId) || other.conversationId == conversationId));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,sessionId,expiresAt,const DeepCollectionEquality().hash(grantedCapabilities),lastSequence);
+int get hashCode => Object.hash(runtimeType,sessionId,expiresAt,const DeepCollectionEquality().hash(grantedCapabilities),lastSequence,conversationId);
 
 @override
 String toString() {
-  return 'SessionDto(sessionId: $sessionId, expiresAt: $expiresAt, grantedCapabilities: $grantedCapabilities, lastSequence: $lastSequence)';
+  return 'SessionDto(sessionId: $sessionId, expiresAt: $expiresAt, grantedCapabilities: $grantedCapabilities, lastSequence: $lastSequence, conversationId: $conversationId)';
 }
 
 
@@ -338,7 +357,7 @@ abstract mixin class $SessionDtoCopyWith<$Res>  {
   factory $SessionDtoCopyWith(SessionDto value, $Res Function(SessionDto) _then) = _$SessionDtoCopyWithImpl;
 @useResult
 $Res call({
- String sessionId, DateTime expiresAt, List<String> grantedCapabilities, int lastSequence
+ String sessionId, DateTime expiresAt, List<String> grantedCapabilities, int lastSequence, String? conversationId
 });
 
 
@@ -355,13 +374,14 @@ class _$SessionDtoCopyWithImpl<$Res>
 
 /// Create a copy of SessionDto
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? sessionId = null,Object? expiresAt = null,Object? grantedCapabilities = null,Object? lastSequence = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? sessionId = null,Object? expiresAt = null,Object? grantedCapabilities = null,Object? lastSequence = null,Object? conversationId = freezed,}) {
   return _then(_self.copyWith(
 sessionId: null == sessionId ? _self.sessionId : sessionId // ignore: cast_nullable_to_non_nullable
 as String,expiresAt: null == expiresAt ? _self.expiresAt : expiresAt // ignore: cast_nullable_to_non_nullable
 as DateTime,grantedCapabilities: null == grantedCapabilities ? _self.grantedCapabilities : grantedCapabilities // ignore: cast_nullable_to_non_nullable
 as List<String>,lastSequence: null == lastSequence ? _self.lastSequence : lastSequence // ignore: cast_nullable_to_non_nullable
-as int,
+as int,conversationId: freezed == conversationId ? _self.conversationId : conversationId // ignore: cast_nullable_to_non_nullable
+as String?,
   ));
 }
 
@@ -446,10 +466,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String sessionId,  DateTime expiresAt,  List<String> grantedCapabilities,  int lastSequence)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String sessionId,  DateTime expiresAt,  List<String> grantedCapabilities,  int lastSequence,  String? conversationId)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _SessionDto() when $default != null:
-return $default(_that.sessionId,_that.expiresAt,_that.grantedCapabilities,_that.lastSequence);case _:
+return $default(_that.sessionId,_that.expiresAt,_that.grantedCapabilities,_that.lastSequence,_that.conversationId);case _:
   return orElse();
 
 }
@@ -467,10 +487,10 @@ return $default(_that.sessionId,_that.expiresAt,_that.grantedCapabilities,_that.
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String sessionId,  DateTime expiresAt,  List<String> grantedCapabilities,  int lastSequence)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String sessionId,  DateTime expiresAt,  List<String> grantedCapabilities,  int lastSequence,  String? conversationId)  $default,) {final _that = this;
 switch (_that) {
 case _SessionDto():
-return $default(_that.sessionId,_that.expiresAt,_that.grantedCapabilities,_that.lastSequence);case _:
+return $default(_that.sessionId,_that.expiresAt,_that.grantedCapabilities,_that.lastSequence,_that.conversationId);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -487,10 +507,10 @@ return $default(_that.sessionId,_that.expiresAt,_that.grantedCapabilities,_that.
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String sessionId,  DateTime expiresAt,  List<String> grantedCapabilities,  int lastSequence)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String sessionId,  DateTime expiresAt,  List<String> grantedCapabilities,  int lastSequence,  String? conversationId)?  $default,) {final _that = this;
 switch (_that) {
 case _SessionDto() when $default != null:
-return $default(_that.sessionId,_that.expiresAt,_that.grantedCapabilities,_that.lastSequence);case _:
+return $default(_that.sessionId,_that.expiresAt,_that.grantedCapabilities,_that.lastSequence,_that.conversationId);case _:
   return null;
 
 }
@@ -502,7 +522,7 @@ return $default(_that.sessionId,_that.expiresAt,_that.grantedCapabilities,_that.
 @JsonSerializable()
 
 class _SessionDto implements SessionDto {
-  const _SessionDto({required this.sessionId, required this.expiresAt, required final  List<String> grantedCapabilities, this.lastSequence = 0}): _grantedCapabilities = grantedCapabilities;
+  const _SessionDto({required this.sessionId, required this.expiresAt, required final  List<String> grantedCapabilities, this.lastSequence = 0, this.conversationId}): _grantedCapabilities = grantedCapabilities;
   factory _SessionDto.fromJson(Map<String, dynamic> json) => _$SessionDtoFromJson(json);
 
 @override final  String sessionId;
@@ -515,6 +535,7 @@ class _SessionDto implements SessionDto {
 }
 
 @override@JsonKey() final  int lastSequence;
+@override final  String? conversationId;
 
 /// Create a copy of SessionDto
 /// with the given fields replaced by the non-null parameter values.
@@ -529,16 +550,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _SessionDto&&(identical(other.sessionId, sessionId) || other.sessionId == sessionId)&&(identical(other.expiresAt, expiresAt) || other.expiresAt == expiresAt)&&const DeepCollectionEquality().equals(other._grantedCapabilities, _grantedCapabilities)&&(identical(other.lastSequence, lastSequence) || other.lastSequence == lastSequence));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _SessionDto&&(identical(other.sessionId, sessionId) || other.sessionId == sessionId)&&(identical(other.expiresAt, expiresAt) || other.expiresAt == expiresAt)&&const DeepCollectionEquality().equals(other._grantedCapabilities, _grantedCapabilities)&&(identical(other.lastSequence, lastSequence) || other.lastSequence == lastSequence)&&(identical(other.conversationId, conversationId) || other.conversationId == conversationId));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,sessionId,expiresAt,const DeepCollectionEquality().hash(_grantedCapabilities),lastSequence);
+int get hashCode => Object.hash(runtimeType,sessionId,expiresAt,const DeepCollectionEquality().hash(_grantedCapabilities),lastSequence,conversationId);
 
 @override
 String toString() {
-  return 'SessionDto(sessionId: $sessionId, expiresAt: $expiresAt, grantedCapabilities: $grantedCapabilities, lastSequence: $lastSequence)';
+  return 'SessionDto(sessionId: $sessionId, expiresAt: $expiresAt, grantedCapabilities: $grantedCapabilities, lastSequence: $lastSequence, conversationId: $conversationId)';
 }
 
 
@@ -549,7 +570,7 @@ abstract mixin class _$SessionDtoCopyWith<$Res> implements $SessionDtoCopyWith<$
   factory _$SessionDtoCopyWith(_SessionDto value, $Res Function(_SessionDto) _then) = __$SessionDtoCopyWithImpl;
 @override @useResult
 $Res call({
- String sessionId, DateTime expiresAt, List<String> grantedCapabilities, int lastSequence
+ String sessionId, DateTime expiresAt, List<String> grantedCapabilities, int lastSequence, String? conversationId
 });
 
 
@@ -566,13 +587,14 @@ class __$SessionDtoCopyWithImpl<$Res>
 
 /// Create a copy of SessionDto
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? sessionId = null,Object? expiresAt = null,Object? grantedCapabilities = null,Object? lastSequence = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? sessionId = null,Object? expiresAt = null,Object? grantedCapabilities = null,Object? lastSequence = null,Object? conversationId = freezed,}) {
   return _then(_SessionDto(
 sessionId: null == sessionId ? _self.sessionId : sessionId // ignore: cast_nullable_to_non_nullable
 as String,expiresAt: null == expiresAt ? _self.expiresAt : expiresAt // ignore: cast_nullable_to_non_nullable
 as DateTime,grantedCapabilities: null == grantedCapabilities ? _self._grantedCapabilities : grantedCapabilities // ignore: cast_nullable_to_non_nullable
 as List<String>,lastSequence: null == lastSequence ? _self.lastSequence : lastSequence // ignore: cast_nullable_to_non_nullable
-as int,
+as int,conversationId: freezed == conversationId ? _self.conversationId : conversationId // ignore: cast_nullable_to_non_nullable
+as String?,
   ));
 }
 
@@ -862,7 +884,9 @@ as bool,
 /// @nodoc
 mixin _$MessageRequestDto {
 
- String get clientMessageId; String get text; String? get languageTag;
+ String get clientMessageId; String? get text; String? get languageTag;/// Up to 4 asset ids (`ast_*`).
+ List<String>? get attachments;/// A `nexa.ui/1` touch event (`NexaUiEvent.toJson`).
+ Map<String, Object?>? get uiEvent;
 /// Create a copy of MessageRequestDto
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -875,16 +899,16 @@ $MessageRequestDtoCopyWith<MessageRequestDto> get copyWith => _$MessageRequestDt
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is MessageRequestDto&&(identical(other.clientMessageId, clientMessageId) || other.clientMessageId == clientMessageId)&&(identical(other.text, text) || other.text == text)&&(identical(other.languageTag, languageTag) || other.languageTag == languageTag));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is MessageRequestDto&&(identical(other.clientMessageId, clientMessageId) || other.clientMessageId == clientMessageId)&&(identical(other.text, text) || other.text == text)&&(identical(other.languageTag, languageTag) || other.languageTag == languageTag)&&const DeepCollectionEquality().equals(other.attachments, attachments)&&const DeepCollectionEquality().equals(other.uiEvent, uiEvent));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,clientMessageId,text,languageTag);
+int get hashCode => Object.hash(runtimeType,clientMessageId,text,languageTag,const DeepCollectionEquality().hash(attachments),const DeepCollectionEquality().hash(uiEvent));
 
 @override
 String toString() {
-  return 'MessageRequestDto(clientMessageId: $clientMessageId, text: $text, languageTag: $languageTag)';
+  return 'MessageRequestDto(clientMessageId: $clientMessageId, text: $text, languageTag: $languageTag, attachments: $attachments, uiEvent: $uiEvent)';
 }
 
 
@@ -895,7 +919,7 @@ abstract mixin class $MessageRequestDtoCopyWith<$Res>  {
   factory $MessageRequestDtoCopyWith(MessageRequestDto value, $Res Function(MessageRequestDto) _then) = _$MessageRequestDtoCopyWithImpl;
 @useResult
 $Res call({
- String clientMessageId, String text, String? languageTag
+ String clientMessageId, String? text, String? languageTag, List<String>? attachments, Map<String, Object?>? uiEvent
 });
 
 
@@ -912,12 +936,14 @@ class _$MessageRequestDtoCopyWithImpl<$Res>
 
 /// Create a copy of MessageRequestDto
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? clientMessageId = null,Object? text = null,Object? languageTag = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? clientMessageId = null,Object? text = freezed,Object? languageTag = freezed,Object? attachments = freezed,Object? uiEvent = freezed,}) {
   return _then(_self.copyWith(
 clientMessageId: null == clientMessageId ? _self.clientMessageId : clientMessageId // ignore: cast_nullable_to_non_nullable
-as String,text: null == text ? _self.text : text // ignore: cast_nullable_to_non_nullable
-as String,languageTag: freezed == languageTag ? _self.languageTag : languageTag // ignore: cast_nullable_to_non_nullable
-as String?,
+as String,text: freezed == text ? _self.text : text // ignore: cast_nullable_to_non_nullable
+as String?,languageTag: freezed == languageTag ? _self.languageTag : languageTag // ignore: cast_nullable_to_non_nullable
+as String?,attachments: freezed == attachments ? _self.attachments : attachments // ignore: cast_nullable_to_non_nullable
+as List<String>?,uiEvent: freezed == uiEvent ? _self.uiEvent : uiEvent // ignore: cast_nullable_to_non_nullable
+as Map<String, Object?>?,
   ));
 }
 
@@ -1002,10 +1028,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String clientMessageId,  String text,  String? languageTag)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String clientMessageId,  String? text,  String? languageTag,  List<String>? attachments,  Map<String, Object?>? uiEvent)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _MessageRequestDto() when $default != null:
-return $default(_that.clientMessageId,_that.text,_that.languageTag);case _:
+return $default(_that.clientMessageId,_that.text,_that.languageTag,_that.attachments,_that.uiEvent);case _:
   return orElse();
 
 }
@@ -1023,10 +1049,10 @@ return $default(_that.clientMessageId,_that.text,_that.languageTag);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String clientMessageId,  String text,  String? languageTag)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String clientMessageId,  String? text,  String? languageTag,  List<String>? attachments,  Map<String, Object?>? uiEvent)  $default,) {final _that = this;
 switch (_that) {
 case _MessageRequestDto():
-return $default(_that.clientMessageId,_that.text,_that.languageTag);case _:
+return $default(_that.clientMessageId,_that.text,_that.languageTag,_that.attachments,_that.uiEvent);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -1043,10 +1069,10 @@ return $default(_that.clientMessageId,_that.text,_that.languageTag);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String clientMessageId,  String text,  String? languageTag)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String clientMessageId,  String? text,  String? languageTag,  List<String>? attachments,  Map<String, Object?>? uiEvent)?  $default,) {final _that = this;
 switch (_that) {
 case _MessageRequestDto() when $default != null:
-return $default(_that.clientMessageId,_that.text,_that.languageTag);case _:
+return $default(_that.clientMessageId,_that.text,_that.languageTag,_that.attachments,_that.uiEvent);case _:
   return null;
 
 }
@@ -1058,12 +1084,34 @@ return $default(_that.clientMessageId,_that.text,_that.languageTag);case _:
 @JsonSerializable()
 
 class _MessageRequestDto implements MessageRequestDto {
-  const _MessageRequestDto({required this.clientMessageId, required this.text, this.languageTag});
+  const _MessageRequestDto({required this.clientMessageId, this.text, this.languageTag, final  List<String>? attachments, final  Map<String, Object?>? uiEvent}): _attachments = attachments,_uiEvent = uiEvent;
   factory _MessageRequestDto.fromJson(Map<String, dynamic> json) => _$MessageRequestDtoFromJson(json);
 
 @override final  String clientMessageId;
-@override final  String text;
+@override final  String? text;
 @override final  String? languageTag;
+/// Up to 4 asset ids (`ast_*`).
+ final  List<String>? _attachments;
+/// Up to 4 asset ids (`ast_*`).
+@override List<String>? get attachments {
+  final value = _attachments;
+  if (value == null) return null;
+  if (_attachments is EqualUnmodifiableListView) return _attachments;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableListView(value);
+}
+
+/// A `nexa.ui/1` touch event (`NexaUiEvent.toJson`).
+ final  Map<String, Object?>? _uiEvent;
+/// A `nexa.ui/1` touch event (`NexaUiEvent.toJson`).
+@override Map<String, Object?>? get uiEvent {
+  final value = _uiEvent;
+  if (value == null) return null;
+  if (_uiEvent is EqualUnmodifiableMapView) return _uiEvent;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableMapView(value);
+}
+
 
 /// Create a copy of MessageRequestDto
 /// with the given fields replaced by the non-null parameter values.
@@ -1078,16 +1126,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _MessageRequestDto&&(identical(other.clientMessageId, clientMessageId) || other.clientMessageId == clientMessageId)&&(identical(other.text, text) || other.text == text)&&(identical(other.languageTag, languageTag) || other.languageTag == languageTag));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _MessageRequestDto&&(identical(other.clientMessageId, clientMessageId) || other.clientMessageId == clientMessageId)&&(identical(other.text, text) || other.text == text)&&(identical(other.languageTag, languageTag) || other.languageTag == languageTag)&&const DeepCollectionEquality().equals(other._attachments, _attachments)&&const DeepCollectionEquality().equals(other._uiEvent, _uiEvent));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,clientMessageId,text,languageTag);
+int get hashCode => Object.hash(runtimeType,clientMessageId,text,languageTag,const DeepCollectionEquality().hash(_attachments),const DeepCollectionEquality().hash(_uiEvent));
 
 @override
 String toString() {
-  return 'MessageRequestDto(clientMessageId: $clientMessageId, text: $text, languageTag: $languageTag)';
+  return 'MessageRequestDto(clientMessageId: $clientMessageId, text: $text, languageTag: $languageTag, attachments: $attachments, uiEvent: $uiEvent)';
 }
 
 
@@ -1098,7 +1146,7 @@ abstract mixin class _$MessageRequestDtoCopyWith<$Res> implements $MessageReques
   factory _$MessageRequestDtoCopyWith(_MessageRequestDto value, $Res Function(_MessageRequestDto) _then) = __$MessageRequestDtoCopyWithImpl;
 @override @useResult
 $Res call({
- String clientMessageId, String text, String? languageTag
+ String clientMessageId, String? text, String? languageTag, List<String>? attachments, Map<String, Object?>? uiEvent
 });
 
 
@@ -1115,12 +1163,14 @@ class __$MessageRequestDtoCopyWithImpl<$Res>
 
 /// Create a copy of MessageRequestDto
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? clientMessageId = null,Object? text = null,Object? languageTag = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? clientMessageId = null,Object? text = freezed,Object? languageTag = freezed,Object? attachments = freezed,Object? uiEvent = freezed,}) {
   return _then(_MessageRequestDto(
 clientMessageId: null == clientMessageId ? _self.clientMessageId : clientMessageId // ignore: cast_nullable_to_non_nullable
-as String,text: null == text ? _self.text : text // ignore: cast_nullable_to_non_nullable
-as String,languageTag: freezed == languageTag ? _self.languageTag : languageTag // ignore: cast_nullable_to_non_nullable
-as String?,
+as String,text: freezed == text ? _self.text : text // ignore: cast_nullable_to_non_nullable
+as String?,languageTag: freezed == languageTag ? _self.languageTag : languageTag // ignore: cast_nullable_to_non_nullable
+as String?,attachments: freezed == attachments ? _self._attachments : attachments // ignore: cast_nullable_to_non_nullable
+as List<String>?,uiEvent: freezed == uiEvent ? _self._uiEvent : uiEvent // ignore: cast_nullable_to_non_nullable
+as Map<String, Object?>?,
   ));
 }
 

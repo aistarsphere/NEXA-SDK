@@ -1,6 +1,19 @@
 import 'package:meta/meta.dart';
 import 'package:nexa_core/nexa_core.dart';
 
+/// Speaking levels during a call, each 0..1 (see [NexaVoiceController.levels]).
+@immutable
+final class NexaVoiceLevels {
+  const NexaVoiceLevels({this.local = 0, this.agent = 0});
+  static const silent = NexaVoiceLevels();
+
+  /// The user's microphone.
+  final double local;
+
+  /// The assistant's voice.
+  final double agent;
+}
+
 /// Snapshot of the live voice session exposed to hosts and to the capsule.
 @immutable
 final class NexaVoiceState {
@@ -15,7 +28,16 @@ final class NexaVoiceState {
     this.rejectedEvents = 0,
     this.error,
     this.endReason,
+    this.voiceIdentity,
+    this.switchingVoice = false,
   });
+
+  /// The voice of this call as the gateway reported it at start (null when
+  /// not reported).
+  final VoiceIdentity? voiceIdentity;
+
+  /// Restarting the call so a newly activated voice applies.
+  final bool switchingVoice;
 
   /// Machine state (see `VoiceState`).
   final VoiceState phase;
@@ -67,6 +89,9 @@ final class NexaVoiceState {
     bool clearError = false,
     String? endReason,
     bool clearEndReason = false,
+    VoiceIdentity? voiceIdentity,
+    bool clearVoiceIdentity = false,
+    bool? switchingVoice,
   }) => NexaVoiceState(
     phase: phase ?? this.phase,
     muted: muted ?? this.muted,
@@ -78,6 +103,10 @@ final class NexaVoiceState {
     rejectedEvents: rejectedEvents ?? this.rejectedEvents,
     error: clearError ? null : (error ?? this.error),
     endReason: clearEndReason ? null : (endReason ?? this.endReason),
+    voiceIdentity: clearVoiceIdentity
+        ? null
+        : (voiceIdentity ?? this.voiceIdentity),
+    switchingVoice: switchingVoice ?? this.switchingVoice,
   );
 }
 
@@ -138,7 +167,12 @@ final class NexaVoiceOptions {
     this.keepTranscript = true,
     this.maxTranscriptEntries = 50,
     this.allowLegacyHmac = false,
+    this.restartOnVoiceActivation = true,
   });
+
+  /// After `voice.profile.activate` succeeds during a call, end it and
+  /// start a new one in the same conversation so the new voice applies.
+  final bool restartOnVoiceActivation;
 
   /// Join with the microphone muted.
   final bool startMuted;

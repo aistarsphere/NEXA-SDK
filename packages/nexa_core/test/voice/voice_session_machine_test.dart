@@ -19,6 +19,30 @@ void main() {
   }
 
   group('VoiceSessionMachine', () {
+    test('mute reaches the microphone in every live state', () {
+      for (final state in const [
+        VoiceState.listening,
+        VoiceState.userSpeaking,
+        VoiceState.transcribing,
+        VoiceState.thinking,
+        VoiceState.aiSpeaking,
+        VoiceState.bargeIn,
+        VoiceState.weakNetwork,
+        VoiceState.modelBusy,
+      ]) {
+        final cmds = <VoiceCommand>[];
+        final s = run(state, const [VoiceMuteToggled(muted: true)], cmds);
+        expect(s, VoiceState.muted, reason: '$state');
+        expect(cmds.whereType<SetTransportMuted>().single.muted, isTrue);
+      }
+      final cmds = <VoiceCommand>[];
+      final s = run(VoiceState.muted, const [
+        VoiceMuteToggled(muted: false),
+      ], cmds);
+      expect(s, VoiceState.listening);
+      expect(cmds.whereType<SetTransportMuted>().single.muted, isFalse);
+    });
+
     test(
       'happy path: start -> permission -> connect -> listen -> speak -> reply',
       () {

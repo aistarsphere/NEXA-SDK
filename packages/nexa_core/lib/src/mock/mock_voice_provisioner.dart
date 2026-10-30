@@ -15,6 +15,9 @@ final class MockVoiceProvisioner implements VoiceProvisioner {
     this.tokenLifetime = const Duration(seconds: 60),
   });
 
+  /// `voice_identity` of the next grants (null: not reported).
+  VoiceIdentity? voiceIdentity;
+
   /// When set, [create] throws this (and nothing is created).
   Object? failCreateWith;
 
@@ -36,6 +39,7 @@ final class MockVoiceProvisioner implements VoiceProvisioner {
   final List<String> ended = [];
   final List<String> languageTags = [];
   final List<SessionId?> chatSessionIds = [];
+  final List<String?> conversationIds = [];
 
   /// A fixed 32-byte public key; mock transports do not verify signatures.
   static final mockPublicKey = Uint8List(32);
@@ -44,12 +48,15 @@ final class MockVoiceProvisioner implements VoiceProvisioner {
   Future<VoiceGrant> create({
     required String languageTag,
     SessionId? chatSessionId,
+    String? conversationId,
+    List<String> clientTools = const [],
   }) async {
     final failure = failCreateWith;
     if (failure != null) throw failure;
     created++;
     languageTags.add(languageTag);
     chatSessionIds.add(chatSessionId);
+    conversationIds.add(conversationId);
     final id = 'vs_mock_$created';
     return VoiceGrant(
       voiceSessionId: id,
@@ -63,6 +70,7 @@ final class MockVoiceProvisioner implements VoiceProvisioner {
       maxSeconds: maxSeconds,
       reservedSeconds: maxSeconds,
       tokenRefreshPath: '/v1/sdk/voice/sessions/$id/token',
+      voiceIdentity: voiceIdentity,
     );
   }
 

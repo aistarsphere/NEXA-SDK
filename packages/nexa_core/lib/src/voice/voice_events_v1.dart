@@ -447,6 +447,14 @@ RealtimeVoiceEvent? realtimeEventFromV1(VoiceEventV1 e) {
       return RealtimeSessionEnding(e['reason']! as String);
     case 'assistant_text':
       return null; // folded into captions by the transport (needs index)
+    case 'tool_call_requested' ||
+        'tool_call_updated' ||
+        'tool_call_progress' ||
+        'tool_call_completed' ||
+        'tool_call_failed' ||
+        'asset_created' ||
+        'ui_presented':
+      return RealtimeToolEvent(e.type, e.fields);
     default:
       return null;
   }

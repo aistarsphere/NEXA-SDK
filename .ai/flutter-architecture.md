@@ -46,7 +46,7 @@ shelf 1.4 + shelf_router (reference gateway only). Rules: no second HTTP or stat
 
 ## 3. Public API rules (nexa_sdk)
 
-* Everything public is exported from `package:nexa_sdk/nexa_sdk.dart` (re-exports `nexa_core` and the two host-facing `nexa_ui` types). Anything under `src/` not exported is private; the example app must compile against the public surface only (except `package:nexa_core/testing.dart`, which is mock-only).
+* Everything public is exported from `package:nexa_sdk/nexa_sdk.dart` (re-exports `nexa_core` and the host-facing `nexa_ui` types `NexaLocale`, `NexaThemeOverrides`, `NexaTheme`, `NexaColors`, `NexaMotion`, so a host can theme its own chrome to match). Anything under `src/` not exported is private; the example app must compile against the public surface only (except `package:nexa_core/testing.dart`, which is mock-only).
 * Host lifecycle: `Nexa.initialize(config, auth, overrides) → NexaClient` → `startSession()` / `openChat(context)` / `chatView()` → `endSession()` → `dispose()`. Double `initialize` throws; use after `dispose` throws `NotInitializedException`.
 * Errors reach hosts only as `NexaException` subtypes (sealed, switch-exhaustive) and as `NexaErrorOccurred` on `lifecycle`.
 * Secrets: `NexaConfig` has no credential field and rejects credential-looking metadata. Only `NexaAuthProvider.fetchSessionCredential()` supplies authorisation, as a short-lived opaque token minted by the host's backend. The SDK keeps it in memory only (no persistence).
@@ -99,7 +99,7 @@ nexa_sdk/lib/src/
 * Public API: `NexaClient.voice` (`start/end/setMuted/toggleMute/interrupt`, `state`, `events`, `microphoneEnabled`), `NexaClient.voiceView(...)`, `Nexa.initialize(voiceOptions: NexaVoiceOptions(...))`, `NexaOverrides.voiceTransport/voiceProvisioner` (mocks).
 * Security: grants are room-scoped participant JWTs (no API keys on device); agent events are HMAC-signed per session and verified (signature, session, monotonic seq, skew) before they can change state; unverified (dev) mode is visible and can be forbidden. Threat model: `docs/contracts/nexa-voice-provisioning.proposed.md` §4 — needs human sign-off.
 * Contract: backend-owned `nexa.voice.v1` (handoff 1.0.0, `docs/contracts/voice-v1/`); SDK mapping and differences in `docs/voice/backend-compatibility-v1.md`. Ed25519 sealed envelopes verified by `VoiceEventVerifier`; gapless `seq` by `VoiceReplayGuard`; both driven by the pure `VoiceEventPipeline`. Status: fixture-verified + Android-emulator journey against the reference gateway's v1 mirror; no live-backend run; no model inference.
-* UI: `NexaVoiceCapsule` (nexa_ui) is pure presentation (orb, state label live region, transcript, mute/end, error actions), en/ar, RTL, reduced motion.
+* UI: `NexaVoiceCapsule` (nexa_ui) is pure presentation, design L1: captions as turns, bottom panel with the state capsule (width/colour/bars/dots/icon per state), label live region + hint, flags, mute / captions / start-end, error actions; en/ar, RTL, reduced motion (bars still). Colour tokens are `nexa-tokens.css` v2.2.
 
 ## 8. Localization and theme rules
 

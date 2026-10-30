@@ -47,6 +47,14 @@ final class ConversationReducer {
         quota: quota,
         quotaExceeded: exceeded,
       ),
+      // Handled by the client tool layer / renderers, not the transcript.
+      ClientToolCallEvent() || ServerToolResultEvent() => state,
+      // labeeb.sdk/1 tool calls, jobs, assets and UI documents are kept by
+      // the SDK's tool-call controller, not the text conversation.
+      ContractToolCallEvent() ||
+      ToolCallProgressEvent() ||
+      AssetCreatedEvent() ||
+      UiPresentedEvent() => state,
       UnsupportedEvent() => state,
     };
     return next.copyWith(

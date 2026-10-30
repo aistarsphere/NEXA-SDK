@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:nexa_example/dev/dev_token_section.dart';
+import 'package:nexa_example/dev_token_auth_provider.dart';
 import 'package:nexa_example/host_auth_provider.dart';
 import 'package:nexa_sdk/nexa_sdk.dart';
 
@@ -6,7 +8,7 @@ class SettingsPage extends StatefulWidget {
   const SettingsPage({required this.client, required this.auth, super.key});
 
   final NexaClient client;
-  final HostAuthProvider auth;
+  final NexaAuthProvider auth;
 
   @override
   State<SettingsPage> createState() => _SettingsPageState();
@@ -71,19 +73,29 @@ class _SettingsPageState extends State<SettingsPage> {
               ],
             ),
             const SizedBox(height: 24),
-            const Text(
-              'Host backend: session token lifetime (demonstrates renewal '
-              'after a 401; the SDK refreshes through NexaAuthProvider)',
-            ),
-            SegmentedButton<int>(
-              segments: const [
-                ButtonSegment(value: 15 * 60, label: Text('15 min')),
-                ButtonSegment(value: 20, label: Text('20 s')),
-              ],
-              selected: {widget.auth.tokenTtlSeconds},
-              onSelectionChanged: (s) =>
-                  setState(() => widget.auth.tokenTtlSeconds = s.first),
-            ),
+            switch (widget.auth) {
+              final HostAuthProvider host => Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Host backend: session token lifetime (demonstrates '
+                    'renewal after a 401; the SDK refreshes through '
+                    'NexaAuthProvider)',
+                  ),
+                  SegmentedButton<int>(
+                    segments: const [
+                      ButtonSegment(value: 15 * 60, label: Text('15 min')),
+                      ButtonSegment(value: 20, label: Text('20 s')),
+                    ],
+                    selected: {host.tokenTtlSeconds},
+                    onSelectionChanged: (s) =>
+                        setState(() => host.tokenTtlSeconds = s.first),
+                  ),
+                ],
+              ),
+              final DevTokenAuthProvider dev => DevTokenSection(auth: dev),
+              _ => const SizedBox.shrink(),
+            },
             const SizedBox(height: 24),
             OutlinedButton(
               onPressed: () => client.endSession(),

@@ -16,7 +16,8 @@ mixin _$SessionHandle {
 
  SessionId get sessionId; DateTime get expiresAt;/// Capabilities the gateway actually granted (policy-filtered).
  Set<NexaCapability> get grantedCapabilities;/// Sequence to resume from when reconnecting (0 for a new session).
- int get lastSequence;
+ int get lastSequence;/// labeeb.sdk/1: the server-owned conversation this session joined.
+ String? get conversationId;
 /// Create a copy of SessionHandle
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -27,16 +28,16 @@ $SessionHandleCopyWith<SessionHandle> get copyWith => _$SessionHandleCopyWithImp
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is SessionHandle&&(identical(other.sessionId, sessionId) || other.sessionId == sessionId)&&(identical(other.expiresAt, expiresAt) || other.expiresAt == expiresAt)&&const DeepCollectionEquality().equals(other.grantedCapabilities, grantedCapabilities)&&(identical(other.lastSequence, lastSequence) || other.lastSequence == lastSequence));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is SessionHandle&&(identical(other.sessionId, sessionId) || other.sessionId == sessionId)&&(identical(other.expiresAt, expiresAt) || other.expiresAt == expiresAt)&&const DeepCollectionEquality().equals(other.grantedCapabilities, grantedCapabilities)&&(identical(other.lastSequence, lastSequence) || other.lastSequence == lastSequence)&&(identical(other.conversationId, conversationId) || other.conversationId == conversationId));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,sessionId,expiresAt,const DeepCollectionEquality().hash(grantedCapabilities),lastSequence);
+int get hashCode => Object.hash(runtimeType,sessionId,expiresAt,const DeepCollectionEquality().hash(grantedCapabilities),lastSequence,conversationId);
 
 @override
 String toString() {
-  return 'SessionHandle(sessionId: $sessionId, expiresAt: $expiresAt, grantedCapabilities: $grantedCapabilities, lastSequence: $lastSequence)';
+  return 'SessionHandle(sessionId: $sessionId, expiresAt: $expiresAt, grantedCapabilities: $grantedCapabilities, lastSequence: $lastSequence, conversationId: $conversationId)';
 }
 
 
@@ -47,7 +48,7 @@ abstract mixin class $SessionHandleCopyWith<$Res>  {
   factory $SessionHandleCopyWith(SessionHandle value, $Res Function(SessionHandle) _then) = _$SessionHandleCopyWithImpl;
 @useResult
 $Res call({
- SessionId sessionId, DateTime expiresAt, Set<NexaCapability> grantedCapabilities, int lastSequence
+ SessionId sessionId, DateTime expiresAt, Set<NexaCapability> grantedCapabilities, int lastSequence, String? conversationId
 });
 
 
@@ -64,13 +65,14 @@ class _$SessionHandleCopyWithImpl<$Res>
 
 /// Create a copy of SessionHandle
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? sessionId = null,Object? expiresAt = null,Object? grantedCapabilities = null,Object? lastSequence = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? sessionId = null,Object? expiresAt = null,Object? grantedCapabilities = null,Object? lastSequence = null,Object? conversationId = freezed,}) {
   return _then(_self.copyWith(
 sessionId: null == sessionId ? _self.sessionId : sessionId // ignore: cast_nullable_to_non_nullable
 as SessionId,expiresAt: null == expiresAt ? _self.expiresAt : expiresAt // ignore: cast_nullable_to_non_nullable
 as DateTime,grantedCapabilities: null == grantedCapabilities ? _self.grantedCapabilities : grantedCapabilities // ignore: cast_nullable_to_non_nullable
 as Set<NexaCapability>,lastSequence: null == lastSequence ? _self.lastSequence : lastSequence // ignore: cast_nullable_to_non_nullable
-as int,
+as int,conversationId: freezed == conversationId ? _self.conversationId : conversationId // ignore: cast_nullable_to_non_nullable
+as String?,
   ));
 }
 
@@ -155,10 +157,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( SessionId sessionId,  DateTime expiresAt,  Set<NexaCapability> grantedCapabilities,  int lastSequence)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( SessionId sessionId,  DateTime expiresAt,  Set<NexaCapability> grantedCapabilities,  int lastSequence,  String? conversationId)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _SessionHandle() when $default != null:
-return $default(_that.sessionId,_that.expiresAt,_that.grantedCapabilities,_that.lastSequence);case _:
+return $default(_that.sessionId,_that.expiresAt,_that.grantedCapabilities,_that.lastSequence,_that.conversationId);case _:
   return orElse();
 
 }
@@ -176,10 +178,10 @@ return $default(_that.sessionId,_that.expiresAt,_that.grantedCapabilities,_that.
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( SessionId sessionId,  DateTime expiresAt,  Set<NexaCapability> grantedCapabilities,  int lastSequence)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( SessionId sessionId,  DateTime expiresAt,  Set<NexaCapability> grantedCapabilities,  int lastSequence,  String? conversationId)  $default,) {final _that = this;
 switch (_that) {
 case _SessionHandle():
-return $default(_that.sessionId,_that.expiresAt,_that.grantedCapabilities,_that.lastSequence);case _:
+return $default(_that.sessionId,_that.expiresAt,_that.grantedCapabilities,_that.lastSequence,_that.conversationId);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -196,10 +198,10 @@ return $default(_that.sessionId,_that.expiresAt,_that.grantedCapabilities,_that.
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( SessionId sessionId,  DateTime expiresAt,  Set<NexaCapability> grantedCapabilities,  int lastSequence)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( SessionId sessionId,  DateTime expiresAt,  Set<NexaCapability> grantedCapabilities,  int lastSequence,  String? conversationId)?  $default,) {final _that = this;
 switch (_that) {
 case _SessionHandle() when $default != null:
-return $default(_that.sessionId,_that.expiresAt,_that.grantedCapabilities,_that.lastSequence);case _:
+return $default(_that.sessionId,_that.expiresAt,_that.grantedCapabilities,_that.lastSequence,_that.conversationId);case _:
   return null;
 
 }
@@ -211,7 +213,7 @@ return $default(_that.sessionId,_that.expiresAt,_that.grantedCapabilities,_that.
 
 
 class _SessionHandle extends SessionHandle {
-  const _SessionHandle({required this.sessionId, required this.expiresAt, required final  Set<NexaCapability> grantedCapabilities, this.lastSequence = 0}): _grantedCapabilities = grantedCapabilities,super._();
+  const _SessionHandle({required this.sessionId, required this.expiresAt, required final  Set<NexaCapability> grantedCapabilities, this.lastSequence = 0, this.conversationId}): _grantedCapabilities = grantedCapabilities,super._();
   
 
 @override final  SessionId sessionId;
@@ -227,6 +229,8 @@ class _SessionHandle extends SessionHandle {
 
 /// Sequence to resume from when reconnecting (0 for a new session).
 @override@JsonKey() final  int lastSequence;
+/// labeeb.sdk/1: the server-owned conversation this session joined.
+@override final  String? conversationId;
 
 /// Create a copy of SessionHandle
 /// with the given fields replaced by the non-null parameter values.
@@ -238,16 +242,16 @@ _$SessionHandleCopyWith<_SessionHandle> get copyWith => __$SessionHandleCopyWith
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _SessionHandle&&(identical(other.sessionId, sessionId) || other.sessionId == sessionId)&&(identical(other.expiresAt, expiresAt) || other.expiresAt == expiresAt)&&const DeepCollectionEquality().equals(other._grantedCapabilities, _grantedCapabilities)&&(identical(other.lastSequence, lastSequence) || other.lastSequence == lastSequence));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _SessionHandle&&(identical(other.sessionId, sessionId) || other.sessionId == sessionId)&&(identical(other.expiresAt, expiresAt) || other.expiresAt == expiresAt)&&const DeepCollectionEquality().equals(other._grantedCapabilities, _grantedCapabilities)&&(identical(other.lastSequence, lastSequence) || other.lastSequence == lastSequence)&&(identical(other.conversationId, conversationId) || other.conversationId == conversationId));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,sessionId,expiresAt,const DeepCollectionEquality().hash(_grantedCapabilities),lastSequence);
+int get hashCode => Object.hash(runtimeType,sessionId,expiresAt,const DeepCollectionEquality().hash(_grantedCapabilities),lastSequence,conversationId);
 
 @override
 String toString() {
-  return 'SessionHandle(sessionId: $sessionId, expiresAt: $expiresAt, grantedCapabilities: $grantedCapabilities, lastSequence: $lastSequence)';
+  return 'SessionHandle(sessionId: $sessionId, expiresAt: $expiresAt, grantedCapabilities: $grantedCapabilities, lastSequence: $lastSequence, conversationId: $conversationId)';
 }
 
 
@@ -258,7 +262,7 @@ abstract mixin class _$SessionHandleCopyWith<$Res> implements $SessionHandleCopy
   factory _$SessionHandleCopyWith(_SessionHandle value, $Res Function(_SessionHandle) _then) = __$SessionHandleCopyWithImpl;
 @override @useResult
 $Res call({
- SessionId sessionId, DateTime expiresAt, Set<NexaCapability> grantedCapabilities, int lastSequence
+ SessionId sessionId, DateTime expiresAt, Set<NexaCapability> grantedCapabilities, int lastSequence, String? conversationId
 });
 
 
@@ -275,13 +279,14 @@ class __$SessionHandleCopyWithImpl<$Res>
 
 /// Create a copy of SessionHandle
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? sessionId = null,Object? expiresAt = null,Object? grantedCapabilities = null,Object? lastSequence = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? sessionId = null,Object? expiresAt = null,Object? grantedCapabilities = null,Object? lastSequence = null,Object? conversationId = freezed,}) {
   return _then(_SessionHandle(
 sessionId: null == sessionId ? _self.sessionId : sessionId // ignore: cast_nullable_to_non_nullable
 as SessionId,expiresAt: null == expiresAt ? _self.expiresAt : expiresAt // ignore: cast_nullable_to_non_nullable
 as DateTime,grantedCapabilities: null == grantedCapabilities ? _self._grantedCapabilities : grantedCapabilities // ignore: cast_nullable_to_non_nullable
 as Set<NexaCapability>,lastSequence: null == lastSequence ? _self.lastSequence : lastSequence // ignore: cast_nullable_to_non_nullable
-as int,
+as int,conversationId: freezed == conversationId ? _self.conversationId : conversationId // ignore: cast_nullable_to_non_nullable
+as String?,
   ));
 }
 

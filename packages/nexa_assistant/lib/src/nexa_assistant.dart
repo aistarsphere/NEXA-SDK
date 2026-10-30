@@ -1,0 +1,187 @@
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
+import 'package:nexa_assistant/src/nexa_assistant_models.dart';
+
+/// Android assistant integration for a NEXA host app.
+///
+/// * The system assistant role (the user picks the app in Android's own
+///   "Default digital assistant" screen) and its assist gesture/button.
+/// * An optional wake phrase detected **on the device** from the owner's
+///   own recorded samples, with an optional owner-voice check. Nothing is
+///   sent to a server and nothing is stored as audio.
+/// * Activations arrive on [activations]; the host then opens its voice
+///   conversation. The plugin never connects to a backend itself.
+///
+/// On other platforms everything reports [NexaAssistantStatus.unsupported].
+class NexaAssistant {
+  NexaAssistant({MethodChannel? methods, EventChannel? events, bool? supported})
+    : _methods = methods ?? const MethodChannel('nexa_assistant/methods'),
+      _eventChannel = events ?? const EventChannel('nexa_assistant/events'),
+      supported =
+          supported ??
+          (!kIsWeb && defaultTargetPlatform == TargetPlatform.android);
+
+  final MethodChannel _methods;
+  final EventChannel _eventChannel;
+  final bool supported;
+
+  late final Stream<NexaAssistantEvent> events = supported
+      ? _eventChannel
+            .receiveBroadcastStream()
+            .map((e) => NexaAssistantEvent.fromMap(e as Map<Object?, Object?>))
+            .where((e) => e != null)
+            .cast<NexaAssistantEvent>()
+            .asBroadcastStream()
+      : const Stream.empty();
+
+  Stream<NexaAssistantActivation> get activations =>
+      events.where((e) => e is NexaAssistantActivation).cast();
+
+  Future<T?> _call<T>(String method, [Map<String, Object?>? args]) async {
+    if (!supported) return null;
+    return _methods.invokeMethod<T>(method, args);
+  }
+
+  Future<Map<Object?, Object?>> _map(
+    String m, [
+    Map<String, Object?>? a,
+  ]) async => await _call<Map<Object?, Object?>>(m, a) ?? const {'ok': false};
+
+  Future<NexaAssistantStatus> status() async {
+    final m = await _call<Map<Object?, Object?>>('status');
+    return m == null
+        ? NexaAssistantStatus.unsupported
+        : NexaAssistantStatus.fromMap(m);
+  }
+
+  /// How the host names its wake phrase in the listening notification.
+  Future<void> configure({String? phraseLabel}) =>
+      _call<void>('configure', {'phraseLabel': phraseLabel});
+
+  /// The activation that cold-started the app, if any (once).
+  Future<NexaAssistantActivation?> takePendingActivation() async {
+    final m = await _call<Map<Object?, Object?>>('takePendingActivation');
+    return m == null ? null : NexaAssistantActivation.fromMap(m);
+  }
+
+  /// What the system assistant window shows right now (for a cold start
+  /// straight into the panel).
+  Future<NexaAssistantSurface> surface() async {
+    final m = await _call<Map<Object?, Object?>>('surface');
+    return m == null
+        ? NexaAssistantSurface.none
+        : NexaAssistantSurface.fromMap(m);
+  }
+
+  /// Hides the panel after the host ended the call ([reason] is recorded:
+  /// `user_closed`, `idle_timeout`, `call_ended`).
+  Future<void> closePanel(String reason) =>
+      _call<void>('closePanel', {'reason': reason});
+
+  /// Hides the panel and opens the full app; the call continues there.
+  Future<void> expandPanel() => _call<void>('expandPanel');
+
+  Future<void> setPanelPosition(NexaPanelPosition value) =>
+      _call<void>('setPanelPosition', {'value': value.name});
+
+  /// 0 turns the panel's idle timeout off.
+  Future<void> setIdleTimeout(int seconds) =>
+      _call<void>('setIdleTimeout', {'seconds': seconds});
+
+  /// Records why a panel conversation ended (diagnostics).
+  Future<void> reportSessionEnd(String reason) =>
+      _call<void>('reportSessionEnd', {'reason': reason});
+
+  /// Android's own default-assistant chooser. The user decides.
+  Future<bool> openAssistantSettings() async =>
+      await _call<bool>('openAssistantSettings') ?? false;
+
+  Future<bool> openBatterySettings() async =>
+      await _call<bool>('openBatterySettings') ?? false;
+
+  /// The manufacturer's background/autostart screen where one exists.
+  Future<bool> openBackgroundSettings() async =>
+      await _call<bool>('openBackgroundSettings') ?? false;
+
+  Future<bool> openAppSettings() async =>
+      await _call<bool>('openAppSettings') ?? false;
+
+  /// Starts or stops listening for the wake phrase. Starting needs the
+  /// microphone permission, an enrolled phrase and the app on screen.
+  Future<NexaAssistantToggle> setWakeEnabled(bool enabled) async =>
+      NexaAssistantToggle.parse(
+        await _call<String>('setWakeEnabled', {'enabled': enabled}),
+      );
+
+  /// Accept the wake phrase only in the enrolled owner's voice.
+  Future<NexaAssistantToggle> setRequireOwnerVoice(bool enabled) async =>
+      NexaAssistantToggle.parse(
+        await _call<String>('setRequireOwnerVoice', {'enabled': enabled}),
+      );
+
+  Future<void> setSensitivity(NexaWakeSensitivity value) =>
+      _call<void>('setSensitivity', {'value': value.name});
+
+  /// Releases the microphone (e.g. while the host's voice call runs).
+  Future<void> suspendListening([String reason = 'host']) =>
+      _call<void>('suspendListening', {'reason': reason});
+
+  Future<void> resumeListening() => _call<void>('resumeListening');
+
+  /// Keeps the wake listener off the microphone while [inUse] is true
+  /// (the host's own voice conversation). Returns a function that stops
+  /// following it.
+  VoidCallback followMicrophoneUse(ValueListenable<bool> inUse) {
+    var last = inUse.value;
+    if (last) unawaited(suspendListening('conversation'));
+    void sync() {
+      final now = inUse.value;
+      if (now == last) return;
+      last = now;
+      unawaited(now ? suspendListening('conversation') : resumeListening());
+    }
+
+    inUse.addListener(sync);
+    return () => inUse.removeListener(sync);
+  }
+
+  // ---------------------------------------------------------- enrolment
+
+  /// Begins a new local enrolment (pauses listening).
+  Future<void> startEnrollment() => _call<void>('enrollmentStart');
+
+  /// Records one sample of the phrase; audio stays in memory.
+  Future<NexaEnrollmentSample> recordEnrollmentSample({
+    Duration timeout = const Duration(seconds: 6),
+  }) async => NexaEnrollmentSample.fromMap(
+    await _map('enrollmentRecord', {'timeoutMs': timeout.inMilliseconds}),
+  );
+
+  /// Saves the encrypted profile and discards the audio.
+  Future<NexaEnrollmentResult> finishEnrollment() async =>
+      NexaEnrollmentResult.fromMap(await _map('enrollmentFinish'));
+
+  Future<void> cancelEnrollment() => _call<void>('enrollmentCancel');
+
+  /// Turns listening off and deletes the profile and its key.
+  Future<void> deleteVoiceProfile() => _call<void>('deleteVoiceProfile');
+
+  /// Listens once and reports what the detector decided (no activation).
+  Future<NexaWakeDecision> testListen({
+    Duration timeout = const Duration(seconds: 6),
+  }) async => NexaWakeDecision.fromMap(
+    await _map('testListen', {'timeoutMs': timeout.inMilliseconds}),
+  );
+
+  // --------------------------------------------------------- lock screen
+
+  /// Asks Android to unlock (PIN, pattern or biometrics).
+  Future<NexaUnlockResult> requestUnlock() async =>
+      NexaUnlockResult.parse(await _call<String>('requestUnlock'));
+
+  /// Stops showing above the lock screen; optionally leaves the app.
+  Future<void> endLockScreenSession({bool moveToBack = false}) =>
+      _call<void>('endLockScreenSession', {'moveToBack': moveToBack});
+}

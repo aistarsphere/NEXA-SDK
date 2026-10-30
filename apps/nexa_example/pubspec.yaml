@@ -1,5 +1,5 @@
 name: nexa_example
-description: Host application demonstrating NEXA SDK integration. Not published.
+description: LABEEB | لبيب assistant app (NEXA SDK example host). Not published.
 version: 0.1.0
 publish_to: none
 resolution: workspace
@@ -15,16 +15,26 @@ dependencies:
   flutter_localizations:
     sdk: flutter
   go_router: ^18.1.0
+  nexa_assistant: ^0.1.0
   nexa_core: ^0.1.0
   nexa_sdk: ^0.1.0
+  path_provider: ^2.1.5
   permission_handler: ^12.0.1
 
 dev_dependencies:
+  # Fake gateway (HTTP layer only) for on-device tool fixtures.
+  dio: ^5.11.1
   flutter_lints: ^6.0.0
   flutter_test:
     sdk: flutter
   integration_test:
     sdk: flutter
+  # Diagnostics in integration_test/real_backend_voice_test.dart (ICE stats).
+  livekit_client: ^2.13.1
+  nexa_realtime: ^0.1.0
 
 flutter:
   uses-material-design: true
+  assets:
+    # LABEEB logo slot: drop labeeb_logo.png here (see lib/brand/labeeb_brand.dart).
+    - assets/brand/

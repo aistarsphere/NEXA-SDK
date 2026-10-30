@@ -74,6 +74,13 @@ final class _ValidatedToolResultConverter
 /// ## Wire format
 /// `{"type": "snake_case_variant", "event_id": ..., "session_id": ...,
 ///   "sequence": ..., "occurred_at": ..., ...fields}`
+const _contractToolPhases = {
+  'tool_call_requested',
+  'tool_call_updated',
+  'tool_call_completed',
+  'tool_call_failed',
+};
+
 @Freezed(unionKey: 'type', unionValueCase: FreezedUnionCase.snake)
 sealed class ConversationEvent with _$ConversationEvent {
   const ConversationEvent._();
@@ -234,6 +241,72 @@ sealed class ConversationEvent with _$ConversationEvent {
     @Default(false) bool exceeded,
   }) = QuotaUpdatedEvent;
 
+  /// The assistant asks the device to run a client tool (contract
+  /// `nexa.client_tool.v1`); [call] is the raw request, validated by the
+  /// client tool registry before anything runs.
+  const factory ConversationEvent.clientToolCall({
+    @EventIdConverter() required EventId eventId,
+    @SessionIdConverter() required SessionId sessionId,
+    required int sequence,
+    required DateTime occurredAt,
+    required Map<String, Object?> call,
+  }) = ClientToolCallEvent;
+
+  /// Result of a backend (server) tool for display, e.g. nearby places
+  /// (`nexa.places.v1`); [result] is parsed by the matching renderer.
+  const factory ConversationEvent.serverToolResult({
+    @EventIdConverter() required EventId eventId,
+    @SessionIdConverter() required SessionId sessionId,
+    required int sequence,
+    required DateTime occurredAt,
+    required Map<String, Object?> result,
+  }) = ServerToolResultEvent;
+
+  /// `labeeb.sdk/1` tool lifecycle: [phase] is the wire type
+  /// (`tool_call_requested|updated|completed|failed`), [call] the payload
+  /// (see `NexaToolCall.fromJson`). Built by [tryParse].
+  const factory ConversationEvent.contractToolCall({
+    @EventIdConverter() required EventId eventId,
+    @SessionIdConverter() required SessionId sessionId,
+    required int sequence,
+    required DateTime occurredAt,
+    required String phase,
+    required Map<String, Object?> call,
+  }) = ContractToolCallEvent;
+
+  /// `labeeb.sdk/1` `tool_call_progress` of a long job (`state` is open).
+  const factory ConversationEvent.toolCallProgress({
+    @EventIdConverter() required EventId eventId,
+    @SessionIdConverter() required SessionId sessionId,
+    required int sequence,
+    required DateTime occurredAt,
+    required String toolCallId,
+    @Default('') String tool,
+    @Default('') String state,
+    int? waitedS,
+  }) = ToolCallProgressEvent;
+
+  /// `labeeb.sdk/1` `asset_created`: an image/file produced by a tool.
+  const factory ConversationEvent.assetCreated({
+    @EventIdConverter() required EventId eventId,
+    @SessionIdConverter() required SessionId sessionId,
+    required int sequence,
+    required DateTime occurredAt,
+    required Map<String, Object?> asset,
+    String? toolCallId,
+    String? messageId,
+  }) = AssetCreatedEvent;
+
+  /// `labeeb.sdk/1` `ui_presented`: a `nexa.ui/1` document.
+  const factory ConversationEvent.uiPresented({
+    @EventIdConverter() required EventId eventId,
+    @SessionIdConverter() required SessionId sessionId,
+    required int sequence,
+    required DateTime occurredAt,
+    required Map<String, Object?> ui,
+    String? toolCallId,
+  }) = UiPresentedEvent;
+
   /// An event the SDK could not interpret (unknown `type` from a newer
   /// gateway, or a payload that failed validation). Carries only the common
   /// envelope so the sequence cursor still advances; the reducer ignores it.
@@ -256,6 +329,22 @@ sealed class ConversationEvent with _$ConversationEvent {
   /// Returns null when even the envelope is unusable.
   static ConversationEvent? tryParse(Map<String, Object?> json) {
     try {
+      // labeeb.sdk/1 tool lifecycle: `tool_call_requested` shares its name
+      // with the earlier proposed event, told apart by `tool_call_id`.
+      final type = json['type'];
+      if (type is String &&
+          _contractToolPhases.contains(type) &&
+          json['tool_call_id'] is String &&
+          json['tool'] is String) {
+        return ConversationEvent.contractToolCall(
+          eventId: EventId(json['event_id']! as String),
+          sessionId: SessionId(json['session_id']! as String),
+          sequence: json['sequence']! as int,
+          occurredAt: DateTime.parse(json['occurred_at']! as String),
+          phase: type,
+          call: json,
+        );
+      }
       return ConversationEvent.fromJson(json);
     } on Object catch (e) {
       final eventId = json['event_id'];

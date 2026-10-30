@@ -616,6 +616,30 @@ ConversationEvent _$ConversationEventFromJson(
           return QuotaUpdatedEvent.fromJson(
             json
           );
+                case 'client_tool_call':
+          return ClientToolCallEvent.fromJson(
+            json
+          );
+                case 'server_tool_result':
+          return ServerToolResultEvent.fromJson(
+            json
+          );
+                case 'contract_tool_call':
+          return ContractToolCallEvent.fromJson(
+            json
+          );
+                case 'tool_call_progress':
+          return ToolCallProgressEvent.fromJson(
+            json
+          );
+                case 'asset_created':
+          return AssetCreatedEvent.fromJson(
+            json
+          );
+                case 'ui_presented':
+          return UiPresentedEvent.fromJson(
+            json
+          );
                 case 'unsupported':
           return UnsupportedEvent.fromJson(
             json
@@ -712,7 +736,7 @@ extension ConversationEventPatterns on ConversationEvent {
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( SessionStartedEvent value)?  sessionStarted,TResult Function( SessionEndedEvent value)?  sessionEnded,TResult Function( UserMessageAcceptedEvent value)?  userMessageAccepted,TResult Function( UserMessageRejectedEvent value)?  userMessageRejected,TResult Function( AssistantMessageStartedEvent value)?  assistantMessageStarted,TResult Function( AssistantTextDeltaEvent value)?  assistantTextDelta,TResult Function( AssistantMessageCompletedEvent value)?  assistantMessageCompleted,TResult Function( MessageFailedEvent value)?  messageFailed,TResult Function( MessageCancelledEvent value)?  messageCancelled,TResult Function( ToolCallRequestedEvent value)?  toolCallRequested,TResult Function( ToolExecutionProgressEvent value)?  toolExecutionProgress,TResult Function( ToolResultReceivedEvent value)?  toolResultReceived,TResult Function( UserConfirmationRequestedEvent value)?  userConfirmationRequested,TResult Function( PermissionRequestedEvent value)?  permissionRequested,TResult Function( QuotaUpdatedEvent value)?  quotaUpdated,TResult Function( UnsupportedEvent value)?  unsupported,required TResult orElse(),}){
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( SessionStartedEvent value)?  sessionStarted,TResult Function( SessionEndedEvent value)?  sessionEnded,TResult Function( UserMessageAcceptedEvent value)?  userMessageAccepted,TResult Function( UserMessageRejectedEvent value)?  userMessageRejected,TResult Function( AssistantMessageStartedEvent value)?  assistantMessageStarted,TResult Function( AssistantTextDeltaEvent value)?  assistantTextDelta,TResult Function( AssistantMessageCompletedEvent value)?  assistantMessageCompleted,TResult Function( MessageFailedEvent value)?  messageFailed,TResult Function( MessageCancelledEvent value)?  messageCancelled,TResult Function( ToolCallRequestedEvent value)?  toolCallRequested,TResult Function( ToolExecutionProgressEvent value)?  toolExecutionProgress,TResult Function( ToolResultReceivedEvent value)?  toolResultReceived,TResult Function( UserConfirmationRequestedEvent value)?  userConfirmationRequested,TResult Function( PermissionRequestedEvent value)?  permissionRequested,TResult Function( QuotaUpdatedEvent value)?  quotaUpdated,TResult Function( ClientToolCallEvent value)?  clientToolCall,TResult Function( ServerToolResultEvent value)?  serverToolResult,TResult Function( ContractToolCallEvent value)?  contractToolCall,TResult Function( ToolCallProgressEvent value)?  toolCallProgress,TResult Function( AssetCreatedEvent value)?  assetCreated,TResult Function( UiPresentedEvent value)?  uiPresented,TResult Function( UnsupportedEvent value)?  unsupported,required TResult orElse(),}){
 final _that = this;
 switch (_that) {
 case SessionStartedEvent() when sessionStarted != null:
@@ -730,7 +754,13 @@ return toolExecutionProgress(_that);case ToolResultReceivedEvent() when toolResu
 return toolResultReceived(_that);case UserConfirmationRequestedEvent() when userConfirmationRequested != null:
 return userConfirmationRequested(_that);case PermissionRequestedEvent() when permissionRequested != null:
 return permissionRequested(_that);case QuotaUpdatedEvent() when quotaUpdated != null:
-return quotaUpdated(_that);case UnsupportedEvent() when unsupported != null:
+return quotaUpdated(_that);case ClientToolCallEvent() when clientToolCall != null:
+return clientToolCall(_that);case ServerToolResultEvent() when serverToolResult != null:
+return serverToolResult(_that);case ContractToolCallEvent() when contractToolCall != null:
+return contractToolCall(_that);case ToolCallProgressEvent() when toolCallProgress != null:
+return toolCallProgress(_that);case AssetCreatedEvent() when assetCreated != null:
+return assetCreated(_that);case UiPresentedEvent() when uiPresented != null:
+return uiPresented(_that);case UnsupportedEvent() when unsupported != null:
 return unsupported(_that);case _:
   return orElse();
 
@@ -749,7 +779,7 @@ return unsupported(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( SessionStartedEvent value)  sessionStarted,required TResult Function( SessionEndedEvent value)  sessionEnded,required TResult Function( UserMessageAcceptedEvent value)  userMessageAccepted,required TResult Function( UserMessageRejectedEvent value)  userMessageRejected,required TResult Function( AssistantMessageStartedEvent value)  assistantMessageStarted,required TResult Function( AssistantTextDeltaEvent value)  assistantTextDelta,required TResult Function( AssistantMessageCompletedEvent value)  assistantMessageCompleted,required TResult Function( MessageFailedEvent value)  messageFailed,required TResult Function( MessageCancelledEvent value)  messageCancelled,required TResult Function( ToolCallRequestedEvent value)  toolCallRequested,required TResult Function( ToolExecutionProgressEvent value)  toolExecutionProgress,required TResult Function( ToolResultReceivedEvent value)  toolResultReceived,required TResult Function( UserConfirmationRequestedEvent value)  userConfirmationRequested,required TResult Function( PermissionRequestedEvent value)  permissionRequested,required TResult Function( QuotaUpdatedEvent value)  quotaUpdated,required TResult Function( UnsupportedEvent value)  unsupported,}){
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( SessionStartedEvent value)  sessionStarted,required TResult Function( SessionEndedEvent value)  sessionEnded,required TResult Function( UserMessageAcceptedEvent value)  userMessageAccepted,required TResult Function( UserMessageRejectedEvent value)  userMessageRejected,required TResult Function( AssistantMessageStartedEvent value)  assistantMessageStarted,required TResult Function( AssistantTextDeltaEvent value)  assistantTextDelta,required TResult Function( AssistantMessageCompletedEvent value)  assistantMessageCompleted,required TResult Function( MessageFailedEvent value)  messageFailed,required TResult Function( MessageCancelledEvent value)  messageCancelled,required TResult Function( ToolCallRequestedEvent value)  toolCallRequested,required TResult Function( ToolExecutionProgressEvent value)  toolExecutionProgress,required TResult Function( ToolResultReceivedEvent value)  toolResultReceived,required TResult Function( UserConfirmationRequestedEvent value)  userConfirmationRequested,required TResult Function( PermissionRequestedEvent value)  permissionRequested,required TResult Function( QuotaUpdatedEvent value)  quotaUpdated,required TResult Function( ClientToolCallEvent value)  clientToolCall,required TResult Function( ServerToolResultEvent value)  serverToolResult,required TResult Function( ContractToolCallEvent value)  contractToolCall,required TResult Function( ToolCallProgressEvent value)  toolCallProgress,required TResult Function( AssetCreatedEvent value)  assetCreated,required TResult Function( UiPresentedEvent value)  uiPresented,required TResult Function( UnsupportedEvent value)  unsupported,}){
 final _that = this;
 switch (_that) {
 case SessionStartedEvent():
@@ -767,7 +797,13 @@ return toolExecutionProgress(_that);case ToolResultReceivedEvent():
 return toolResultReceived(_that);case UserConfirmationRequestedEvent():
 return userConfirmationRequested(_that);case PermissionRequestedEvent():
 return permissionRequested(_that);case QuotaUpdatedEvent():
-return quotaUpdated(_that);case UnsupportedEvent():
+return quotaUpdated(_that);case ClientToolCallEvent():
+return clientToolCall(_that);case ServerToolResultEvent():
+return serverToolResult(_that);case ContractToolCallEvent():
+return contractToolCall(_that);case ToolCallProgressEvent():
+return toolCallProgress(_that);case AssetCreatedEvent():
+return assetCreated(_that);case UiPresentedEvent():
+return uiPresented(_that);case UnsupportedEvent():
 return unsupported(_that);}
 }
 /// A variant of `map` that fallback to returning `null`.
@@ -782,7 +818,7 @@ return unsupported(_that);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( SessionStartedEvent value)?  sessionStarted,TResult? Function( SessionEndedEvent value)?  sessionEnded,TResult? Function( UserMessageAcceptedEvent value)?  userMessageAccepted,TResult? Function( UserMessageRejectedEvent value)?  userMessageRejected,TResult? Function( AssistantMessageStartedEvent value)?  assistantMessageStarted,TResult? Function( AssistantTextDeltaEvent value)?  assistantTextDelta,TResult? Function( AssistantMessageCompletedEvent value)?  assistantMessageCompleted,TResult? Function( MessageFailedEvent value)?  messageFailed,TResult? Function( MessageCancelledEvent value)?  messageCancelled,TResult? Function( ToolCallRequestedEvent value)?  toolCallRequested,TResult? Function( ToolExecutionProgressEvent value)?  toolExecutionProgress,TResult? Function( ToolResultReceivedEvent value)?  toolResultReceived,TResult? Function( UserConfirmationRequestedEvent value)?  userConfirmationRequested,TResult? Function( PermissionRequestedEvent value)?  permissionRequested,TResult? Function( QuotaUpdatedEvent value)?  quotaUpdated,TResult? Function( UnsupportedEvent value)?  unsupported,}){
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( SessionStartedEvent value)?  sessionStarted,TResult? Function( SessionEndedEvent value)?  sessionEnded,TResult? Function( UserMessageAcceptedEvent value)?  userMessageAccepted,TResult? Function( UserMessageRejectedEvent value)?  userMessageRejected,TResult? Function( AssistantMessageStartedEvent value)?  assistantMessageStarted,TResult? Function( AssistantTextDeltaEvent value)?  assistantTextDelta,TResult? Function( AssistantMessageCompletedEvent value)?  assistantMessageCompleted,TResult? Function( MessageFailedEvent value)?  messageFailed,TResult? Function( MessageCancelledEvent value)?  messageCancelled,TResult? Function( ToolCallRequestedEvent value)?  toolCallRequested,TResult? Function( ToolExecutionProgressEvent value)?  toolExecutionProgress,TResult? Function( ToolResultReceivedEvent value)?  toolResultReceived,TResult? Function( UserConfirmationRequestedEvent value)?  userConfirmationRequested,TResult? Function( PermissionRequestedEvent value)?  permissionRequested,TResult? Function( QuotaUpdatedEvent value)?  quotaUpdated,TResult? Function( ClientToolCallEvent value)?  clientToolCall,TResult? Function( ServerToolResultEvent value)?  serverToolResult,TResult? Function( ContractToolCallEvent value)?  contractToolCall,TResult? Function( ToolCallProgressEvent value)?  toolCallProgress,TResult? Function( AssetCreatedEvent value)?  assetCreated,TResult? Function( UiPresentedEvent value)?  uiPresented,TResult? Function( UnsupportedEvent value)?  unsupported,}){
 final _that = this;
 switch (_that) {
 case SessionStartedEvent() when sessionStarted != null:
@@ -800,7 +836,13 @@ return toolExecutionProgress(_that);case ToolResultReceivedEvent() when toolResu
 return toolResultReceived(_that);case UserConfirmationRequestedEvent() when userConfirmationRequested != null:
 return userConfirmationRequested(_that);case PermissionRequestedEvent() when permissionRequested != null:
 return permissionRequested(_that);case QuotaUpdatedEvent() when quotaUpdated != null:
-return quotaUpdated(_that);case UnsupportedEvent() when unsupported != null:
+return quotaUpdated(_that);case ClientToolCallEvent() when clientToolCall != null:
+return clientToolCall(_that);case ServerToolResultEvent() when serverToolResult != null:
+return serverToolResult(_that);case ContractToolCallEvent() when contractToolCall != null:
+return contractToolCall(_that);case ToolCallProgressEvent() when toolCallProgress != null:
+return toolCallProgress(_that);case AssetCreatedEvent() when assetCreated != null:
+return assetCreated(_that);case UiPresentedEvent() when uiPresented != null:
+return uiPresented(_that);case UnsupportedEvent() when unsupported != null:
 return unsupported(_that);case _:
   return null;
 
@@ -818,7 +860,7 @@ return unsupported(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt,  DateTime expiresAt)?  sessionStarted,TResult Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt,  SessionEndReason reason)?  sessionEnded,TResult Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt, @MessageIdConverter()  MessageId messageId, @ClientMessageIdConverter()  ClientMessageId clientMessageId)?  userMessageAccepted,TResult Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt, @ClientMessageIdConverter()  ClientMessageId clientMessageId,  EventError error)?  userMessageRejected,TResult Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt, @MessageIdConverter()  MessageId messageId, @MessageIdConverter()  MessageId? inReplyTo)?  assistantMessageStarted,TResult Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt, @MessageIdConverter()  MessageId messageId,  int deltaIndex,  String text)?  assistantTextDelta,TResult Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt, @MessageIdConverter()  MessageId messageId,  FinishReason finishReason,  String? fullText)?  assistantMessageCompleted,TResult Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt, @MessageIdConverter()  MessageId messageId,  EventError error)?  messageFailed,TResult Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt, @MessageIdConverter()  MessageId messageId)?  messageCancelled,TResult Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt, @MessageIdConverter()  MessageId messageId,  ToolCallRequest toolCall)?  toolCallRequested,TResult Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt, @ToolCallIdConverter()  ToolCallId toolCallId,  ToolExecutionStatus status,  double? progress,  String? message)?  toolExecutionProgress,TResult Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt, @ToolCallIdConverter()  ToolCallId toolCallId, @MessageIdConverter()  MessageId messageId, @_ValidatedToolResultConverter()  ToolResult result)?  toolResultReceived,TResult Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt, @ToolCallIdConverter()  ToolCallId toolCallId,  ConfirmationSpec confirmation)?  userConfirmationRequested,TResult Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt,  String requestId,  NexaPermission permission,  String? reason)?  permissionRequested,TResult Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt,  QuotaInfo quota,  bool exceeded)?  quotaUpdated,TResult Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt,  String originalType,  String? reason)?  unsupported,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt,  DateTime expiresAt)?  sessionStarted,TResult Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt,  SessionEndReason reason)?  sessionEnded,TResult Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt, @MessageIdConverter()  MessageId messageId, @ClientMessageIdConverter()  ClientMessageId clientMessageId)?  userMessageAccepted,TResult Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt, @ClientMessageIdConverter()  ClientMessageId clientMessageId,  EventError error)?  userMessageRejected,TResult Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt, @MessageIdConverter()  MessageId messageId, @MessageIdConverter()  MessageId? inReplyTo)?  assistantMessageStarted,TResult Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt, @MessageIdConverter()  MessageId messageId,  int deltaIndex,  String text)?  assistantTextDelta,TResult Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt, @MessageIdConverter()  MessageId messageId,  FinishReason finishReason,  String? fullText)?  assistantMessageCompleted,TResult Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt, @MessageIdConverter()  MessageId messageId,  EventError error)?  messageFailed,TResult Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt, @MessageIdConverter()  MessageId messageId)?  messageCancelled,TResult Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt, @MessageIdConverter()  MessageId messageId,  ToolCallRequest toolCall)?  toolCallRequested,TResult Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt, @ToolCallIdConverter()  ToolCallId toolCallId,  ToolExecutionStatus status,  double? progress,  String? message)?  toolExecutionProgress,TResult Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt, @ToolCallIdConverter()  ToolCallId toolCallId, @MessageIdConverter()  MessageId messageId, @_ValidatedToolResultConverter()  ToolResult result)?  toolResultReceived,TResult Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt, @ToolCallIdConverter()  ToolCallId toolCallId,  ConfirmationSpec confirmation)?  userConfirmationRequested,TResult Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt,  String requestId,  NexaPermission permission,  String? reason)?  permissionRequested,TResult Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt,  QuotaInfo quota,  bool exceeded)?  quotaUpdated,TResult Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt,  Map<String, Object?> call)?  clientToolCall,TResult Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt,  Map<String, Object?> result)?  serverToolResult,TResult Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt,  String phase,  Map<String, Object?> call)?  contractToolCall,TResult Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt,  String toolCallId,  String tool,  String state,  int? waitedS)?  toolCallProgress,TResult Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt,  Map<String, Object?> asset,  String? toolCallId,  String? messageId)?  assetCreated,TResult Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt,  Map<String, Object?> ui,  String? toolCallId)?  uiPresented,TResult Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt,  String originalType,  String? reason)?  unsupported,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case SessionStartedEvent() when sessionStarted != null:
 return sessionStarted(_that.eventId,_that.sessionId,_that.sequence,_that.occurredAt,_that.expiresAt);case SessionEndedEvent() when sessionEnded != null:
@@ -835,7 +877,13 @@ return toolExecutionProgress(_that.eventId,_that.sessionId,_that.sequence,_that.
 return toolResultReceived(_that.eventId,_that.sessionId,_that.sequence,_that.occurredAt,_that.toolCallId,_that.messageId,_that.result);case UserConfirmationRequestedEvent() when userConfirmationRequested != null:
 return userConfirmationRequested(_that.eventId,_that.sessionId,_that.sequence,_that.occurredAt,_that.toolCallId,_that.confirmation);case PermissionRequestedEvent() when permissionRequested != null:
 return permissionRequested(_that.eventId,_that.sessionId,_that.sequence,_that.occurredAt,_that.requestId,_that.permission,_that.reason);case QuotaUpdatedEvent() when quotaUpdated != null:
-return quotaUpdated(_that.eventId,_that.sessionId,_that.sequence,_that.occurredAt,_that.quota,_that.exceeded);case UnsupportedEvent() when unsupported != null:
+return quotaUpdated(_that.eventId,_that.sessionId,_that.sequence,_that.occurredAt,_that.quota,_that.exceeded);case ClientToolCallEvent() when clientToolCall != null:
+return clientToolCall(_that.eventId,_that.sessionId,_that.sequence,_that.occurredAt,_that.call);case ServerToolResultEvent() when serverToolResult != null:
+return serverToolResult(_that.eventId,_that.sessionId,_that.sequence,_that.occurredAt,_that.result);case ContractToolCallEvent() when contractToolCall != null:
+return contractToolCall(_that.eventId,_that.sessionId,_that.sequence,_that.occurredAt,_that.phase,_that.call);case ToolCallProgressEvent() when toolCallProgress != null:
+return toolCallProgress(_that.eventId,_that.sessionId,_that.sequence,_that.occurredAt,_that.toolCallId,_that.tool,_that.state,_that.waitedS);case AssetCreatedEvent() when assetCreated != null:
+return assetCreated(_that.eventId,_that.sessionId,_that.sequence,_that.occurredAt,_that.asset,_that.toolCallId,_that.messageId);case UiPresentedEvent() when uiPresented != null:
+return uiPresented(_that.eventId,_that.sessionId,_that.sequence,_that.occurredAt,_that.ui,_that.toolCallId);case UnsupportedEvent() when unsupported != null:
 return unsupported(_that.eventId,_that.sessionId,_that.sequence,_that.occurredAt,_that.originalType,_that.reason);case _:
   return orElse();
 
@@ -854,7 +902,7 @@ return unsupported(_that.eventId,_that.sessionId,_that.sequence,_that.occurredAt
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt,  DateTime expiresAt)  sessionStarted,required TResult Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt,  SessionEndReason reason)  sessionEnded,required TResult Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt, @MessageIdConverter()  MessageId messageId, @ClientMessageIdConverter()  ClientMessageId clientMessageId)  userMessageAccepted,required TResult Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt, @ClientMessageIdConverter()  ClientMessageId clientMessageId,  EventError error)  userMessageRejected,required TResult Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt, @MessageIdConverter()  MessageId messageId, @MessageIdConverter()  MessageId? inReplyTo)  assistantMessageStarted,required TResult Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt, @MessageIdConverter()  MessageId messageId,  int deltaIndex,  String text)  assistantTextDelta,required TResult Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt, @MessageIdConverter()  MessageId messageId,  FinishReason finishReason,  String? fullText)  assistantMessageCompleted,required TResult Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt, @MessageIdConverter()  MessageId messageId,  EventError error)  messageFailed,required TResult Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt, @MessageIdConverter()  MessageId messageId)  messageCancelled,required TResult Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt, @MessageIdConverter()  MessageId messageId,  ToolCallRequest toolCall)  toolCallRequested,required TResult Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt, @ToolCallIdConverter()  ToolCallId toolCallId,  ToolExecutionStatus status,  double? progress,  String? message)  toolExecutionProgress,required TResult Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt, @ToolCallIdConverter()  ToolCallId toolCallId, @MessageIdConverter()  MessageId messageId, @_ValidatedToolResultConverter()  ToolResult result)  toolResultReceived,required TResult Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt, @ToolCallIdConverter()  ToolCallId toolCallId,  ConfirmationSpec confirmation)  userConfirmationRequested,required TResult Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt,  String requestId,  NexaPermission permission,  String? reason)  permissionRequested,required TResult Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt,  QuotaInfo quota,  bool exceeded)  quotaUpdated,required TResult Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt,  String originalType,  String? reason)  unsupported,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt,  DateTime expiresAt)  sessionStarted,required TResult Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt,  SessionEndReason reason)  sessionEnded,required TResult Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt, @MessageIdConverter()  MessageId messageId, @ClientMessageIdConverter()  ClientMessageId clientMessageId)  userMessageAccepted,required TResult Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt, @ClientMessageIdConverter()  ClientMessageId clientMessageId,  EventError error)  userMessageRejected,required TResult Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt, @MessageIdConverter()  MessageId messageId, @MessageIdConverter()  MessageId? inReplyTo)  assistantMessageStarted,required TResult Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt, @MessageIdConverter()  MessageId messageId,  int deltaIndex,  String text)  assistantTextDelta,required TResult Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt, @MessageIdConverter()  MessageId messageId,  FinishReason finishReason,  String? fullText)  assistantMessageCompleted,required TResult Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt, @MessageIdConverter()  MessageId messageId,  EventError error)  messageFailed,required TResult Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt, @MessageIdConverter()  MessageId messageId)  messageCancelled,required TResult Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt, @MessageIdConverter()  MessageId messageId,  ToolCallRequest toolCall)  toolCallRequested,required TResult Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt, @ToolCallIdConverter()  ToolCallId toolCallId,  ToolExecutionStatus status,  double? progress,  String? message)  toolExecutionProgress,required TResult Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt, @ToolCallIdConverter()  ToolCallId toolCallId, @MessageIdConverter()  MessageId messageId, @_ValidatedToolResultConverter()  ToolResult result)  toolResultReceived,required TResult Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt, @ToolCallIdConverter()  ToolCallId toolCallId,  ConfirmationSpec confirmation)  userConfirmationRequested,required TResult Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt,  String requestId,  NexaPermission permission,  String? reason)  permissionRequested,required TResult Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt,  QuotaInfo quota,  bool exceeded)  quotaUpdated,required TResult Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt,  Map<String, Object?> call)  clientToolCall,required TResult Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt,  Map<String, Object?> result)  serverToolResult,required TResult Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt,  String phase,  Map<String, Object?> call)  contractToolCall,required TResult Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt,  String toolCallId,  String tool,  String state,  int? waitedS)  toolCallProgress,required TResult Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt,  Map<String, Object?> asset,  String? toolCallId,  String? messageId)  assetCreated,required TResult Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt,  Map<String, Object?> ui,  String? toolCallId)  uiPresented,required TResult Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt,  String originalType,  String? reason)  unsupported,}) {final _that = this;
 switch (_that) {
 case SessionStartedEvent():
 return sessionStarted(_that.eventId,_that.sessionId,_that.sequence,_that.occurredAt,_that.expiresAt);case SessionEndedEvent():
@@ -871,7 +919,13 @@ return toolExecutionProgress(_that.eventId,_that.sessionId,_that.sequence,_that.
 return toolResultReceived(_that.eventId,_that.sessionId,_that.sequence,_that.occurredAt,_that.toolCallId,_that.messageId,_that.result);case UserConfirmationRequestedEvent():
 return userConfirmationRequested(_that.eventId,_that.sessionId,_that.sequence,_that.occurredAt,_that.toolCallId,_that.confirmation);case PermissionRequestedEvent():
 return permissionRequested(_that.eventId,_that.sessionId,_that.sequence,_that.occurredAt,_that.requestId,_that.permission,_that.reason);case QuotaUpdatedEvent():
-return quotaUpdated(_that.eventId,_that.sessionId,_that.sequence,_that.occurredAt,_that.quota,_that.exceeded);case UnsupportedEvent():
+return quotaUpdated(_that.eventId,_that.sessionId,_that.sequence,_that.occurredAt,_that.quota,_that.exceeded);case ClientToolCallEvent():
+return clientToolCall(_that.eventId,_that.sessionId,_that.sequence,_that.occurredAt,_that.call);case ServerToolResultEvent():
+return serverToolResult(_that.eventId,_that.sessionId,_that.sequence,_that.occurredAt,_that.result);case ContractToolCallEvent():
+return contractToolCall(_that.eventId,_that.sessionId,_that.sequence,_that.occurredAt,_that.phase,_that.call);case ToolCallProgressEvent():
+return toolCallProgress(_that.eventId,_that.sessionId,_that.sequence,_that.occurredAt,_that.toolCallId,_that.tool,_that.state,_that.waitedS);case AssetCreatedEvent():
+return assetCreated(_that.eventId,_that.sessionId,_that.sequence,_that.occurredAt,_that.asset,_that.toolCallId,_that.messageId);case UiPresentedEvent():
+return uiPresented(_that.eventId,_that.sessionId,_that.sequence,_that.occurredAt,_that.ui,_that.toolCallId);case UnsupportedEvent():
 return unsupported(_that.eventId,_that.sessionId,_that.sequence,_that.occurredAt,_that.originalType,_that.reason);}
 }
 /// A variant of `when` that fallback to returning `null`
@@ -886,7 +940,7 @@ return unsupported(_that.eventId,_that.sessionId,_that.sequence,_that.occurredAt
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt,  DateTime expiresAt)?  sessionStarted,TResult? Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt,  SessionEndReason reason)?  sessionEnded,TResult? Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt, @MessageIdConverter()  MessageId messageId, @ClientMessageIdConverter()  ClientMessageId clientMessageId)?  userMessageAccepted,TResult? Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt, @ClientMessageIdConverter()  ClientMessageId clientMessageId,  EventError error)?  userMessageRejected,TResult? Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt, @MessageIdConverter()  MessageId messageId, @MessageIdConverter()  MessageId? inReplyTo)?  assistantMessageStarted,TResult? Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt, @MessageIdConverter()  MessageId messageId,  int deltaIndex,  String text)?  assistantTextDelta,TResult? Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt, @MessageIdConverter()  MessageId messageId,  FinishReason finishReason,  String? fullText)?  assistantMessageCompleted,TResult? Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt, @MessageIdConverter()  MessageId messageId,  EventError error)?  messageFailed,TResult? Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt, @MessageIdConverter()  MessageId messageId)?  messageCancelled,TResult? Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt, @MessageIdConverter()  MessageId messageId,  ToolCallRequest toolCall)?  toolCallRequested,TResult? Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt, @ToolCallIdConverter()  ToolCallId toolCallId,  ToolExecutionStatus status,  double? progress,  String? message)?  toolExecutionProgress,TResult? Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt, @ToolCallIdConverter()  ToolCallId toolCallId, @MessageIdConverter()  MessageId messageId, @_ValidatedToolResultConverter()  ToolResult result)?  toolResultReceived,TResult? Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt, @ToolCallIdConverter()  ToolCallId toolCallId,  ConfirmationSpec confirmation)?  userConfirmationRequested,TResult? Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt,  String requestId,  NexaPermission permission,  String? reason)?  permissionRequested,TResult? Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt,  QuotaInfo quota,  bool exceeded)?  quotaUpdated,TResult? Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt,  String originalType,  String? reason)?  unsupported,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt,  DateTime expiresAt)?  sessionStarted,TResult? Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt,  SessionEndReason reason)?  sessionEnded,TResult? Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt, @MessageIdConverter()  MessageId messageId, @ClientMessageIdConverter()  ClientMessageId clientMessageId)?  userMessageAccepted,TResult? Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt, @ClientMessageIdConverter()  ClientMessageId clientMessageId,  EventError error)?  userMessageRejected,TResult? Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt, @MessageIdConverter()  MessageId messageId, @MessageIdConverter()  MessageId? inReplyTo)?  assistantMessageStarted,TResult? Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt, @MessageIdConverter()  MessageId messageId,  int deltaIndex,  String text)?  assistantTextDelta,TResult? Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt, @MessageIdConverter()  MessageId messageId,  FinishReason finishReason,  String? fullText)?  assistantMessageCompleted,TResult? Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt, @MessageIdConverter()  MessageId messageId,  EventError error)?  messageFailed,TResult? Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt, @MessageIdConverter()  MessageId messageId)?  messageCancelled,TResult? Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt, @MessageIdConverter()  MessageId messageId,  ToolCallRequest toolCall)?  toolCallRequested,TResult? Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt, @ToolCallIdConverter()  ToolCallId toolCallId,  ToolExecutionStatus status,  double? progress,  String? message)?  toolExecutionProgress,TResult? Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt, @ToolCallIdConverter()  ToolCallId toolCallId, @MessageIdConverter()  MessageId messageId, @_ValidatedToolResultConverter()  ToolResult result)?  toolResultReceived,TResult? Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt, @ToolCallIdConverter()  ToolCallId toolCallId,  ConfirmationSpec confirmation)?  userConfirmationRequested,TResult? Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt,  String requestId,  NexaPermission permission,  String? reason)?  permissionRequested,TResult? Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt,  QuotaInfo quota,  bool exceeded)?  quotaUpdated,TResult? Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt,  Map<String, Object?> call)?  clientToolCall,TResult? Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt,  Map<String, Object?> result)?  serverToolResult,TResult? Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt,  String phase,  Map<String, Object?> call)?  contractToolCall,TResult? Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt,  String toolCallId,  String tool,  String state,  int? waitedS)?  toolCallProgress,TResult? Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt,  Map<String, Object?> asset,  String? toolCallId,  String? messageId)?  assetCreated,TResult? Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt,  Map<String, Object?> ui,  String? toolCallId)?  uiPresented,TResult? Function(@EventIdConverter()  EventId eventId, @SessionIdConverter()  SessionId sessionId,  int sequence,  DateTime occurredAt,  String originalType,  String? reason)?  unsupported,}) {final _that = this;
 switch (_that) {
 case SessionStartedEvent() when sessionStarted != null:
 return sessionStarted(_that.eventId,_that.sessionId,_that.sequence,_that.occurredAt,_that.expiresAt);case SessionEndedEvent() when sessionEnded != null:
@@ -903,7 +957,13 @@ return toolExecutionProgress(_that.eventId,_that.sessionId,_that.sequence,_that.
 return toolResultReceived(_that.eventId,_that.sessionId,_that.sequence,_that.occurredAt,_that.toolCallId,_that.messageId,_that.result);case UserConfirmationRequestedEvent() when userConfirmationRequested != null:
 return userConfirmationRequested(_that.eventId,_that.sessionId,_that.sequence,_that.occurredAt,_that.toolCallId,_that.confirmation);case PermissionRequestedEvent() when permissionRequested != null:
 return permissionRequested(_that.eventId,_that.sessionId,_that.sequence,_that.occurredAt,_that.requestId,_that.permission,_that.reason);case QuotaUpdatedEvent() when quotaUpdated != null:
-return quotaUpdated(_that.eventId,_that.sessionId,_that.sequence,_that.occurredAt,_that.quota,_that.exceeded);case UnsupportedEvent() when unsupported != null:
+return quotaUpdated(_that.eventId,_that.sessionId,_that.sequence,_that.occurredAt,_that.quota,_that.exceeded);case ClientToolCallEvent() when clientToolCall != null:
+return clientToolCall(_that.eventId,_that.sessionId,_that.sequence,_that.occurredAt,_that.call);case ServerToolResultEvent() when serverToolResult != null:
+return serverToolResult(_that.eventId,_that.sessionId,_that.sequence,_that.occurredAt,_that.result);case ContractToolCallEvent() when contractToolCall != null:
+return contractToolCall(_that.eventId,_that.sessionId,_that.sequence,_that.occurredAt,_that.phase,_that.call);case ToolCallProgressEvent() when toolCallProgress != null:
+return toolCallProgress(_that.eventId,_that.sessionId,_that.sequence,_that.occurredAt,_that.toolCallId,_that.tool,_that.state,_that.waitedS);case AssetCreatedEvent() when assetCreated != null:
+return assetCreated(_that.eventId,_that.sessionId,_that.sequence,_that.occurredAt,_that.asset,_that.toolCallId,_that.messageId);case UiPresentedEvent() when uiPresented != null:
+return uiPresented(_that.eventId,_that.sessionId,_that.sequence,_that.occurredAt,_that.ui,_that.toolCallId);case UnsupportedEvent() when unsupported != null:
 return unsupported(_that.eventId,_that.sessionId,_that.sequence,_that.occurredAt,_that.originalType,_that.reason);case _:
   return null;
 
@@ -2216,6 +2276,536 @@ $QuotaInfoCopyWith<$Res> get quota {
     return _then(_self.copyWith(quota: value));
   });
 }
+}
+
+/// @nodoc
+@JsonSerializable()
+
+class ClientToolCallEvent extends ConversationEvent {
+  const ClientToolCallEvent({@EventIdConverter() required this.eventId, @SessionIdConverter() required this.sessionId, required this.sequence, required this.occurredAt, required final  Map<String, Object?> call, final  String? $type}): _call = call,$type = $type ?? 'client_tool_call',super._();
+  factory ClientToolCallEvent.fromJson(Map<String, dynamic> json) => _$ClientToolCallEventFromJson(json);
+
+@override@EventIdConverter() final  EventId eventId;
+@override@SessionIdConverter() final  SessionId sessionId;
+@override final  int sequence;
+@override final  DateTime occurredAt;
+ final  Map<String, Object?> _call;
+ Map<String, Object?> get call {
+  if (_call is EqualUnmodifiableMapView) return _call;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableMapView(_call);
+}
+
+
+@JsonKey(name: 'type')
+final String $type;
+
+
+/// Create a copy of ConversationEvent
+/// with the given fields replaced by the non-null parameter values.
+@override @JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$ClientToolCallEventCopyWith<ClientToolCallEvent> get copyWith => _$ClientToolCallEventCopyWithImpl<ClientToolCallEvent>(this, _$identity);
+
+@override
+Map<String, dynamic> toJson() {
+  return _$ClientToolCallEventToJson(this, );
+}
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ClientToolCallEvent&&(identical(other.eventId, eventId) || other.eventId == eventId)&&(identical(other.sessionId, sessionId) || other.sessionId == sessionId)&&(identical(other.sequence, sequence) || other.sequence == sequence)&&(identical(other.occurredAt, occurredAt) || other.occurredAt == occurredAt)&&const DeepCollectionEquality().equals(other._call, _call));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode => Object.hash(runtimeType,eventId,sessionId,sequence,occurredAt,const DeepCollectionEquality().hash(_call));
+
+@override
+String toString() {
+  return 'ConversationEvent.clientToolCall(eventId: $eventId, sessionId: $sessionId, sequence: $sequence, occurredAt: $occurredAt, call: $call)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $ClientToolCallEventCopyWith<$Res> implements $ConversationEventCopyWith<$Res> {
+  factory $ClientToolCallEventCopyWith(ClientToolCallEvent value, $Res Function(ClientToolCallEvent) _then) = _$ClientToolCallEventCopyWithImpl;
+@override @useResult
+$Res call({
+@EventIdConverter() EventId eventId,@SessionIdConverter() SessionId sessionId, int sequence, DateTime occurredAt, Map<String, Object?> call
+});
+
+
+
+
+}
+/// @nodoc
+class _$ClientToolCallEventCopyWithImpl<$Res>
+    implements $ClientToolCallEventCopyWith<$Res> {
+  _$ClientToolCallEventCopyWithImpl(this._self, this._then);
+
+  final ClientToolCallEvent _self;
+  final $Res Function(ClientToolCallEvent) _then;
+
+/// Create a copy of ConversationEvent
+/// with the given fields replaced by the non-null parameter values.
+@override @pragma('vm:prefer-inline') $Res call({Object? eventId = null,Object? sessionId = null,Object? sequence = null,Object? occurredAt = null,Object? call = null,}) {
+  return _then(ClientToolCallEvent(
+eventId: null == eventId ? _self.eventId : eventId // ignore: cast_nullable_to_non_nullable
+as EventId,sessionId: null == sessionId ? _self.sessionId : sessionId // ignore: cast_nullable_to_non_nullable
+as SessionId,sequence: null == sequence ? _self.sequence : sequence // ignore: cast_nullable_to_non_nullable
+as int,occurredAt: null == occurredAt ? _self.occurredAt : occurredAt // ignore: cast_nullable_to_non_nullable
+as DateTime,call: null == call ? _self._call : call // ignore: cast_nullable_to_non_nullable
+as Map<String, Object?>,
+  ));
+}
+
+
+}
+
+/// @nodoc
+@JsonSerializable()
+
+class ServerToolResultEvent extends ConversationEvent {
+  const ServerToolResultEvent({@EventIdConverter() required this.eventId, @SessionIdConverter() required this.sessionId, required this.sequence, required this.occurredAt, required final  Map<String, Object?> result, final  String? $type}): _result = result,$type = $type ?? 'server_tool_result',super._();
+  factory ServerToolResultEvent.fromJson(Map<String, dynamic> json) => _$ServerToolResultEventFromJson(json);
+
+@override@EventIdConverter() final  EventId eventId;
+@override@SessionIdConverter() final  SessionId sessionId;
+@override final  int sequence;
+@override final  DateTime occurredAt;
+ final  Map<String, Object?> _result;
+ Map<String, Object?> get result {
+  if (_result is EqualUnmodifiableMapView) return _result;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableMapView(_result);
+}
+
+
+@JsonKey(name: 'type')
+final String $type;
+
+
+/// Create a copy of ConversationEvent
+/// with the given fields replaced by the non-null parameter values.
+@override @JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$ServerToolResultEventCopyWith<ServerToolResultEvent> get copyWith => _$ServerToolResultEventCopyWithImpl<ServerToolResultEvent>(this, _$identity);
+
+@override
+Map<String, dynamic> toJson() {
+  return _$ServerToolResultEventToJson(this, );
+}
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ServerToolResultEvent&&(identical(other.eventId, eventId) || other.eventId == eventId)&&(identical(other.sessionId, sessionId) || other.sessionId == sessionId)&&(identical(other.sequence, sequence) || other.sequence == sequence)&&(identical(other.occurredAt, occurredAt) || other.occurredAt == occurredAt)&&const DeepCollectionEquality().equals(other._result, _result));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode => Object.hash(runtimeType,eventId,sessionId,sequence,occurredAt,const DeepCollectionEquality().hash(_result));
+
+@override
+String toString() {
+  return 'ConversationEvent.serverToolResult(eventId: $eventId, sessionId: $sessionId, sequence: $sequence, occurredAt: $occurredAt, result: $result)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $ServerToolResultEventCopyWith<$Res> implements $ConversationEventCopyWith<$Res> {
+  factory $ServerToolResultEventCopyWith(ServerToolResultEvent value, $Res Function(ServerToolResultEvent) _then) = _$ServerToolResultEventCopyWithImpl;
+@override @useResult
+$Res call({
+@EventIdConverter() EventId eventId,@SessionIdConverter() SessionId sessionId, int sequence, DateTime occurredAt, Map<String, Object?> result
+});
+
+
+
+
+}
+/// @nodoc
+class _$ServerToolResultEventCopyWithImpl<$Res>
+    implements $ServerToolResultEventCopyWith<$Res> {
+  _$ServerToolResultEventCopyWithImpl(this._self, this._then);
+
+  final ServerToolResultEvent _self;
+  final $Res Function(ServerToolResultEvent) _then;
+
+/// Create a copy of ConversationEvent
+/// with the given fields replaced by the non-null parameter values.
+@override @pragma('vm:prefer-inline') $Res call({Object? eventId = null,Object? sessionId = null,Object? sequence = null,Object? occurredAt = null,Object? result = null,}) {
+  return _then(ServerToolResultEvent(
+eventId: null == eventId ? _self.eventId : eventId // ignore: cast_nullable_to_non_nullable
+as EventId,sessionId: null == sessionId ? _self.sessionId : sessionId // ignore: cast_nullable_to_non_nullable
+as SessionId,sequence: null == sequence ? _self.sequence : sequence // ignore: cast_nullable_to_non_nullable
+as int,occurredAt: null == occurredAt ? _self.occurredAt : occurredAt // ignore: cast_nullable_to_non_nullable
+as DateTime,result: null == result ? _self._result : result // ignore: cast_nullable_to_non_nullable
+as Map<String, Object?>,
+  ));
+}
+
+
+}
+
+/// @nodoc
+@JsonSerializable()
+
+class ContractToolCallEvent extends ConversationEvent {
+  const ContractToolCallEvent({@EventIdConverter() required this.eventId, @SessionIdConverter() required this.sessionId, required this.sequence, required this.occurredAt, required this.phase, required final  Map<String, Object?> call, final  String? $type}): _call = call,$type = $type ?? 'contract_tool_call',super._();
+  factory ContractToolCallEvent.fromJson(Map<String, dynamic> json) => _$ContractToolCallEventFromJson(json);
+
+@override@EventIdConverter() final  EventId eventId;
+@override@SessionIdConverter() final  SessionId sessionId;
+@override final  int sequence;
+@override final  DateTime occurredAt;
+ final  String phase;
+ final  Map<String, Object?> _call;
+ Map<String, Object?> get call {
+  if (_call is EqualUnmodifiableMapView) return _call;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableMapView(_call);
+}
+
+
+@JsonKey(name: 'type')
+final String $type;
+
+
+/// Create a copy of ConversationEvent
+/// with the given fields replaced by the non-null parameter values.
+@override @JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$ContractToolCallEventCopyWith<ContractToolCallEvent> get copyWith => _$ContractToolCallEventCopyWithImpl<ContractToolCallEvent>(this, _$identity);
+
+@override
+Map<String, dynamic> toJson() {
+  return _$ContractToolCallEventToJson(this, );
+}
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ContractToolCallEvent&&(identical(other.eventId, eventId) || other.eventId == eventId)&&(identical(other.sessionId, sessionId) || other.sessionId == sessionId)&&(identical(other.sequence, sequence) || other.sequence == sequence)&&(identical(other.occurredAt, occurredAt) || other.occurredAt == occurredAt)&&(identical(other.phase, phase) || other.phase == phase)&&const DeepCollectionEquality().equals(other._call, _call));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode => Object.hash(runtimeType,eventId,sessionId,sequence,occurredAt,phase,const DeepCollectionEquality().hash(_call));
+
+@override
+String toString() {
+  return 'ConversationEvent.contractToolCall(eventId: $eventId, sessionId: $sessionId, sequence: $sequence, occurredAt: $occurredAt, phase: $phase, call: $call)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $ContractToolCallEventCopyWith<$Res> implements $ConversationEventCopyWith<$Res> {
+  factory $ContractToolCallEventCopyWith(ContractToolCallEvent value, $Res Function(ContractToolCallEvent) _then) = _$ContractToolCallEventCopyWithImpl;
+@override @useResult
+$Res call({
+@EventIdConverter() EventId eventId,@SessionIdConverter() SessionId sessionId, int sequence, DateTime occurredAt, String phase, Map<String, Object?> call
+});
+
+
+
+
+}
+/// @nodoc
+class _$ContractToolCallEventCopyWithImpl<$Res>
+    implements $ContractToolCallEventCopyWith<$Res> {
+  _$ContractToolCallEventCopyWithImpl(this._self, this._then);
+
+  final ContractToolCallEvent _self;
+  final $Res Function(ContractToolCallEvent) _then;
+
+/// Create a copy of ConversationEvent
+/// with the given fields replaced by the non-null parameter values.
+@override @pragma('vm:prefer-inline') $Res call({Object? eventId = null,Object? sessionId = null,Object? sequence = null,Object? occurredAt = null,Object? phase = null,Object? call = null,}) {
+  return _then(ContractToolCallEvent(
+eventId: null == eventId ? _self.eventId : eventId // ignore: cast_nullable_to_non_nullable
+as EventId,sessionId: null == sessionId ? _self.sessionId : sessionId // ignore: cast_nullable_to_non_nullable
+as SessionId,sequence: null == sequence ? _self.sequence : sequence // ignore: cast_nullable_to_non_nullable
+as int,occurredAt: null == occurredAt ? _self.occurredAt : occurredAt // ignore: cast_nullable_to_non_nullable
+as DateTime,phase: null == phase ? _self.phase : phase // ignore: cast_nullable_to_non_nullable
+as String,call: null == call ? _self._call : call // ignore: cast_nullable_to_non_nullable
+as Map<String, Object?>,
+  ));
+}
+
+
+}
+
+/// @nodoc
+@JsonSerializable()
+
+class ToolCallProgressEvent extends ConversationEvent {
+  const ToolCallProgressEvent({@EventIdConverter() required this.eventId, @SessionIdConverter() required this.sessionId, required this.sequence, required this.occurredAt, required this.toolCallId, this.tool = '', this.state = '', this.waitedS, final  String? $type}): $type = $type ?? 'tool_call_progress',super._();
+  factory ToolCallProgressEvent.fromJson(Map<String, dynamic> json) => _$ToolCallProgressEventFromJson(json);
+
+@override@EventIdConverter() final  EventId eventId;
+@override@SessionIdConverter() final  SessionId sessionId;
+@override final  int sequence;
+@override final  DateTime occurredAt;
+ final  String toolCallId;
+@JsonKey() final  String tool;
+@JsonKey() final  String state;
+ final  int? waitedS;
+
+@JsonKey(name: 'type')
+final String $type;
+
+
+/// Create a copy of ConversationEvent
+/// with the given fields replaced by the non-null parameter values.
+@override @JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$ToolCallProgressEventCopyWith<ToolCallProgressEvent> get copyWith => _$ToolCallProgressEventCopyWithImpl<ToolCallProgressEvent>(this, _$identity);
+
+@override
+Map<String, dynamic> toJson() {
+  return _$ToolCallProgressEventToJson(this, );
+}
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ToolCallProgressEvent&&(identical(other.eventId, eventId) || other.eventId == eventId)&&(identical(other.sessionId, sessionId) || other.sessionId == sessionId)&&(identical(other.sequence, sequence) || other.sequence == sequence)&&(identical(other.occurredAt, occurredAt) || other.occurredAt == occurredAt)&&(identical(other.toolCallId, toolCallId) || other.toolCallId == toolCallId)&&(identical(other.tool, tool) || other.tool == tool)&&(identical(other.state, state) || other.state == state)&&(identical(other.waitedS, waitedS) || other.waitedS == waitedS));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode => Object.hash(runtimeType,eventId,sessionId,sequence,occurredAt,toolCallId,tool,state,waitedS);
+
+@override
+String toString() {
+  return 'ConversationEvent.toolCallProgress(eventId: $eventId, sessionId: $sessionId, sequence: $sequence, occurredAt: $occurredAt, toolCallId: $toolCallId, tool: $tool, state: $state, waitedS: $waitedS)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $ToolCallProgressEventCopyWith<$Res> implements $ConversationEventCopyWith<$Res> {
+  factory $ToolCallProgressEventCopyWith(ToolCallProgressEvent value, $Res Function(ToolCallProgressEvent) _then) = _$ToolCallProgressEventCopyWithImpl;
+@override @useResult
+$Res call({
+@EventIdConverter() EventId eventId,@SessionIdConverter() SessionId sessionId, int sequence, DateTime occurredAt, String toolCallId, String tool, String state, int? waitedS
+});
+
+
+
+
+}
+/// @nodoc
+class _$ToolCallProgressEventCopyWithImpl<$Res>
+    implements $ToolCallProgressEventCopyWith<$Res> {
+  _$ToolCallProgressEventCopyWithImpl(this._self, this._then);
+
+  final ToolCallProgressEvent _self;
+  final $Res Function(ToolCallProgressEvent) _then;
+
+/// Create a copy of ConversationEvent
+/// with the given fields replaced by the non-null parameter values.
+@override @pragma('vm:prefer-inline') $Res call({Object? eventId = null,Object? sessionId = null,Object? sequence = null,Object? occurredAt = null,Object? toolCallId = null,Object? tool = null,Object? state = null,Object? waitedS = freezed,}) {
+  return _then(ToolCallProgressEvent(
+eventId: null == eventId ? _self.eventId : eventId // ignore: cast_nullable_to_non_nullable
+as EventId,sessionId: null == sessionId ? _self.sessionId : sessionId // ignore: cast_nullable_to_non_nullable
+as SessionId,sequence: null == sequence ? _self.sequence : sequence // ignore: cast_nullable_to_non_nullable
+as int,occurredAt: null == occurredAt ? _self.occurredAt : occurredAt // ignore: cast_nullable_to_non_nullable
+as DateTime,toolCallId: null == toolCallId ? _self.toolCallId : toolCallId // ignore: cast_nullable_to_non_nullable
+as String,tool: null == tool ? _self.tool : tool // ignore: cast_nullable_to_non_nullable
+as String,state: null == state ? _self.state : state // ignore: cast_nullable_to_non_nullable
+as String,waitedS: freezed == waitedS ? _self.waitedS : waitedS // ignore: cast_nullable_to_non_nullable
+as int?,
+  ));
+}
+
+
+}
+
+/// @nodoc
+@JsonSerializable()
+
+class AssetCreatedEvent extends ConversationEvent {
+  const AssetCreatedEvent({@EventIdConverter() required this.eventId, @SessionIdConverter() required this.sessionId, required this.sequence, required this.occurredAt, required final  Map<String, Object?> asset, this.toolCallId, this.messageId, final  String? $type}): _asset = asset,$type = $type ?? 'asset_created',super._();
+  factory AssetCreatedEvent.fromJson(Map<String, dynamic> json) => _$AssetCreatedEventFromJson(json);
+
+@override@EventIdConverter() final  EventId eventId;
+@override@SessionIdConverter() final  SessionId sessionId;
+@override final  int sequence;
+@override final  DateTime occurredAt;
+ final  Map<String, Object?> _asset;
+ Map<String, Object?> get asset {
+  if (_asset is EqualUnmodifiableMapView) return _asset;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableMapView(_asset);
+}
+
+ final  String? toolCallId;
+ final  String? messageId;
+
+@JsonKey(name: 'type')
+final String $type;
+
+
+/// Create a copy of ConversationEvent
+/// with the given fields replaced by the non-null parameter values.
+@override @JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$AssetCreatedEventCopyWith<AssetCreatedEvent> get copyWith => _$AssetCreatedEventCopyWithImpl<AssetCreatedEvent>(this, _$identity);
+
+@override
+Map<String, dynamic> toJson() {
+  return _$AssetCreatedEventToJson(this, );
+}
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is AssetCreatedEvent&&(identical(other.eventId, eventId) || other.eventId == eventId)&&(identical(other.sessionId, sessionId) || other.sessionId == sessionId)&&(identical(other.sequence, sequence) || other.sequence == sequence)&&(identical(other.occurredAt, occurredAt) || other.occurredAt == occurredAt)&&const DeepCollectionEquality().equals(other._asset, _asset)&&(identical(other.toolCallId, toolCallId) || other.toolCallId == toolCallId)&&(identical(other.messageId, messageId) || other.messageId == messageId));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode => Object.hash(runtimeType,eventId,sessionId,sequence,occurredAt,const DeepCollectionEquality().hash(_asset),toolCallId,messageId);
+
+@override
+String toString() {
+  return 'ConversationEvent.assetCreated(eventId: $eventId, sessionId: $sessionId, sequence: $sequence, occurredAt: $occurredAt, asset: $asset, toolCallId: $toolCallId, messageId: $messageId)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $AssetCreatedEventCopyWith<$Res> implements $ConversationEventCopyWith<$Res> {
+  factory $AssetCreatedEventCopyWith(AssetCreatedEvent value, $Res Function(AssetCreatedEvent) _then) = _$AssetCreatedEventCopyWithImpl;
+@override @useResult
+$Res call({
+@EventIdConverter() EventId eventId,@SessionIdConverter() SessionId sessionId, int sequence, DateTime occurredAt, Map<String, Object?> asset, String? toolCallId, String? messageId
+});
+
+
+
+
+}
+/// @nodoc
+class _$AssetCreatedEventCopyWithImpl<$Res>
+    implements $AssetCreatedEventCopyWith<$Res> {
+  _$AssetCreatedEventCopyWithImpl(this._self, this._then);
+
+  final AssetCreatedEvent _self;
+  final $Res Function(AssetCreatedEvent) _then;
+
+/// Create a copy of ConversationEvent
+/// with the given fields replaced by the non-null parameter values.
+@override @pragma('vm:prefer-inline') $Res call({Object? eventId = null,Object? sessionId = null,Object? sequence = null,Object? occurredAt = null,Object? asset = null,Object? toolCallId = freezed,Object? messageId = freezed,}) {
+  return _then(AssetCreatedEvent(
+eventId: null == eventId ? _self.eventId : eventId // ignore: cast_nullable_to_non_nullable
+as EventId,sessionId: null == sessionId ? _self.sessionId : sessionId // ignore: cast_nullable_to_non_nullable
+as SessionId,sequence: null == sequence ? _self.sequence : sequence // ignore: cast_nullable_to_non_nullable
+as int,occurredAt: null == occurredAt ? _self.occurredAt : occurredAt // ignore: cast_nullable_to_non_nullable
+as DateTime,asset: null == asset ? _self._asset : asset // ignore: cast_nullable_to_non_nullable
+as Map<String, Object?>,toolCallId: freezed == toolCallId ? _self.toolCallId : toolCallId // ignore: cast_nullable_to_non_nullable
+as String?,messageId: freezed == messageId ? _self.messageId : messageId // ignore: cast_nullable_to_non_nullable
+as String?,
+  ));
+}
+
+
+}
+
+/// @nodoc
+@JsonSerializable()
+
+class UiPresentedEvent extends ConversationEvent {
+  const UiPresentedEvent({@EventIdConverter() required this.eventId, @SessionIdConverter() required this.sessionId, required this.sequence, required this.occurredAt, required final  Map<String, Object?> ui, this.toolCallId, final  String? $type}): _ui = ui,$type = $type ?? 'ui_presented',super._();
+  factory UiPresentedEvent.fromJson(Map<String, dynamic> json) => _$UiPresentedEventFromJson(json);
+
+@override@EventIdConverter() final  EventId eventId;
+@override@SessionIdConverter() final  SessionId sessionId;
+@override final  int sequence;
+@override final  DateTime occurredAt;
+ final  Map<String, Object?> _ui;
+ Map<String, Object?> get ui {
+  if (_ui is EqualUnmodifiableMapView) return _ui;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableMapView(_ui);
+}
+
+ final  String? toolCallId;
+
+@JsonKey(name: 'type')
+final String $type;
+
+
+/// Create a copy of ConversationEvent
+/// with the given fields replaced by the non-null parameter values.
+@override @JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$UiPresentedEventCopyWith<UiPresentedEvent> get copyWith => _$UiPresentedEventCopyWithImpl<UiPresentedEvent>(this, _$identity);
+
+@override
+Map<String, dynamic> toJson() {
+  return _$UiPresentedEventToJson(this, );
+}
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is UiPresentedEvent&&(identical(other.eventId, eventId) || other.eventId == eventId)&&(identical(other.sessionId, sessionId) || other.sessionId == sessionId)&&(identical(other.sequence, sequence) || other.sequence == sequence)&&(identical(other.occurredAt, occurredAt) || other.occurredAt == occurredAt)&&const DeepCollectionEquality().equals(other._ui, _ui)&&(identical(other.toolCallId, toolCallId) || other.toolCallId == toolCallId));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode => Object.hash(runtimeType,eventId,sessionId,sequence,occurredAt,const DeepCollectionEquality().hash(_ui),toolCallId);
+
+@override
+String toString() {
+  return 'ConversationEvent.uiPresented(eventId: $eventId, sessionId: $sessionId, sequence: $sequence, occurredAt: $occurredAt, ui: $ui, toolCallId: $toolCallId)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $UiPresentedEventCopyWith<$Res> implements $ConversationEventCopyWith<$Res> {
+  factory $UiPresentedEventCopyWith(UiPresentedEvent value, $Res Function(UiPresentedEvent) _then) = _$UiPresentedEventCopyWithImpl;
+@override @useResult
+$Res call({
+@EventIdConverter() EventId eventId,@SessionIdConverter() SessionId sessionId, int sequence, DateTime occurredAt, Map<String, Object?> ui, String? toolCallId
+});
+
+
+
+
+}
+/// @nodoc
+class _$UiPresentedEventCopyWithImpl<$Res>
+    implements $UiPresentedEventCopyWith<$Res> {
+  _$UiPresentedEventCopyWithImpl(this._self, this._then);
+
+  final UiPresentedEvent _self;
+  final $Res Function(UiPresentedEvent) _then;
+
+/// Create a copy of ConversationEvent
+/// with the given fields replaced by the non-null parameter values.
+@override @pragma('vm:prefer-inline') $Res call({Object? eventId = null,Object? sessionId = null,Object? sequence = null,Object? occurredAt = null,Object? ui = null,Object? toolCallId = freezed,}) {
+  return _then(UiPresentedEvent(
+eventId: null == eventId ? _self.eventId : eventId // ignore: cast_nullable_to_non_nullable
+as EventId,sessionId: null == sessionId ? _self.sessionId : sessionId // ignore: cast_nullable_to_non_nullable
+as SessionId,sequence: null == sequence ? _self.sequence : sequence // ignore: cast_nullable_to_non_nullable
+as int,occurredAt: null == occurredAt ? _self.occurredAt : occurredAt // ignore: cast_nullable_to_non_nullable
+as DateTime,ui: null == ui ? _self._ui : ui // ignore: cast_nullable_to_non_nullable
+as Map<String, Object?>,toolCallId: freezed == toolCallId ? _self.toolCallId : toolCallId // ignore: cast_nullable_to_non_nullable
+as String?,
+  ));
+}
+
+
 }
 
 /// @nodoc

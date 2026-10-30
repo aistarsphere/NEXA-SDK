@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="nexa_assistant_channel_listening">الاستماع لعبارة التنبيه</string>
+    <string name="nexa_assistant_channel_activation">تشغيل المساعد</string>
+    <string name="nexa_assistant_listening">بانتظار عبارة التنبيه</string>
+    <string name="nexa_assistant_listening_for">بانتظار «%1$s»</string>
+    <string name="nexa_assistant_listening_paused">الاستماع لعبارة التنبيه متوقف مؤقتاً</string>
+    <string name="nexa_assistant_on_device_only">على هذا الجهاز فقط. لا يُسجَّل أو يُرسَل شيء.</string>
+    <string name="nexa_assistant_turn_off">إيقاف</string>
+    <string name="nexa_assistant_tap_to_talk">اضغط للتحدث مع مساعدك</string>
+    <string name="nexa_assistant_reenable_title">عبارة التنبيه متوقفة بعد إعادة التشغيل</string>
+    <string name="nexa_assistant_reenable_text">افتح التطبيق مرة واحدة لإعادة تشغيلها.</string>
+</resources>

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:nexa_core/nexa_core.dart';
 import 'package:nexa_sdk/src/features/voice/nexa_voice_controller.dart';
 import 'package:nexa_sdk/src/features/voice/nexa_voice_state.dart';
+import 'package:nexa_sdk/src/features/voice/presentation/nexa_voice_identity_note.dart';
 import 'package:nexa_sdk/src/nexa_ui_settings.dart' as sdk;
 import 'package:nexa_ui/nexa_ui.dart';
 
@@ -41,22 +42,13 @@ class NexaVoiceView extends StatelessWidget {
       builder: (context, ui, _) {
         final locale = NexaLocale.fromTag(ui.languageTag);
         controller.languageTag = locale.languageCode;
-        final brightness = switch (ui.themeMode) {
-          sdk.NexaThemeMode.light => Brightness.light,
-          sdk.NexaThemeMode.dark => Brightness.dark,
-          sdk.NexaThemeMode.system => MediaQuery.platformBrightnessOf(context),
-        };
         return Localizations(
           locale: locale,
           delegates: NexaLocale.delegates,
           child: Directionality(
             textDirection: NexaLocale.directionOf(locale),
             child: Theme(
-              data: NexaTheme.forBrightness(
-                brightness,
-                locale,
-                overrides: ui.themeOverrides,
-              ),
+              data: ui.resolveTheme(context, locale),
               child: _VoiceBody(
                 controller: controller,
                 showTranscript: showTranscript,
@@ -122,19 +114,26 @@ class _VoiceBodyState extends State<_VoiceBody> {
   Widget build(BuildContext context) {
     return ValueListenableBuilder<NexaVoiceState>(
       valueListenable: widget.controller.state,
-      builder: (context, s, _) => NexaVoiceCapsule(
-        state: s.phase,
-        transcript: s.transcript,
-        muted: s.muted,
-        agentPresent: s.agentPresent,
-        eventsVerified: s.eventsVerified,
-        error: s.error,
-        showTranscript: widget.showTranscript,
-        onStart: widget.controller.start,
-        onEnd: widget.controller.end,
-        onToggleMute: widget.controller.toggleMute,
-        onRetry: widget.controller.start,
-        onOpenSettings: widget.onOpenSettings,
+      builder: (context, s, _) => Column(
+        children: [
+          NexaVoiceIdentityNote(controller: widget.controller),
+          Expanded(
+            child: NexaVoiceCapsule(
+              state: s.phase,
+              transcript: s.transcript,
+              muted: s.muted,
+              agentPresent: s.agentPresent,
+              eventsVerified: s.eventsVerified,
+              error: s.error,
+              showTranscript: widget.showTranscript,
+              onStart: widget.controller.start,
+              onEnd: widget.controller.end,
+              onToggleMute: widget.controller.toggleMute,
+              onRetry: widget.controller.start,
+              onOpenSettings: widget.onOpenSettings,
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -182,32 +182,77 @@ void main() {
       },
     );
 
-    testWidgets('orb pulses while speaking, static under reduced motion', (
+    testWidgets(
+      'capsule bars move while speaking, still under reduced motion',
+      (tester) async {
+        double barHeight() => tester
+            .getSize(
+              find
+                  .descendant(
+                    of: find.byKey(const Key('nexa_voice_pill')),
+                    matching: find.byType(AnimatedContainer),
+                  )
+                  .at(2),
+            )
+            .height;
+
+        await tester.pumpWidget(capsule(state: VoiceState.aiSpeaking));
+        await tester.pump(const Duration(milliseconds: 600));
+        await tester.pump(const Duration(milliseconds: 130));
+        final a = barHeight();
+        await tester.pump(const Duration(milliseconds: 170));
+        final b = barHeight();
+        expect(a, isNot(equals(b)), reason: 'animating');
+
+        await tester.pumpWidget(
+          capsule(state: VoiceState.aiSpeaking, reducedMotion: true),
+        );
+        await tester.pump(const Duration(milliseconds: 600));
+        final s1 = barHeight();
+        await tester.pump(const Duration(milliseconds: 170));
+        expect(barHeight(), s1);
+      },
+    );
+
+    testWidgets('capsule width follows the state', (tester) async {
+      double width() =>
+          tester.getSize(find.byKey(const Key('nexa_voice_pill'))).width;
+      await tester.pumpWidget(capsule(state: VoiceState.listening));
+      await tester.pumpAndSettle();
+      final listening = width();
+      await tester.pumpWidget(capsule(state: VoiceState.userSpeaking));
+      await tester.pump(const Duration(seconds: 1));
+      expect(width(), greaterThan(listening));
+    });
+
+    testWidgets('captions can be hidden and shown', (tester) async {
+      await tester.pumpWidget(
+        capsule(
+          state: VoiceState.listening,
+          transcript: [line(VoiceSpeaker.user, 'hello')],
+        ),
+      );
+      expect(find.text('hello'), findsOneWidget);
+      await tester.tap(find.byKey(const Key('nexa_voice_captions')));
+      await tester.pump();
+      expect(find.text('hello'), findsNothing);
+      expect(find.text('Captions are hidden'), findsOneWidget);
+    });
+
+    testWidgets('English caption keeps LTR inside the Arabic UI', (
       tester,
     ) async {
-      await tester.pumpWidget(capsule(state: VoiceState.aiSpeaking));
-      await tester.pump(const Duration(milliseconds: 500));
-      final ring = find.byType(Transform).first;
-      final scaleA = tester.widget<Transform>(ring).transform.storage[0];
-      await tester.pump(const Duration(milliseconds: 500));
-      final scaleB = tester.widget<Transform>(ring).transform.storage[0];
-      expect(scaleA, isNot(equals(scaleB)), reason: 'animating');
-
       await tester.pumpWidget(
-        capsule(state: VoiceState.aiSpeaking, reducedMotion: true),
+        capsule(
+          state: VoiceState.listening,
+          transcript: [line(VoiceSpeaker.assistant, 'Hello there.')],
+          locale: const Locale('ar'),
+        ),
       );
-      await tester.pump(const Duration(milliseconds: 500));
-      final s1 = tester
-          .widget<Transform>(find.byType(Transform).first)
-          .transform
-          .storage[0];
-      await tester.pump(const Duration(milliseconds: 500));
-      final s2 = tester
-          .widget<Transform>(find.byType(Transform).first)
-          .transform
-          .storage[0];
-      expect(s1, 1.0);
-      expect(s2, 1.0);
+      expect(
+        tester.widget<Text>(find.text('Hello there.')).textDirection,
+        TextDirection.ltr,
+      );
     });
 
     testWidgets('semantics: orb label, mute/end labels, live state region', (

@@ -21,6 +21,10 @@ _CreateSessionRequestDto _$CreateSessionRequestDtoFromJson(
       const <String, String>{},
   sdkVersion: json['sdk_version'] as String,
   platform: json['platform'] as String,
+  clientTools: (json['client_tools'] as List<dynamic>?)
+      ?.map((e) => e as String)
+      .toList(),
+  conversationId: json['conversation_id'] as String?,
 );
 
 Map<String, dynamic> _$CreateSessionRequestDtoToJson(
@@ -32,6 +36,8 @@ Map<String, dynamic> _$CreateSessionRequestDtoToJson(
   'client_metadata': instance.clientMetadata,
   'sdk_version': instance.sdkVersion,
   'platform': instance.platform,
+  'client_tools': ?instance.clientTools,
+  'conversation_id': ?instance.conversationId,
 };
 
 _SessionDto _$SessionDtoFromJson(Map<String, dynamic> json) => _SessionDto(
@@ -41,6 +47,7 @@ _SessionDto _$SessionDtoFromJson(Map<String, dynamic> json) => _SessionDto(
       .map((e) => e as String)
       .toList(),
   lastSequence: (json['last_sequence'] as num?)?.toInt() ?? 0,
+  conversationId: json['conversation_id'] as String?,
 );
 
 Map<String, dynamic> _$SessionDtoToJson(_SessionDto instance) =>
@@ -49,6 +56,7 @@ Map<String, dynamic> _$SessionDtoToJson(_SessionDto instance) =>
       'expires_at': instance.expiresAt.toIso8601String(),
       'granted_capabilities': instance.grantedCapabilities,
       'last_sequence': instance.lastSequence,
+      'conversation_id': ?instance.conversationId,
     };
 
 _EventPageDto _$EventPageDtoFromJson(Map<String, dynamic> json) =>
@@ -70,15 +78,21 @@ Map<String, dynamic> _$EventPageDtoToJson(_EventPageDto instance) =>
 _MessageRequestDto _$MessageRequestDtoFromJson(Map<String, dynamic> json) =>
     _MessageRequestDto(
       clientMessageId: json['client_message_id'] as String,
-      text: json['text'] as String,
+      text: json['text'] as String?,
       languageTag: json['language_tag'] as String?,
+      attachments: (json['attachments'] as List<dynamic>?)
+          ?.map((e) => e as String)
+          .toList(),
+      uiEvent: json['ui_event'] as Map<String, dynamic>?,
     );
 
 Map<String, dynamic> _$MessageRequestDtoToJson(_MessageRequestDto instance) =>
     <String, dynamic>{
       'client_message_id': instance.clientMessageId,
-      'text': instance.text,
+      'text': ?instance.text,
       'language_tag': ?instance.languageTag,
+      'attachments': ?instance.attachments,
+      'ui_event': ?instance.uiEvent,
     };
 
 _PermissionResultDto _$PermissionResultDtoFromJson(Map<String, dynamic> json) =>

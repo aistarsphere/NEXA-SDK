@@ -213,6 +213,9 @@ final class VoiceService {
         'max_refreshes': options.maxRefreshes,
       },
       'join_deadline_seconds': 60,
+      'voice_path': 'realtime',
+      // The local test agent cannot run tools (labeeb.sdk/1 `tools`).
+      'tools': {'enabled': false, 'reason': 'no_tools_available'},
     };
   }
 

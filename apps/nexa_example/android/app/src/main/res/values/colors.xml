@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- LABEEB surface (light), matches LabeebPalette.light.surface. -->
+    <color name="labeeb_launch_background">#F7F3F0</color>
+</resources>

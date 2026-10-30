@@ -17,10 +17,16 @@
   "sessionError": "Something went wrong. Please try again.",
   "offline": "You're offline. Messages will fail until you reconnect.",
   "quotaWarning": "{remaining} messages left",
-  "@quotaWarning": {"placeholders": {"remaining": {"type": "int"}}},
+  "@quotaWarning": {
+    "placeholders": {
+      "remaining": {
+        "type": "int"
+      }
+    }
+  },
   "toolRunning": "Working on it…",
   "toolFailed": "This step failed.",
-  "toolCancelled": "Cancelled.",
+  "toolCancelled": "Cancelled. Nothing was shared.",
   "invalidResult": "The assistant returned something we couldn't display.",
   "confirm": "Confirm",
   "decline": "Cancel",
@@ -31,29 +37,79 @@
   "openNow": "Open now",
   "closed": "Closed",
   "distanceKm": "{km} km",
-  "@distanceKm": {"placeholders": {"km": {"type": "String"}}},
+  "@distanceKm": {
+    "placeholders": {
+      "km": {
+        "type": "String"
+      }
+    }
+  },
   "distanceM": "{m} m",
-  "@distanceM": {"placeholders": {"m": {"type": "int"}}},
+  "@distanceM": {
+    "placeholders": {
+      "m": {
+        "type": "int"
+      }
+    }
+  },
   "routeSummary": "{distance} · {minutes} min",
-  "@routeSummary": {"placeholders": {"distance": {"type": "String"}, "minutes": {"type": "int"}}},
+  "@routeSummary": {
+    "placeholders": {
+      "distance": {
+        "type": "String"
+      },
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
   "weatherFeelsLike": "Feels like {temp}°",
-  "@weatherFeelsLike": {"placeholders": {"temp": {"type": "int"}}},
+  "@weatherFeelsLike": {
+    "placeholders": {
+      "temp": {
+        "type": "int"
+      }
+    }
+  },
   "weatherHumidity": "Humidity {percent}%",
-  "@weatherHumidity": {"placeholders": {"percent": {"type": "int"}}},
+  "@weatherHumidity": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
   "weatherWind": "Wind {kph} km/h",
-  "@weatherWind": {"placeholders": {"kph": {"type": "int"}}},
+  "@weatherWind": {
+    "placeholders": {
+      "kph": {
+        "type": "int"
+      }
+    }
+  },
   "permissionMicrophoneTitle": "Microphone access",
   "permissionMicrophoneBody": "Allow microphone access to talk with the assistant.",
   "permissionAllow": "Allow",
   "permissionDeny": "Not now",
   "mediaPlay": "Play",
   "semanticsUserMessage": "You said: {text}",
-  "@semanticsUserMessage": {"placeholders": {"text": {"type": "String"}}},
+  "@semanticsUserMessage": {
+    "placeholders": {
+      "text": {
+        "type": "String"
+      }
+    }
+  },
   "semanticsAssistantMessage": "Assistant said: {text}",
-  "@semanticsAssistantMessage": {"placeholders": {"text": {"type": "String"}}},
+  "@semanticsAssistantMessage": {
+    "placeholders": {
+      "text": {
+        "type": "String"
+      }
+    }
+  },
   "semanticsSendButton": "Send message",
   "semanticsStopButton": "Stop generating",
-  "poweredBy": "Powered by NEXA",
   "reconnecting": "Reconnecting…",
   "connected": "Connected",
   "authError": "We couldn't verify your access. Please try again.",
@@ -91,9 +147,493 @@
   "voiceUnverifiedEvents": "Development mode: agent events are not signed.",
   "voiceAgentWaiting": "Waiting for the assistant to join…",
   "semanticsVoiceOrb": "Voice status: {state}",
-  "@semanticsVoiceOrb": {"placeholders": {"state": {"type": "String"}}},
+  "@semanticsVoiceOrb": {
+    "placeholders": {
+      "state": {
+        "type": "String"
+      }
+    }
+  },
   "semanticsMuteButton": "Mute microphone",
   "semanticsUnmuteButton": "Unmute microphone",
   "semanticsEndCallButton": "End voice call",
-  "voiceUnavailable": "Voice isn't available right now. Try again in a moment."
+  "voiceUnavailable": "Voice isn't available right now. Try again in a moment.",
+  "chatEmptyTitle": "How can I help you today?",
+  "chatEmptyBody": "Ask anything by text, or start a live voice conversation.",
+  "messageCopy": "Copy",
+  "messageCopied": "Copied",
+  "composerLiveVoice": "Start a live voice conversation",
+  "voiceHintIdle": "Voice and captions start when you tap Start",
+  "voiceHintConnecting": "Setting up a secure session",
+  "voiceHintListening": "Speak anytime",
+  "voiceHintUserSpeaking": "Pause briefly when you finish",
+  "voiceHintTranscribing": "Turning your speech into text",
+  "voiceHintThinking": "Preparing a reply",
+  "voiceHintAiSpeaking": "Talk anytime to interrupt",
+  "voiceHintBargeIn": "Go ahead, I'm listening",
+  "voiceHintMuted": "Unmute to talk",
+  "voiceHintWeakNetwork": "Audio may be delayed. Captions stay on.",
+  "voiceHintDisconnected": "Tap Retry to reconnect",
+  "voiceHintReconnecting": "Nothing is lost while we reconnect",
+  "voiceHintModelBusy": "It will continue automatically",
+  "voiceHintMicrophoneDenied": "You can still type",
+  "voiceHintQuotaExceeded": "Text chat still works",
+  "voiceHintEnded": "Tap Start for a new conversation",
+  "voiceCaptionsEmpty": "Captions of both sides appear here",
+  "voiceShowCaptions": "Show captions",
+  "voiceHideCaptions": "Hide captions",
+  "voiceCaptionsHidden": "Captions are hidden",
+  "voicePartial": "Partial",
+  "voiceFlagMuted": "Mic muted",
+  "voiceFlagWeakNetwork": "Weak network",
+  "assistantLiveVoice": "Live voice",
+  "assistantLiveConversation": "Live conversation",
+  "assistantNewConversation": "New conversation",
+  "assistantNewConversationStarted": "Started a new conversation",
+  "assistantSettings": "Settings",
+  "assistantClose": "Close",
+  "assistantStartChat": "Start a chat",
+  "assistantStartVoice": "Talk live",
+  "assistantHomeBody": "Type your question, or talk to me live.",
+  "attachTitle": "Add to conversation",
+  "attachButton": "Attach",
+  "attachTakePhoto": "Take a photo",
+  "attachChooseImage": "Choose from library",
+  "attachShareLocation": "Share my location",
+  "previewAdd": "Add",
+  "cameraExplain": "Point the camera at what you want to show. Nothing is shared until you tap Use photo.",
+  "cameraCapture": "Take photo",
+  "cameraRetake": "Retake",
+  "cameraUsePhoto": "Use photo",
+  "cameraDenied": "Camera access is off. Allow it in Settings to take a photo.",
+  "cameraUnavailable": "The camera isn't available on this device.",
+  "cameraError": "The camera couldn't start.",
+  "openSettings": "Open settings",
+  "toolAllow": "Allow",
+  "toolNotNow": "Not now",
+  "locationApproveTitle": "Share your current location?",
+  "locationApproveBody": "Your location is read once for this request and is not tracked.",
+  "cameraApproveTitle": "Open the camera?",
+  "cameraApproveBody": "Take one photo to show. You review it before it is shared.",
+  "locationResultTitle": "Your location",
+  "locationAccuracy": "Accurate to about {meters} m",
+  "@locationAccuracy": {
+    "placeholders": {
+      "meters": {
+        "type": "int"
+      }
+    }
+  },
+  "locationWorking": "Getting your location…",
+  "locationDenied": "Location access is off.",
+  "locationServiceOff": "Location services are turned off.",
+  "locationTimeout": "Couldn't get a location in time.",
+  "locationFailed": "Couldn't get your location.",
+  "toolDeclined": "Not shared.",
+  "toolNotDelivered": "Not sent to the assistant: the server can't receive device results yet.",
+  "attachmentNotSent": "On this device only: the server can't receive attachments yet.",
+  "attachmentUploading": "Uploading…",
+  "attachmentFailed": "Upload failed",
+  "attachmentCancelled": "Cancelled",
+  "imageShare": "Share",
+  "imageAskAbout": "Ask about this image",
+  "imageReference": "About this image",
+  "referenceNotSent": "Image reference not sent: the server can't receive images yet.",
+  "voiceShowSomething": "Show something",
+  "historyTitle": "History",
+  "historyEmpty": "No conversations saved on this device yet.",
+  "historyChat": "Chat",
+  "historyVoice": "Voice call",
+  "historyUntitled": "Conversation",
+  "historyMessages": "Messages: {count}",
+  "@historyMessages": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "historyRename": "Rename",
+  "historyResume": "Continue conversation",
+  "historyResumeUnavailable": "Continuing an earlier conversation needs server history, which isn't available yet.",
+  "deleteAction": "Delete",
+  "deletionWorking": "Deleting…",
+  "placesTitle": "Nearby places",
+  "placesLoading": "Searching nearby…",
+  "placesEmpty": "No places found nearby.",
+  "placesLocationDenied": "Searching nearby needs your location.",
+  "placesError": "Couldn't load places.",
+  "placesDirections": "Directions",
+  "placesDistanceM": "{meters} m away",
+  "@placesDistanceM": {
+    "placeholders": {
+      "meters": {
+        "type": "int"
+      }
+    }
+  },
+  "placesDistanceKm": "{km} km away",
+  "@placesDistanceKm": {
+    "placeholders": {
+      "km": {
+        "type": "String"
+      }
+    }
+  },
+  "placesOpenNow": "Open now",
+  "placesClosed": "Closed",
+  "directionsFailed": "Couldn't open maps.",
+  "dataPrivacyTitle": "Data & privacy",
+  "retentionDefault": "How long the service keeps conversations is set by the app's operator.",
+  "scopeConversation": "Delete this conversation",
+  "scopeAllChats": "Clear chat history",
+  "scopeAllVoice": "Clear voice history",
+  "scopeAssets": "Delete uploaded and generated files",
+  "scopeLocalCache": "Clear local cache",
+  "scopeEverything": "Request deletion of all my assistant data",
+  "scopeNoteLocalCache": "Only data cached on this device. History on the server is not affected.",
+  "scopeNoteEverything": "The request is sent to the service. Billing and security audit records are kept as its retention policy requires.",
+  "scopeNoteDefault": "Items already shared outside the app are not recalled.",
+  "scopeServerUnavailable": "On the server: not available yet",
+  "deletionLocalDone": "Removed from this device",
+  "deletionServerUnavailable": "Server deletion isn't available yet, so nothing was deleted on the server.",
+  "deletionRequested": "Requested · waiting for the service to confirm",
+  "deletionConfirmed": "Deleted on the server",
+  "deletionPartial": "Partly deleted: {count} items couldn't be removed.",
+  "@deletionPartial": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "deletionServerFailed": "The service didn't confirm the deletion.",
+  "deletionRequestId": "Request {id}",
+  "@deletionRequestId": {
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "deletionRetry": "Retry",
+  "done": "Done",
+  "historySearch": "Search",
+  "historyLoadFailed": "Couldn't load history.",
+  "historyCacheNote": "Shown from this device's cache. The server doesn't offer conversation history yet.",
+  "historyRenameUnavailable": "Renaming needs server history, which isn't available yet.",
+  "toolOriginDevice": "DEVICE",
+  "toolOriginServer": "SERVER",
+  "toolOriginCompany": "COMPANY",
+  "toolStateApproval": "Needs approval",
+  "toolStateDenied": "Denied",
+  "toolStateRunning": "Running",
+  "toolStateSuccess": "Done",
+  "toolStateError": "Failed",
+  "toolStateCancelled": "Cancelled",
+  "toolStateUnavailable": "Unavailable",
+  "toolStateSetup": "Requires setup",
+  "toolAllowOnce": "Allow once",
+  "toolRunAgain": "Run again",
+  "toolDismiss": "Dismiss",
+  "toolLocationName": "Current location",
+  "toolCameraName": "Camera capture",
+  "toolDirectionsName": "Open navigation",
+  "toolWhereDevice": "Runs on this device",
+  "toolWhereOtherApp": "Opens another app",
+  "toolLocationApproval": "Share your location once? Nothing is shared until you allow it.",
+  "toolCameraApproval": "Take a photo to show? The camera opens only after you allow it.",
+  "toolCameraRunning": "Waiting for the camera…",
+  "toolCameraSuccess": "Photo captured and attached.",
+  "toolDirectionsSuccess": "Opened directions.",
+  "toolDenied": "Access was denied. You can continue without it or allow it in Settings.",
+  "toolUnavailable": "This isn't available on this device.",
+  "toolSetup": "The app hasn't enabled this.",
+  "toolError": "It didn't complete. Nothing was changed.",
+  "toolRowCoordinates": "Coordinates",
+  "toolRowAccuracy": "Accuracy",
+  "toolRowShared": "Shared",
+  "toolRowSharedOnce": "Once, this request only",
+  "toolRowPhoto": "Photo",
+  "toolRowSentAs": "Sent as",
+  "toolRowDestination": "Destination",
+  "toolRowOpenedIn": "Opens in",
+  "toolOpenedApp": "Maps app",
+  "toolOpenedBrowser": "Browser",
+  "toolAboutMeters": "About {meters} m",
+  "@toolAboutMeters": {
+    "placeholders": {
+      "meters": {
+        "type": "int"
+      }
+    }
+  },
+  "cameraOn": "Camera on",
+  "attachChooseFile": "Choose a file",
+  "fileTooLarge": "This file is larger than 10 MB.",
+  "fileUnsupported": "This file type isn't supported.",
+  "imageGenerated": "AI-generated",
+  "imageEdited": "Edited · AI",
+  "attachmentCancel": "Cancel upload",
+  "attachmentReady": "Ready",
+  "toolNetworkName": "Network status",
+  "toolWifiName": "Wi-Fi network",
+  "toolBrowserName": "Open website",
+  "toolAppName": "Open app",
+  "toolAppsName": "Supported apps",
+  "toolShareName": "Share",
+  "toolFilesName": "Pick a file",
+  "toolSettingsName": "Open settings",
+  "toolApprovalPersonal": "Allow the assistant to use “{name}”? Nothing is shared until you allow it.",
+  "toolApprovalExternal": "Allow the assistant to “{name}”? This opens outside the app.",
+  "toolWorking": "Working…",
+  "toolDoneGeneric": "Done.",
+  "toolWhereServer": "Runs on the server",
+  "toolRowNetwork": "Network",
+  "toolRowWebsite": "Website",
+  "toolRowApp": "App",
+  "toolRowStatus": "Status",
+  "toolRowFile": "File",
+  "toolRowSsidHidden": "Not available (the system doesn't allow it)",
+  "toolFileTooLarge": "The file is larger than 10 MB.",
+  "toolFileUnsupported": "This file type isn't supported.",
+  "@toolApprovalPersonal": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "@toolApprovalExternal": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "duiDemo": "DEMO DATA",
+  "duiLoading": "Loading…",
+  "duiPartial": "Loading more…",
+  "duiEmpty": "Nothing to show here.",
+  "duiError": "Something went wrong. Nothing was changed.",
+  "duiProviderUnavailable": "The provider is unavailable, so no results are shown.",
+  "duiOffline": "Offline · showing the last result",
+  "duiDisabled": "Not available right now.",
+  "duiUnsupported": "This content can't be shown in this app version.",
+  "duiActionUnsupported": "Not available in this app version",
+  "duiHostUnavailable": "This app doesn't allow changing its theme.",
+  "duiConfirmTitle": "Confirm",
+  "duiConfirmBody": "Do you want to continue?",
+  "duiConfirm": "Confirm",
+  "duiSource": "Source: {name}",
+  "@duiSource": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "duiOpen": "Open",
+  "duiExpand": "Expand",
+  "duiMinimize": "Minimize",
+  "duiDismiss": "Dismiss",
+  "duiPosition": "{position} of {count}, {label}",
+  "@duiPosition": {
+    "placeholders": {
+      "position": {
+        "type": "int"
+      },
+      "count": {
+        "type": "int"
+      },
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "duiSelected": "selected",
+  "duiPreviewing": "Previewing",
+  "duiApplied": "Applied",
+  "duiThemeApplied": "Theme applied.",
+  "duiThemeReset": "Original theme restored.",
+  "duiSelectionsLocal": "Selections stay on this device until the assistant can receive them.",
+  "duiLive": "Live",
+  "duiUpcoming": "Upcoming",
+  "duiFinished": "Finished",
+  "duiStepDone": "Done",
+  "duiStepRunning": "Running",
+  "duiStepWaiting": "Waiting",
+  "duiStepFailed": "Failed",
+  "duiStepCancelled": "Cancelled",
+  "duiMapPreview": "Map preview",
+  "duiPages": "{count} pages",
+  "@duiPages": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "duiCompare": "Compare",
+  "duiOpenLinkTitle": "Open this link in your browser?",
+  "duiStale": "This choice is no longer current. Ask again for fresh options.",
+  "duiNotDelivered": "Couldn't send that to the assistant. Try again.",
+  "duiSend": "Send",
+  "tcAllow": "Allow",
+  "tcNotNow": "Not now",
+  "tcWaitingForYou": "Waiting for your approval",
+  "tcRunning": "Working…",
+  "tcSending": "Sending the result…",
+  "tcDone": "Done",
+  "tcFailed": "Didn't complete",
+  "tcDenied": "You said no",
+  "tcExpired": "Expired: no answer in time",
+  "tcCancelled": "Cancelled",
+  "tcClosed": "This request is no longer open.",
+  "tcCancelJob": "Stop",
+  "tcJobStarted": "Started. You can keep chatting.",
+  "tcJobQueued": "Waiting for a free slot…",
+  "tcJobWaited": "Waiting {seconds}s",
+  "@tcJobWaited": {
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "tcUnavailable": "Not available: {reason}",
+  "@tcUnavailable": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "tcErrorCode": "Error: {code}",
+  "@tcErrorCode": {
+    "placeholders": {
+      "code": {
+        "type": "String"
+      }
+    }
+  },
+  "tcThemePreview": "Previewing the new colors",
+  "tcApplyTheme": "Apply",
+  "tcToolLocation": "Use your current location",
+  "tcToolCamera": "Take a photo",
+  "tcToolPhoto": "Choose a photo",
+  "tcToolFile": "Choose a file",
+  "tcToolDirections": "Open directions in Maps",
+  "tcToolOpenUrl": "Open a link in your browser",
+  "tcToolNetwork": "Check your connection",
+  "tcToolShare": "Share",
+  "tcToolSettings": "Open app settings",
+  "tcToolTheme": "Change the app colors",
+  "tcToolThemeReset": "Restore the original colors",
+  "tcToolPlaces": "Searching places",
+  "tcToolVision": "Looking at the image",
+  "tcToolImageGenerate": "Creating an image",
+  "tcToolImageEdit": "Editing the image",
+  "tcToolOcr": "Reading text from the image",
+  "tcToolFileRead": "Reading the file",
+  "tcToolFileCreate": "Creating a file",
+  "tcToolWeb": "Searching the web",
+  "tcToolNews": "Searching the news",
+  "tcToolSports": "Checking match results",
+  "tcToolVideo": "Finding videos",
+  "tcToolPalettes": "Listing color themes",
+  "tcToolJobs": "Checking your tasks",
+  "tcToolOther": "Assistant tool",
+  "tcProviderBlocked": "This source isn't connected yet, so no results are shown.",
+  "tcRateLimited": "The source is busy. Try again later.",
+  "tcGpuBlocked": "The AI service can't run this right now.",
+  "tcEncyclopedia": "Reference articles (encyclopedia), not live web results",
+  "tcSeenAt": "First seen {time}",
+  "@tcSeenAt": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "tcOpenLink": "Open",
+  "tcGenerated": "Generated image",
+  "tcPurpose": "Why: {purpose}",
+  "@tcPurpose": {
+    "placeholders": {
+      "purpose": {
+        "type": "String"
+      }
+    }
+  },
+  "tcUploadUnavailable": "Attachments aren't enabled for this app yet.",
+  "tcGpuBusy": "The image service is busy right now (it's kept free for live voice). Try again in a moment.",
+  "tcNotEnabled": "This feature isn't enabled for this app yet.",
+  "tcTryAgain": "Something went wrong. Try again.",
+  "tcDomainNotAllowed": "That site isn't allowed for this app.",
+  "tcNotReadable": "This file can't be read as text.",
+  "tcJobNotFound": "This job no longer exists.",
+  "tcCouldNotRun": "The assistant couldn't run this.",
+  "tcAssetDeleted": "File deleted",
+  "tcDeleteAssetTitle": "Delete this file?",
+  "tcDeleteAssetBody": "It will be removed from the conversation for good.",
+  "tcShare": "Share",
+  "tcDeleteFailed": "The file couldn't be deleted.",
+  "recTitle": "Record your voice",
+  "recIntro": "Only what you record now is captured. It is used to create your private voice.",
+  "recHint": "Speak naturally for {min} to {max} seconds, then tap Finish.",
+  "@recHint": {
+    "placeholders": {
+      "min": {
+        "type": "int"
+      },
+      "max": {
+        "type": "int"
+      }
+    }
+  },
+  "recStart": "Start recording",
+  "recFinish": "Finish",
+  "recRecording": "Recording",
+  "recMore": "Keep talking: {seconds} s more",
+  "@recMore": {
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "recElapsed": "{seconds} of {max} s",
+  "@recElapsed": {
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      },
+      "max": {
+        "type": "int"
+      }
+    }
+  },
+  "recUploading": "Sending the recording…",
+  "recMicDenied": "Microphone access is off. Allow it in Settings to record.",
+  "audioPlay": "Play",
+  "audioPause": "Pause",
+  "audioFailed": "The audio couldn't be played.",
+  "voiceIdentityApplied": "Speaking in your voice",
+  "voiceIdentityNotApplied": "Your voice isn't used in this call",
+  "voiceSwitching": "Switching to the new voice…",
+  "panelExpand": "Open full screen",
+  "panelClose": "Close assistant",
+  "panelVoiceVerified": "Your voice",
+  "panelWorking": "Working on it…",
+  "panelNeedsApproval": "Needs your OK",
+  "panelOpenToContinue": "Open to continue",
+  "panelShowOptions": "Show options",
+  "tcJiraNotConnected": "Jira isn't connected for your organization yet.",
+  "tcJiraReconnect": "Your administrator needs to reconnect Jira.",
+  "tcJiraForbidden": "You don't have access to this in Jira.",
+  "tcJiraNotFound": "Not found in Jira.",
+  "tcUnsupportedMedia": "This file type can't be sent.",
+  "tcToolVoiceProfile": "Your voice",
+  "tcToolJira": "Jira"
 }

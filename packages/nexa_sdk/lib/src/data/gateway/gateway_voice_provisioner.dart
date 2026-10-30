@@ -38,13 +38,20 @@ final class GatewayVoiceProvisioner implements VoiceProvisioner {
   Future<VoiceGrant> create({
     required String languageTag,
     SessionId? chatSessionId,
+    String? conversationId,
+    List<String> clientTools = const [],
   }) async {
     try {
+      // Tools need a conversation (labeeb.sdk/1 voice.tools).
+      final tools = conversationId != null && clientTools.isNotEmpty;
       final res = await _dio.post<Map<String, Object?>>(
         _base,
         data: {
           'language_tag': languageTag,
           'chat_session_id': ?chatSessionId?.value,
+          'conversation_id': ?conversationId,
+          if (tools) 'tools': true,
+          if (tools) 'client_tools': clientTools,
         },
       );
       final body = res.data;
@@ -200,6 +207,9 @@ final class GatewayVoiceProvisioner implements VoiceProvisioner {
       tokenRefreshPath: reconnect['token_refresh_path'] as String?,
       maxRefreshes: (reconnect['max_refreshes'] as int?) ?? 30,
       joinDeadlineSeconds: (json['join_deadline_seconds'] as int?) ?? 60,
+      voicePath: json['voice_path'] as String?,
+      tools: VoiceToolsGrant.fromJson(json['tools']),
+      voiceIdentity: VoiceIdentity.fromJson(json['voice_identity']),
     );
   }
 

@@ -74,6 +74,8 @@ final class MockChatTransport implements ChatTransport {
     required Set<NexaCapability> requestedCapabilities,
     required String languageTag,
     Map<String, String> clientMetadata = const {},
+    List<String> clientTools = const [],
+    String? conversationId,
   }) async {
     _checkDisposed();
     if (credential.isExpired) {
@@ -275,7 +277,7 @@ final class _MockSession {
     OutgoingMessage message, {
     required MessageId inReplyTo,
   }) async {
-    final text = message.text.toLowerCase();
+    final text = (message.text ?? '').toLowerCase();
     final assistantId = MessageId('mock-assistant-${nextMessageNumber()}');
     final slow = text.contains('slow');
     final tokenDelay = slow ? transport.tokenDelay * 8 : transport.tokenDelay;
@@ -350,7 +352,7 @@ final class _MockSession {
       return;
     }
 
-    final reply = _cannedReply(message.text);
+    final reply = _cannedReply(message.text ?? '');
     final cancelled = await _stream(assistantId, reply, tokenDelay);
     if (!cancelled) _complete(assistantId, FinishReason.stop, fullText: reply);
   }
