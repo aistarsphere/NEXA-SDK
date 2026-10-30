@@ -198,6 +198,22 @@ void main() {
   });
 
   group('conversation', () {
+    test('a call started before the chat joins a conversation first '
+        '(tools need one)', () async {
+      final v = await voice();
+      var created = 0;
+      client.injector<SessionManager>()
+        ..conversationId = null
+        ..conversationProvider = () async {
+          created++;
+          return 'conv_cold';
+        };
+      await v.start();
+      await phase(v, VoiceState.listening);
+      expect(provisioner.conversationIds.last, 'conv_cold');
+      expect(created, 1);
+    });
+
     test('a scripted turn drives states and transcript', () async {
       final v = await voice();
       await v.start();

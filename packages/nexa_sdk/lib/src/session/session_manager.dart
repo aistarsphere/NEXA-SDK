@@ -90,6 +90,9 @@ final class SessionManager {
       final conversation =
           conversationId ??
           (conversationProvider == null ? null : await conversationProvider!());
+      // Keep it even if opening the session fails below (e.g. 429): a
+      // retry or a voice call then joins it instead of creating another.
+      conversationId = conversation;
       Future<SessionHandle> open(List<String> declared) =>
           _transport.startSession(
             credential: credential,
@@ -119,7 +122,7 @@ final class SessionManager {
         declaredToolsRefused = true;
         handle = await open(const []);
       }
-      conversationId = handle.conversationId ?? conversationId;
+      conversationId = handle.conversationId ?? conversation;
       _current = handle;
       emit(NexaSessionStarted(clock.now(), handle.sessionId));
       final missing = _config.requestedCapabilities.difference(

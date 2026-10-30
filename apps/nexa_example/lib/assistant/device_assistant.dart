@@ -213,7 +213,7 @@ class DeviceAssistantPanelHost extends StatelessWidget {
                 },
                 idleTimeout: assistant.idleTimeout,
                 voiceVerified: s.verified ?? false,
-              activationSource: s.source,
+                activationSource: s.source,
                 onClosed: assistant.panelClosed,
                 onExpand: assistant.expandPanel,
               ),

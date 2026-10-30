@@ -42,8 +42,9 @@ final class GatewayVoiceProvisioner implements VoiceProvisioner {
     List<String> clientTools = const [],
   }) async {
     try {
-      // Tools need a conversation (labeeb.sdk/1 voice.tools).
-      final tools = conversationId != null && clientTools.isNotEmpty;
+      // Tools need a conversation (labeeb.sdk/1 voice.tools); device tools
+      // are optional, so server tools work even with none declared.
+      final tools = conversationId != null;
       final res = await _dio.post<Map<String, Object?>>(
         _base,
         data: {
@@ -51,7 +52,7 @@ final class GatewayVoiceProvisioner implements VoiceProvisioner {
           'chat_session_id': ?chatSessionId?.value,
           'conversation_id': ?conversationId,
           if (tools) 'tools': true,
-          if (tools) 'client_tools': clientTools,
+          if (tools && clientTools.isNotEmpty) 'client_tools': clientTools,
         },
       );
       final body = res.data;

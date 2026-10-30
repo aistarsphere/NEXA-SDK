@@ -314,6 +314,10 @@ final class NexaVoiceController {
     } on NexaException catch (e) {
       _fail(e);
     } on Object catch (e) {
+      _logger.log(
+        NexaLogLevel.warning,
+        'voice command ${command.runtimeType} failed: ${e.runtimeType}',
+      );
       _fail(UnknownNexaException('voice command failed', cause: e));
     }
   }
@@ -329,6 +333,22 @@ final class NexaVoiceController {
       _retryNotBefore = null;
     }
     if (_state.value.phase != VoiceState.connecting) return; // ended meanwhile
+    // Tools and saved spoken turns need the server conversation. A call
+    // can start before the chat has created it (e.g. the assistant panel
+    // on a cold start): join or create it first.
+    if (_sessions.conversationId == null &&
+        _sessions.conversationProvider != null) {
+      try {
+        await _sessions.start();
+      } on NexaException catch (e) {
+        _logger.log(
+          NexaLogLevel.warning,
+          'voice: no conversation (${e.code.name}); tools and saved turns '
+          'are unavailable in this call',
+        );
+      }
+      if (_state.value.phase != VoiceState.connecting) return;
+    }
     final VoiceGrant grant;
     final watch = Stopwatch()..start();
     try {

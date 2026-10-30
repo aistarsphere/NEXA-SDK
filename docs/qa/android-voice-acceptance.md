@@ -198,3 +198,131 @@ unvalidated for that use, and it would block legitimate speech.
 6. Orb movement with real speech levels.
 7. Five calls in a row; after each, check `dumpsys audio` for a single
    capture and confirm no LiveKit room remains.
+
+
+---
+
+## Update 2026-10-30 22:20 (+03), Xiaomi 2ba15772, Android 16 / HyperOS 3.0
+
+Calls are admitted again. One short call was used per check, to protect
+the QA quota.
+
+### Overall status: PARTIAL
+
+The live checks still waiting for the owner are listed at the end.
+
+### Mute: PASS_REAL_DEVICE
+
+Panel call `vs_xQCtJYaJ_yE93TD97j8TUQ`, cold start from the home screen
+via the assist key. Evidence is from `adb shell dumpsys audio`, for app
+uid 10336:
+
+1. **Live, unmuted:** one capture, `VOICE_COMMUNICATION` 48 kHz,
+   `silenced:false`, effects `client='aec' 'ns'`, `dev='aec' 'ns'`.
+2. **After Mute:** `rec stop … VOICE_COMMUNICATION` at 22:18:39. No
+   capture remains for the app. The status-bar microphone dot is gone.
+   The panel shows «الصوت مكتوم» and the crossed orb (screenshot
+   `m2_muted.png`).
+3. **Muted for 10 s:** still no capture. Background speech, which had
+   been producing captions before muting, produced no new caption.
+4. **After Unmute:** a new `VOICE_COMMUNICATION` capture at 22:19:07.
+5. **After Close:** `user_closed`, `DELETE` 200, both peer connections
+   CLOSED, no capture, no session window left.
+
+Not yet seen on a phone:
+
+* mute across a reconnect or Expand (code path verified);
+* the server-side absence of a user turn while muted. The client sends no
+  audio at all, because capture is stopped.
+
+### Tools / dynamic UI: Flutter-owned root cause, FIXED
+
+**Cause.** Calls started without tools. The log line read
+`voice … tools=false (not_requested)`. Two app bugs combined:
+
+1. The provisioner asked for `tools` only when device tools were also
+   declared (`conversationId != null && clientTools.isNotEmpty`). The
+   contract needs only a conversation.
+2. A call started from the panel on a cold start runs before the chat has
+   created its conversation, so no `conversation_id` was sent. The
+   session manager also forgot a newly created conversation when opening
+   the chat session failed (e.g. 429).
+
+The model therefore had no tools and could only speak ("you choose").
+
+**Fix.**
+
+* Tools are requested whenever there is a conversation.
+* A call first joins or creates the conversation.
+* The conversation is kept even if opening the chat session fails.
+
+**Device evidence after the fix.** Call `vs_MEcpxnlKfzOQ-aaAFslRKg`
+(cold start, panel) reported `tools=true` and
+`server_tools=54`. The device tools granted were:
+
+* `device.location.get_current`
+* `maps.open_directions`
+* `device.camera.capture`
+* `device.photo.pick`
+* `device.file.pick`
+* `browser.open_url`
+* `app.theme.apply`
+* `device.microphone.record_sample`
+
+**Remaining.** One live "لبيب، غيّرلي شكل التطبيق" with the owner
+(NOT_TESTED). The log will show `voice tool event:` lines.
+
+### Cold-start panel call: FIXED, PASS_REAL_DEVICE
+
+**Cause.** In the panel with no activity on screen, the microphone
+permission plugin threw ("voice command failed") although the permission
+was granted.
+
+**Fix.** The host returns an already-granted permission without a
+prompt.
+
+**Evidence.** Cold-start calls at 22:18 and 22:23 connected.
+
+### Noise / echo: device evidence
+
+* One capture only during calls.
+* Platform `aec` + `ns` effects are active on the device stream.
+* The source is `VOICE_COMMUNICATION`.
+* The wake listener is off the microphone during calls.
+
+Background speech still produced captions and «جارٍ المقاطعة…», so the
+worker's VAD treats it as user speech. Barge-in is decided by the worker
+(the client sends no interrupt). Scenario runs with the owner:
+NOT_TESTED.
+
+### Setup screen
+
+* Once Android reports LABEEB as the assistant, the setup card is replaced
+  by a compact verified card with "Change".
+* The setup button opens Assist & voice input. Android redirects apps'
+  requests for the role chooser to Default apps (seen on Android 13 and
+  16).
+* The three Android signals are listed only in Checks.
+
+### Owner voice check
+
+Scoring now uses the better of (mean similarity) and (average of the two
+closest enrolment samples), so normal variation in tone, speed and volume
+is accepted. The threshold is leave-one-out calibrated with the same rule,
+0.12 headroom, clamped to 0.40–0.65, and never lowered further.
+
+**Re-enrolment needed** to store the per-sample embeddings (profile v2).
+Version-1 profiles still load.
+
+Unit test: "owner variation close to some samples passes, stranger does
+not". Real owner and second-speaker tests: NOT_TESTED.
+
+### Still needs the owner (live)
+
+1. «لبيب، غيّرلي شكل التطبيق» once, in the panel, then once in full
+   screen.
+2. The six noise scenarios.
+3. Re-record the voice; Test 5× (owner verification off, then on); a
+   second person 3×.
+4. «يا لبيب» with the app open, in the background, with the screen off,
+   and locked. Each attempt logs `NexaWake decision=… phrase=d/t voice=s/t`.

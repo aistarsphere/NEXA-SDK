@@ -19,6 +19,11 @@ final class HostPermissionHandler implements NexaPermissionHandler {
       NexaPermission.location => ph.Permission.locationWhenInUse,
       NexaPermission.notifications => ph.Permission.notification,
     };
+    // Already granted: answer without a prompt. Also needed when the call
+    // starts in the assistant panel with no activity on screen, where a
+    // prompt cannot be shown at all.
+    final current = await target.status;
+    if (current.isGranted || current.isLimited) return true;
     final status = await target.request();
     return status.isGranted || status.isLimited;
   }

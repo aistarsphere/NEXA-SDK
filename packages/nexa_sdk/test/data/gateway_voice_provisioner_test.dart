@@ -130,6 +130,40 @@ void main() {
       expect(adapter.requests.single.data, {'language_tag': 'en'});
     });
 
+    test(
+      'tools are requested with a conversation, device tools optional',
+      () async {
+        var adapter = serve('rest/create_session.201.json');
+        await make(adapter).create(languageTag: 'ar', conversationId: 'conv_1');
+        expect(adapter.requests.single.data, {
+          'language_tag': 'ar',
+          'conversation_id': 'conv_1',
+          'tools': true,
+        });
+        adapter = serve('rest/create_session.201.json');
+        await make(adapter).create(
+          languageTag: 'ar',
+          conversationId: 'conv_1',
+          clientTools: const ['app.theme.apply'],
+        );
+        expect(adapter.requests.single.data, {
+          'language_tag': 'ar',
+          'conversation_id': 'conv_1',
+          'tools': true,
+          'client_tools': ['app.theme.apply'],
+        });
+        adapter = serve('rest/create_session.201.json');
+        await make(
+          adapter,
+        ).create(languageTag: 'ar', clientTools: const ['app.theme.apply']);
+        expect(
+          adapter.requests.single.data,
+          {'language_tag': 'ar'},
+          reason: 'no conversation: tools cannot be granted',
+        );
+      },
+    );
+
     Future<void> rejects(
       Object? Function(Map<String, Object?>) edit,
       String path,

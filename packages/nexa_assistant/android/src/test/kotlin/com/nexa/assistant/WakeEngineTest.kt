@@ -168,9 +168,29 @@ class WakeEngineTest {
         val b = floatArrayOf(0.95f, 0.2f, 0.05f)
         val c = floatArrayOf(0.9f, 0f, 0.1f)
         val p = SpeakerProfile.fromEmbeddings(listOf(a, b, c))
-        assertTrue(p.threshold in 0.45f..0.70f)
+        assertTrue(p.threshold in 0.40f..0.65f)
         assertTrue(p.score(a) > p.threshold)
         assertTrue(p.score(floatArrayOf(0f, 1f, 0f)) < p.threshold)
+    }
+
+    @Test
+    fun `owner variation close to some samples passes, stranger does not`() {
+        // Owner samples spread across two "registers" (e.g. calm / loud).
+        val owner = listOf(
+            floatArrayOf(1f, 0.3f, 0f, 0f),
+            floatArrayOf(0.95f, 0.35f, 0.05f, 0f),
+            floatArrayOf(0.6f, 0.8f, 0f, 0f),
+            floatArrayOf(0.55f, 0.85f, 0.05f, 0f),
+            floatArrayOf(0.8f, 0.55f, 0f, 0.05f),
+        )
+        val p = SpeakerProfile.fromEmbeddings(owner)
+        // Same person in the second register: near two samples, further
+        // from the mean.
+        val loudOwner = floatArrayOf(0.5f, 0.88f, 0.02f, 0f)
+        assertTrue(p.score(loudOwner) >= p.threshold, "owner ${p.score(loudOwner)} vs ${p.threshold}")
+        val stranger = floatArrayOf(0.1f, 0.1f, 1f, 0.6f)
+        assertTrue(p.score(stranger) < p.threshold, "stranger ${p.score(stranger)}")
+        assertTrue(p.threshold >= 0.40f, "never lowered below the floor")
     }
 
     @Test

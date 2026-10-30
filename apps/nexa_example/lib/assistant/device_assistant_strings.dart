@@ -31,11 +31,8 @@ final class DeviceAssistantStrings {
         'الرقمي» واختر لبيب. اترك «الإدخال الصوتي» كما هو: فهو للكتابة '
         'الصوتية.',
   );
-  String get signalsCaption => _t(
-    'What Android reports (one ✓ is enough):',
-    'ما يُبلغ عنه أندرويد (تكفي علامة ✓ واحدة):',
-  );
   String get recheck => _t('Check again', 'تحقق مجدداً');
+  String get change => _t('Change', 'تغيير');
   String get signalRole =>
       _t('Android assistant role', 'دور المساعد في أندرويد');
   String get signalSetting => _t('Assistant setting', 'إعداد المساعد');

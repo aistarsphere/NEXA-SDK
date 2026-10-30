@@ -278,6 +278,8 @@ class _DeviceAssistantPageState extends State<DeviceAssistantPage>
     ];
   }
 
+  static String _yn(bool? v) => v == null ? '?' : (v ? '✓' : '✗');
+
   /// One line per check, each with its own real result.
   List<Widget> _diagnostics(
     BuildContext context,
@@ -301,7 +303,13 @@ class _DeviceAssistantPageState extends State<DeviceAssistantPage>
         child: Column(
           key: const Key('device_assistant_checks'),
           children: [
-            _Check(s.checkRole, st.isDefaultAssistant, null),
+            _Check(
+              s.checkRole,
+              st.isDefaultAssistant,
+              '${s.signalRole}: ${_yn(st.assistantRoleHeld)} · '
+              '${s.signalSetting}: ${_yn(st.voiceInteractionSetting ?? st.assistantSetting)} · '
+              '${s.signalBound}: ${_yn(st.assistantServiceBound)}',
+            ),
             _Check(
               s.checkEnrollment,
               st.enrolled,
@@ -355,67 +363,72 @@ class _DeviceAssistantPageState extends State<DeviceAssistantPage>
     ];
   }
 
+  /// Setup steps only while something is missing; once Android reports
+  /// LABEEB as the assistant, a compact verified card (read live each time).
   List<Widget> _role(
     BuildContext context,
     DeviceAssistantStrings s,
     NexaAssistantStatus st,
-  ) => [
-    _Label(s.defaultAssistant),
-    _Card(
-      icon: st.isDefaultAssistant
-          ? Icons.check_circle_rounded
-          : Icons.assistant_outlined,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            !st.assistantRoleAvailable
-                ? s.roleUnavailable
-                : st.isDefaultAssistant
-                ? s.isDefault
-                : s.notDefault,
-            key: const Key('device_assistant_role_status'),
+  ) {
+    if (st.isDefaultAssistant) {
+      return [
+        _Label(s.defaultAssistant),
+        Card(
+          child: ListTile(
+            key: const Key('device_assistant_role_verified'),
+            leading: Icon(
+              Icons.verified_rounded,
+              color: Theme.of(context).colorScheme.primary,
+            ),
+            title: Text(s.isDefault),
+            trailing: TextButton(
+              key: const Key('device_assistant_change'),
+              onPressed: _plugin.openAssistantSettings,
+              child: Text(s.change),
+            ),
           ),
-          const SizedBox(height: 8),
-          Text(
-            s.signalsCaption,
-            style: Theme.of(context).textTheme.labelMedium,
-          ),
-          const SizedBox(height: 2),
-          _Signal(s.signalRole, st.assistantRoleHeld),
-          _Signal(
-            s.signalSetting,
-            st.voiceInteractionSetting ?? st.assistantSetting,
-          ),
-          _Signal(s.signalBound, st.assistantServiceBound),
-          if (!st.isDefaultAssistant) ...[
-            const SizedBox(height: 8),
-            Text(s.roleHelp, style: Theme.of(context).textTheme.bodySmall),
-          ],
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              if (st.assistantRoleAvailable)
-                OutlinedButton.icon(
-                  key: const Key('device_assistant_choose'),
-                  onPressed: _plugin.openAssistantSettings,
-                  icon: const Icon(Icons.open_in_new_rounded),
-                  label: Text(s.chooseInSettings),
-                ),
-              TextButton.icon(
-                key: const Key('device_assistant_recheck'),
-                onPressed: _refreshSoon,
-                icon: const Icon(Icons.refresh_rounded),
-                label: Text(s.recheck),
+        ),
+      ];
+    }
+    return [
+      _Label(s.defaultAssistant),
+      _Card(
+        icon: Icons.assistant_outlined,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              st.assistantRoleAvailable ? s.notDefault : s.roleUnavailable,
+              key: const Key('device_assistant_role_status'),
+            ),
+            if (st.assistantRoleAvailable) ...[
+              const SizedBox(height: 8),
+              Text(s.roleHelp, style: Theme.of(context).textTheme.bodySmall),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  FilledButton.icon(
+                    key: const Key('device_assistant_choose'),
+                    onPressed: _plugin.openAssistantSettings,
+                    icon: const Icon(Icons.open_in_new_rounded),
+                    label: Text(s.chooseInSettings),
+                  ),
+                  TextButton.icon(
+                    key: const Key('device_assistant_recheck'),
+                    onPressed: _refreshSoon,
+                    icon: const Icon(Icons.refresh_rounded),
+                    label: Text(s.recheck),
+                  ),
+                ],
               ),
             ],
-          ),
-        ],
+          ],
+        ),
       ),
-    ),
-  ];
+    ];
+  }
 
   List<Widget> _wake(
     BuildContext context,
@@ -838,35 +851,6 @@ class _VoiceEnrollmentPageState extends State<VoiceEnrollmentPage> {
           ),
         ),
       ),
-    );
-  }
-}
-
-/// One Android signal behind the default-assistant status.
-class _Signal extends StatelessWidget {
-  const _Signal(this.label, this.value);
-  final String label;
-  final bool? value;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Row(
-      children: [
-        Icon(
-          value == null
-              ? Icons.help_outline_rounded
-              : value!
-              ? Icons.check_rounded
-              : Icons.close_rounded,
-          size: 16,
-          color: value == true ? scheme.primary : scheme.onSurfaceVariant,
-        ),
-        const SizedBox(width: 6),
-        Expanded(
-          child: Text(label, style: Theme.of(context).textTheme.bodySmall),
-        ),
-      ],
     );
   }
 }

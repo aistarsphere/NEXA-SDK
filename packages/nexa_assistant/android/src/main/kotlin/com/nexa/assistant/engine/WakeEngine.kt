@@ -9,31 +9,50 @@ fun interface SpeakerEmbedder {
     fun embed(samples: FloatArray): FloatArray?
 }
 
-/** The enrolled owner's voice: mean embedding and its accept threshold. */
-class SpeakerProfile(val embedding: FloatArray, val threshold: Float) {
-    fun score(other: FloatArray): Float = cosine(embedding, other)
+/**
+ * The enrolled owner's voice: the mean embedding, the individual enrolment
+ * embeddings and the accept threshold.
+ *
+ * Score = the better of (similarity to the mean) and (average of the two
+ * closest enrolment samples). The second term tolerates the owner's normal
+ * variation (tone, speed, loudness) that a single mean blurs, while a
+ * stranger is still far from every sample.
+ */
+class SpeakerProfile(
+    val embedding: FloatArray,
+    val threshold: Float,
+    val samples: List<FloatArray> = emptyList(),
+) {
+    fun score(other: FloatArray): Float {
+        val mean = cosine(embedding, other)
+        if (samples.size < 2) return mean
+        val top = samples.map { cosine(it, other) }.sortedDescending()
+        return maxOf(mean, (top[0] + top[1]) / 2)
+    }
 
     companion object {
         const val DEFAULT_THRESHOLD = 0.55f
-        private const val MIN_THRESHOLD = 0.45f
-        private const val MAX_THRESHOLD = 0.70f
+        private const val MIN_THRESHOLD = 0.40f
+        private const val MAX_THRESHOLD = 0.65f
 
         /**
          * Owner profile from the enrolment embeddings. The threshold sits
-         * below the weakest leave-one-out score of the owner's own samples,
-         * clamped to a sane range.
+         * 0.12 below the weakest leave-one-out score (each sample scored
+         * against a profile of the others, with the same rule as above),
+         * clamped. Never lowered below [MIN_THRESHOLD] to admit the owner.
          */
         fun fromEmbeddings(list: List<FloatArray>): SpeakerProfile {
             require(list.isNotEmpty())
             val mean = normalised(average(list))
-            if (list.size < 2) return SpeakerProfile(mean, DEFAULT_THRESHOLD)
+            if (list.size < 3) return SpeakerProfile(mean, DEFAULT_THRESHOLD, list)
             var weakest = 1f
             for (i in list.indices) {
-                val rest = normalised(average(list.filterIndexed { j, _ -> j != i }))
-                weakest = minOf(weakest, cosine(rest, list[i]))
+                val rest = list.filterIndexed { j, _ -> j != i }
+                val p = SpeakerProfile(normalised(average(rest)), 0f, rest)
+                weakest = minOf(weakest, p.score(list[i]))
             }
-            val t = (weakest - 0.15f).coerceIn(MIN_THRESHOLD, MAX_THRESHOLD)
-            return SpeakerProfile(mean, t)
+            val t = (weakest - 0.12f).coerceIn(MIN_THRESHOLD, MAX_THRESHOLD)
+            return SpeakerProfile(mean, t, list)
         }
 
         fun cosine(a: FloatArray, b: FloatArray): Float {

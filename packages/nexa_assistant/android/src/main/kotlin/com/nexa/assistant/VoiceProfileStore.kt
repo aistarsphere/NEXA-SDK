@@ -90,7 +90,7 @@ internal class VoiceProfileStore(context: Context) {
         const val ALIAS = "nexa_assistant_voice_profile"
         const val TRANSFORM = "AES/GCM/NoPadding"
         const val IV = 12
-        const val VERSION = 1
+        const val VERSION = 2
 
         fun encode(p: VoiceProfile): ByteArray {
             val bytes = ByteArrayOutputStream()
@@ -110,6 +110,11 @@ internal class VoiceProfileStore(context: Context) {
                     out.writeFloat(s.threshold)
                     out.writeInt(s.embedding.size)
                     for (v in s.embedding) out.writeFloat(v)
+                    out.writeInt(s.samples.size)
+                    for (e in s.samples) {
+                        out.writeInt(e.size)
+                        for (v in e) out.writeFloat(v)
+                    }
                 }
             }
             return bytes.toByteArray()
@@ -117,7 +122,8 @@ internal class VoiceProfileStore(context: Context) {
 
         fun decode(data: ByteArray): VoiceProfile? {
             DataInputStream(ByteArrayInputStream(data)).use { inp ->
-                if (inp.readInt() != VERSION) return null
+                val version = inp.readInt()
+                if (version != 1 && version != VERSION) return null
                 val createdAt = inp.readLong()
                 val threshold = inp.readFloat()
                 val templates = List(inp.readInt()) {
@@ -127,7 +133,12 @@ internal class VoiceProfileStore(context: Context) {
                 }
                 val speaker = if (inp.readBoolean()) {
                     val t = inp.readFloat()
-                    SpeakerProfile(FloatArray(inp.readInt()) { inp.readFloat() }, t)
+                    val mean = FloatArray(inp.readInt()) { inp.readFloat() }
+                    // Version 1 kept only the mean.
+                    val samples = if (version >= 2) {
+                        List(inp.readInt()) { FloatArray(inp.readInt()) { inp.readFloat() } }
+                    } else emptyList()
+                    SpeakerProfile(mean, t, samples)
                 } else null
                 return VoiceProfile(WakePhraseModel(templates, threshold), speaker, createdAt)
             }
