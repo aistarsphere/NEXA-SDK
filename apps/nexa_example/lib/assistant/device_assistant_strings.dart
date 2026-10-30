@@ -24,11 +24,12 @@ final class DeviceAssistantStrings {
   String get isDefault =>
       _t('LABEEB is your default assistant', 'لبيب هو مساعدك الافتراضي');
   String get notDefault => _t(
-    'Another assistant is selected. Tap the button below and choose LABEEB as '
-        'the "Digital assistant app". (Not "Voice input": that is a different '
-        'setting for voice typing.)',
-    'تم اختيار مساعد آخر. اضغط الزر أدناه واختر لبيب كـ «تطبيق المساعد الرقمي». '
-        '(وليس «الإدخال الصوتي»: فهو إعداد مختلف خاص بالكتابة الصوتية.)',
+    'Another assistant is selected. Tap the button below, then tap the FIRST '
+        'item, "Digital assistant app", and choose LABEEB. Leave "Voice '
+        'input" as it is: that is voice typing.',
+    'تم اختيار مساعد آخر. اضغط الزر أدناه، ثم اضغط البند الأول «تطبيق المساعد '
+        'الرقمي» واختر لبيب. اترك «الإدخال الصوتي» كما هو: فهو للكتابة '
+        'الصوتية.',
   );
   String get signalsCaption => _t(
     'What Android reports (one ✓ is enough):',

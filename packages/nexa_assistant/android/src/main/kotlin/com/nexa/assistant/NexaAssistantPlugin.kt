@@ -349,20 +349,15 @@ class NexaAssistantPlugin :
     }.getOrNull()
 
     /**
-     * The system's own "Digital assistant app" chooser (the user decides).
-     * Not the "Assist & voice input" page: there "Voice input" is a
-     * different setting (speech-to-text) and is easily picked by mistake.
+     * Android's "Assist & voice input" page, whose first item is "Digital
+     * assistant app" (the user decides). Apps cannot open the assistant
+     * role chooser itself: the permission controller redirects that request
+     * to the general "Default apps" list (seen on Android 13 and 16). The
+     * host should tell the user to pick the top item, not "Voice input".
      */
     private fun openAssistantSettings(): Boolean =
-        // The role's own chooser (permission controller; not in the public
-        // SDK, so by name). Falls back to the public "Default apps" list.
-        (Build.VERSION.SDK_INT >= 29 &&
-            open(
-                Intent("android.intent.action.MANAGE_DEFAULT_APP")
-                    .putExtra("android.intent.extra.ROLE_NAME", RoleManager.ROLE_ASSISTANT),
-            )) ||
+        open(Intent(Settings.ACTION_VOICE_INPUT_SETTINGS)) ||
             (Build.VERSION.SDK_INT >= 24 && open(Intent(Settings.ACTION_MANAGE_DEFAULT_APPS_SETTINGS))) ||
-            open(Intent(Settings.ACTION_VOICE_INPUT_SETTINGS)) ||
             open(Intent(Settings.ACTION_SETTINGS))
 
     /** Xiaomi/Redmi/POCO autostart screen when present; otherwise app details. */
