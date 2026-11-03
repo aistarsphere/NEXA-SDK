@@ -68,6 +68,7 @@
   "voiceStateThinking": "جارٍ التفكير…",
   "voiceStateAiSpeaking": "يتحدث",
   "voiceStateBargeIn": "أستمع إليك…",
+  "voiceReconnected": "عاد الاتصال",
   "voiceStateInterrupted": "تمت المقاطعة",
   "voiceStateMuted": "الصوت مكتوم",
   "voiceStateWeakNetwork": "الاتصال ضعيف",

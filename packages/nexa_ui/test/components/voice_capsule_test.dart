@@ -52,6 +52,38 @@ void main() {
     reducedMotion: reducedMotion,
   );
 
+  group('connection trouble uses one banner', () {
+    testWidgets('weak network and reconnecting both show it', (tester) async {
+      await tester.pumpWidget(capsule(state: VoiceState.weakNetwork));
+      expect(
+        find.byKey(const Key('nexa_voice_connection_banner')),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: find.byKey(const Key('nexa_voice_connection_banner')),
+          matching: find.text('Audio may be delayed. Captions stay on.'),
+        ),
+        findsOneWidget,
+      );
+
+      await tester.pumpWidget(capsule(state: VoiceState.reconnecting));
+      expect(
+        find.byKey(const Key('nexa_voice_connection_banner')),
+        findsOneWidget,
+      );
+      expect(find.text('Nothing is lost while we reconnect'), findsWidgets);
+    });
+
+    testWidgets('a healthy call shows none', (tester) async {
+      await tester.pumpWidget(capsule(state: VoiceState.listening));
+      expect(
+        find.byKey(const Key('nexa_voice_connection_banner')),
+        findsNothing,
+      );
+    });
+  });
+
   group('barge-in labels are honest', () {
     testWidgets('before the agent confirms: "Listening to you", never '
         '"Interrupting"', (tester) async {

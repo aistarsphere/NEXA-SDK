@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:nexa_core/nexa_core.dart';
@@ -107,11 +109,33 @@ class _VoiceBodyState extends State<_VoiceBody> {
   @override
   void dispose() {
     widget.controller.state.removeListener(_onState);
+    _announcementTimer?.cancel();
     super.dispose();
+  }
+
+  String? _announcement;
+  Timer? _announcementTimer;
+
+  /// "Reconnected" for assistive technology after a reconnect (a live
+  /// region, shown for a few seconds).
+  void _announceReconnected() {
+    _announcementTimer?.cancel();
+    setState(
+      () => _announcement = NexaLocalizations.of(context).voiceReconnected,
+    );
+    _announcementTimer = Timer(const Duration(seconds: 4), () {
+      if (mounted) setState(() => _announcement = null);
+    });
   }
 
   void _onState() {
     final phase = widget.controller.state.value.phase;
+    if (_lastPhase == VoiceState.reconnecting &&
+        phase != VoiceState.reconnecting &&
+        widget.controller.state.value.isActive &&
+        mounted) {
+      _announceReconnected();
+    }
     if (phase == VoiceState.ended && _lastPhase != VoiceState.ended) {
       widget.onEnded?.call();
     }
@@ -126,6 +150,7 @@ class _VoiceBodyState extends State<_VoiceBody> {
         final s = widget.controller.state.value;
         return Column(
           children: [
+            NexaLiveAnnouncer(message: _announcement),
             NexaVoiceIdentityNote(controller: widget.controller),
             Expanded(
               child: NexaVoiceCapsule(

@@ -134,6 +134,7 @@
   "voiceStateThinking": "Thinking…",
   "voiceStateAiSpeaking": "Speaking",
   "voiceStateBargeIn": "Listening to you…",
+  "voiceReconnected": "Reconnected",
   "voiceStateInterrupted": "Interrupted",
   "voiceStateMuted": "Muted",
   "voiceStateWeakNetwork": "Weak connection",

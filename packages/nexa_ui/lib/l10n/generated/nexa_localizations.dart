@@ -506,6 +506,12 @@ abstract class NexaLocalizations {
   /// **'Listening to you…'**
   String get voiceStateBargeIn;
 
+  /// No description provided for @voiceReconnected.
+  ///
+  /// In en, this message translates to:
+  /// **'Reconnected'**
+  String get voiceReconnected;
+
   /// No description provided for @voiceStateInterrupted.
   ///
   /// In en, this message translates to:

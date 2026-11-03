@@ -176,10 +176,15 @@ class _NexaVoiceCapsuleState extends State<NexaVoiceCapsule> {
                   ? widget.onOpenSettings
                   : widget.onRetry,
             )
-          else if (state == VoiceState.weakNetwork)
+          else if (state == VoiceState.weakNetwork ||
+              state == VoiceState.reconnecting)
+            // One notice for connection trouble, weak or lost.
             NexaStatusBanner(
+              key: const Key('nexa_voice_connection_banner'),
               tone: NexaBannerTone.warning,
-              message: l10n.voiceHintWeakNetwork,
+              message: state == VoiceState.weakNetwork
+                  ? l10n.voiceHintWeakNetwork
+                  : l10n.voiceHintReconnecting,
             ),
           Expanded(
             child: _captions

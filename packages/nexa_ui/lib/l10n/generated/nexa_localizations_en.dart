@@ -235,6 +235,9 @@ class NexaLocalizationsEn extends NexaLocalizations {
   String get voiceStateBargeIn => 'Listening to you…';
 
   @override
+  String get voiceReconnected => 'Reconnected';
+
+  @override
   String get voiceStateInterrupted => 'Interrupted';
 
   @override

@@ -234,6 +234,9 @@ class NexaLocalizationsAr extends NexaLocalizations {
   String get voiceStateBargeIn => 'أستمع إليك…';
 
   @override
+  String get voiceReconnected => 'عاد الاتصال';
+
+  @override
   String get voiceStateInterrupted => 'تمت المقاطعة';
 
   @override

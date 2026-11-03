@@ -84,6 +84,30 @@ void main() {
     await tester.pumpAndSettle();
   });
 
+  testWidgets('coming back from a reconnect is announced once', (tester) async {
+    await tester.pumpWidget(host(client.voiceView()));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('nexa_voice_start')));
+    await tester.pumpAndSettle();
+    expect(find.bySemanticsLabel('Reconnected'), findsNothing);
+
+    await transport.simulateDrop(reconnect: false);
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(find.text('Reconnecting…'), findsOneWidget);
+    expect(find.bySemanticsLabel('Reconnected'), findsNothing);
+
+    transport.emit(const RealtimeConnected());
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(find.bySemanticsLabel('Reconnected'), findsOneWidget);
+
+    // The notice goes away by itself.
+    await tester.pump(const Duration(seconds: 5));
+    expect(find.bySemanticsLabel('Reconnected'), findsNothing);
+
+    await client.voice.end();
+    await tester.pumpAndSettle();
+  });
+
   testWidgets('embedded capsule: start → listening → turn → mute → end', (
     tester,
   ) async {
