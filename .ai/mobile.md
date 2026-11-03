@@ -79,7 +79,7 @@ cd apps/nexa_example && flutter run -d <device> --profile --dart-define-from-fil
 make gateway   # local reference gateway; make e2e for device journeys
 cd apps/nexa_example/android && ./gradlew :nexa_assistant:testDebugUnitTest   # Kotlin tests
 ```
-Defines: `NEXA_REAL_BACKEND`, `NEXA_GATEWAY_URL`, `NEXA_APP_ID`, `NEXA_LANGUAGE`, `NEXA_DEV_SDK_TOKEN(_EXPIRES_AT)`, `NEXA_USE_MOCK`, `NEXA_DEV_TOOLS`, `NEXA_LAUNCH_MODE`, `NEXA_SHOW_*`. Speaker model: `packages/nexa_assistant/tool/fetch_models.sh` (not committed). Release hardening is task G-03 (signing, no cleartext, bundle).
+Defines: `NEXA_REAL_BACKEND`, `NEXA_GATEWAY_URL`, `NEXA_APP_ID`, `NEXA_LANGUAGE`, `NEXA_DEV_SDK_TOKEN(_EXPIRES_AT)`, `NEXA_USE_MOCK`, `NEXA_DEV_TOOLS`, `NEXA_LAUNCH_MODE`, `NEXA_SHOW_*`. Speaker model: `packages/nexa_assistant/tool/fetch_models.sh` (not committed). Release builds: `docs/mobile/RELEASE.md` (signing from `android/key.properties`, refused otherwise; `NEXA_DEBUG_SIGN=1` for local non-distributable builds; cleartext only in debug/profile manifests; R8 on).
 
 ## 11. QA commands and gates
 
