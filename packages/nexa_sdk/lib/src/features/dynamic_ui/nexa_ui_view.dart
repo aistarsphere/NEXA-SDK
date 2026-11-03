@@ -82,7 +82,10 @@ class _NexaUiViewState extends State<NexaUiView> {
         if (mounted) {
           setState(() {
             _sending = null;
-            _refused = code;
+            // An ignored second tap is not a refusal.
+            if (code != LabeebToolCallController.uiEventInFlight) {
+              _refused = code;
+            }
           });
         }
         return code;
@@ -194,7 +197,7 @@ class _NexaUiViewState extends State<NexaUiView> {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final l10n = NexaLocalizations.of(context);
-    final busy = _sending == n.id;
+    final busy = _sending == n.id || _c.isUiEventInFlight(doc.id, n.id);
     List<Widget> kids(List<NexaUiNode> list) => [
       for (final k in list) _node(context, doc, k, lang),
     ];

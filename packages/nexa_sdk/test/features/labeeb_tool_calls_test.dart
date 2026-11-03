@@ -1222,6 +1222,98 @@ void main() {
     });
   });
 
+  group('ui_event in flight (D-02)', () {
+    NexaUiEvent ev(String component) => NexaUiEvent(
+      uiId: 'ui_1',
+      componentId: component,
+      event: 'select',
+      optionIds: const ['a'],
+    );
+
+    test('a second tap on the same component sends nothing', () async {
+      final gate = Completer<String?>();
+      var sent = 0;
+      c.uiEventSink = (e) {
+        sent++;
+        return gate.future;
+      };
+      final first = c.sendUiEvent(ev('list'));
+      expect(c.isUiEventInFlight('ui_1', 'list'), isTrue);
+      final second = await c.sendUiEvent(ev('list'));
+      expect(second, LabeebToolCallController.uiEventInFlight);
+      expect(sent, 1);
+
+      gate.complete(null);
+      expect(await first, isNull);
+      expect(c.isUiEventInFlight('ui_1', 'list'), isFalse);
+
+      // Once answered, the same component can send again.
+      c.uiEventSink = (e) async {
+        sent++;
+        return null;
+      };
+      expect(await c.sendUiEvent(ev('list')), isNull);
+      expect(sent, 2);
+    });
+
+    test('different components do not block each other', () async {
+      final gate = Completer<String?>();
+      var sent = 0;
+      c.uiEventSink = (e) {
+        sent++;
+        return gate.future;
+      };
+      final a = c.sendUiEvent(ev('one'));
+      final b = c.sendUiEvent(ev('two'));
+      expect(sent, 2);
+      gate.complete(null);
+      await Future.wait([a, b]);
+    });
+
+    test('a failing sink frees the component', () async {
+      c.uiEventSink = (e) async => throw StateError('boom');
+      await expectLater(c.sendUiEvent(ev('list')), throwsStateError);
+      expect(c.isUiEventInFlight('ui_1', 'list'), isFalse);
+    });
+
+    testWidgets('the card shows progress and sends once on a double tap', (
+      tester,
+    ) async {
+      final gate = Completer<String?>();
+      var sent = 0;
+      c
+        ..uiEventSink = (e) {
+          sent++;
+          return gate.future;
+        }
+        ..onUi({
+          'schema': 'nexa.ui/1',
+          'id': 'ui_c',
+          'category': 'choices_forms',
+          'presentation': 'inline_card',
+          'root': {
+            'id': 'ok',
+            'type': 'confirm',
+            'text': 'Continue?',
+            'on_confirm': {'type': 'send_ui_event', 'event': 'confirm'},
+          },
+        });
+      await host(tester, NexaUiDocumentCard(uiId: 'ui_c', controller: c));
+      await tester.tap(find.byKey(const Key('nexa_ui_confirm_ok')));
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('nexa_ui_confirm_ok')));
+      await tester.pump();
+      expect(sent, 1);
+      expect(c.isUiEventInFlight('ui_c', 'ok'), isTrue);
+
+      gate.complete(null);
+      await tester.pump();
+      expect(c.isUiEventInFlight('ui_c', 'ok'), isFalse);
+      // No refusal text for the ignored second tap.
+      expect(find.byKey(const Key('nexa_ui_refused')), findsNothing);
+    });
+  });
+
   group('pending state across a restart (D-01)', () {
     const tool = 'device.location.get_current';
     const base = '/v1/sdk/sessions/ses_tools/tool-calls/tc_9';

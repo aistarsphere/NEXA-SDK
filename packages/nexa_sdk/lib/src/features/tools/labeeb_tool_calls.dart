@@ -720,11 +720,35 @@ final class LabeebToolCallController extends ChangeNotifier {
     _schedulePersist();
   }
 
-  /// Sends [event]; returns the gateway error code when refused.
+  /// Result of [sendUiEvent] for a second tap on a component whose event
+  /// is still on its way (nothing was sent; not an error to show).
+  static const uiEventInFlight = 'in_flight';
+
+  /// Used while no chat view provides [uiEventSink] (a voice-only call):
+  /// the client posts the event on the conversation's chat session.
+  Future<String?> Function(NexaUiEvent event)? fallbackUiEventSink;
+
+  final Set<String> _uiInFlight = {};
+
+  /// An event of [componentId] in document [uiId] is on its way.
+  bool isUiEventInFlight(String uiId, String componentId) =>
+      _uiInFlight.contains('$uiId:$componentId');
+
+  /// Sends [event]; returns the gateway error code when refused, null when
+  /// accepted, [uiEventInFlight] when the same component is already
+  /// sending (one tap, one event).
   Future<String?> sendUiEvent(NexaUiEvent event) async {
-    final sink = uiEventSink;
-    if (sink == null) return 'unavailable';
-    return sink(event);
+    final key = '${event.uiId}:${event.componentId}';
+    if (!_uiInFlight.add(key)) return uiEventInFlight;
+    notifyListeners();
+    try {
+      final sink = uiEventSink ?? fallbackUiEventSink;
+      if (sink == null) return 'unavailable';
+      return await sink(event);
+    } finally {
+      _uiInFlight.remove(key);
+      if (!_disposed) notifyListeners();
+    }
   }
 
   // ------------------------------------------------- pending state (D-01)
@@ -1044,6 +1068,7 @@ final class LabeebToolCallController extends ChangeNotifier {
     _sessionOf.clear();
     _answered.clear();
     _uiValues.clear();
+    _uiInFlight.clear();
     _bytes.clear();
     notifyListeners();
   }

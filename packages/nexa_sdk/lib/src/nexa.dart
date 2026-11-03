@@ -8,6 +8,7 @@ import 'package:flutter/material.dart'
 import 'package:get_it/get_it.dart';
 import 'package:nexa_core/nexa_core.dart';
 import 'package:nexa_sdk/src/data/labeeb/labeeb_sdk_client.dart';
+import 'package:nexa_sdk/src/data/network/error_mapper.dart';
 import 'package:nexa_sdk/src/di/sdk_injector.dart';
 import 'package:nexa_sdk/src/features/assistant/nexa_assistant_options.dart';
 import 'package:nexa_sdk/src/features/assistant/nexa_assistant_view.dart';
@@ -34,6 +35,7 @@ import 'package:nexa_sdk/src/nexa_overrides.dart';
 import 'package:nexa_sdk/src/nexa_ui_settings.dart';
 import 'package:nexa_sdk/src/session/session_manager.dart';
 import 'package:nexa_ui/nexa_ui.dart' show NexaThemeOverrides;
+import 'package:uuid/uuid.dart';
 
 /// Entry point of the NEXA SDK.
 ///
@@ -118,7 +120,8 @@ abstract final class Nexa {
     // the host supplies a store (per account).
     client.toolCalls
       ..pendingStore = pendingStore
-      ..pendingConversation = (() => client.conversations.conversationId);
+      ..pendingConversation = (() => client.conversations.conversationId)
+      ..fallbackUiEventSink = client._sendUiEventOnChatSession;
     client
       .._serverConversations = contract
       .._sessions.coordinator = client.conversations;
@@ -239,6 +242,29 @@ final class NexaClient {
     toolCalls.reset();
     await _sessions.end(reason: 'resume');
     conversations.open(conversationId);
+  }
+
+  static const _uuid = Uuid();
+
+  /// A selection made while no chat view is open (a voice-only call): join
+  /// the conversation's chat session and post the `ui_event` there. Whether
+  /// the gateway accepts it during a voice call is verified on device
+  /// (T-M05-05); a refusal code goes back to the card unchanged.
+  Future<String?> _sendUiEventOnChatSession(NexaUiEvent event) async {
+    try {
+      final handle = await _sessions.start();
+      await _sessions.transport.sendMessage(
+        handle.sessionId,
+        OutgoingMessage(
+          clientMessageId: ClientMessageId(_uuid.v4()),
+          languageTag: config.languageTag,
+          uiEvent: event.toJson(),
+        ),
+      );
+      return null;
+    } on NexaException catch (e) {
+      return gatewayErrorCode(e) ?? e.code.name;
+    }
   }
 
   /// After a call the gateway has recorded its turns in the conversation:

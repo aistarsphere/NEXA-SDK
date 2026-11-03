@@ -258,6 +258,12 @@ class _ChatBodyState extends State<_ChatBody> {
   @override
   void dispose() {
     widget.media?.removeListener(_onMedia);
+    // This view's sender goes away with it (the client's fallback takes
+    // over); never clear one a newer chat view installed.
+    final tc = widget.toolCalls;
+    if (tc != null && _bloc != null && tc.uiEventSink == _bloc!.sendUiEvent) {
+      tc.uiEventSink = null;
+    }
     unawaited(_toolEvents?.cancel());
     _scroll
       ..removeListener(_onScroll)
