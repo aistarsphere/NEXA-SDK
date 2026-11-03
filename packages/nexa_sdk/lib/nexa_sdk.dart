@@ -18,6 +18,7 @@ export 'src/data/labeeb/labeeb_sdk_client.dart';
 export 'src/data/network/error_mapper.dart'
     show gatewayErrorCode, gatewayStatus;
 export 'src/features/assistant/nexa_assistant_options.dart';
+export 'src/features/conversation/conversation_coordinator.dart';
 export 'src/features/dynamic_ui/nexa_host_capabilities.dart';
 export 'src/features/dynamic_ui/nexa_surface_controller.dart';
 export 'src/features/dynamic_ui/nexa_surface_presentation.dart';

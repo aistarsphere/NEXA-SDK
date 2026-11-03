@@ -59,7 +59,7 @@ Future<String> ensureConversation({required String reason}) {
 | Compatibility | `NexaClient.conversationId` keeps returning the same value; `SessionManager.conversationId` becomes a getter delegating to the coordinator (keep the setter for tests one release, marked `@Deprecated`) |
 | Tests | unit: stable `client_ref` across 3 failed attempts then success (mocktail `LabeebSdkClient`); concurrent `ensureConversation` from chat + voice → one POST; `startNew` clears id and seq; existing `history_identity_test.dart`, `voice_controller_test.dart` stay green |
 | Device acceptance | start app offline, tap Call, go online within 10 s → exactly one conversation in `GET /conversations` |
-| DoD | all callers routed through the coordinator; `grep "conversationId =" packages/nexa_sdk/lib` shows only the coordinator; tests above green |
+| DoD | all callers routed through the coordinator; `grep -rn "conversationId = " packages/nexa_sdk/lib` shows only the coordinator (the `SessionManager.conversationId` setter is `@Deprecated` and delegates); `SessionManager.canCreateConversation` replaces the `conversationProvider != null` guard in the voice controller (panel cold start); tests above green. Implemented 2026-11-03: the coordinator is built in `NexaClient` (needs `LabeebSdkClient`, which is not in DI); `conversationProvider` remains as a fallback for hosts/tests without a coordinator |
 | Depends on | F-01 |
 | Rollback | the class is additive; revert the three call-site edits |
 | Out of scope | UI, history list |

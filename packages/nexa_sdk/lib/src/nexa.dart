@@ -14,6 +14,7 @@ import 'package:nexa_sdk/src/features/assistant/nexa_assistant_view.dart';
 import 'package:nexa_sdk/src/features/chat/bloc/chat_bloc.dart';
 import 'package:nexa_sdk/src/features/chat/presentation/nexa_chat_screen.dart';
 import 'package:nexa_sdk/src/features/chat/presentation/nexa_chat_view.dart';
+import 'package:nexa_sdk/src/features/conversation/conversation_coordinator.dart';
 import 'package:nexa_sdk/src/features/dynamic_ui/nexa_host_capabilities.dart';
 import 'package:nexa_sdk/src/features/dynamic_ui/nexa_surface_controller.dart';
 import 'package:nexa_sdk/src/features/dynamic_ui/nexa_surface_presentation.dart';
@@ -112,7 +113,7 @@ abstract final class Nexa {
     client._sessions.clientToolsProvider = client.toolCalls.declaredTools;
     if (contract) {
       client._sessions
-        ..conversationProvider = client._newConversation
+        ..coordinator = client.conversations
         ..historyLoader = client._earlierMessages;
     }
     if (injector.isRegistered<NexaVoiceController>()) {
@@ -198,22 +199,14 @@ final class NexaClient {
   StreamSubscription<NexaVoiceToolEvent>? _voiceTools;
   StreamSubscription<NexaToolCall>? _voiceActivation;
 
-  Future<String?> _newConversation() async {
-    try {
-      final c = await api.createConversation(
-        kind: 'chat',
-        clientRef: '${installation.id}:${clock.now().microsecondsSinceEpoch}',
-      );
-      return c.id;
-    } on NexaException catch (e) {
-      // Sessions still work without one; tools and uploads will say so.
-      _injector<NexaLogger>().log(
-        NexaLogLevel.warning,
-        'conversation not created: ${e.code.name}',
-      );
-      return null;
-    }
-  }
+  /// Single owner of the current conversation id (create with a stable
+  /// `client_ref`, resume, new).
+  late final ConversationCoordinator conversations = ConversationCoordinator(
+    installationId: installation.id,
+    diagnostics: _injector<NexaDiagnostics>(),
+    create: ({required clientRef}) async =>
+        (await api.createConversation(kind: 'chat', clientRef: clientRef)).id,
+  );
 
   /// Continues server conversation [conversationId] (history resume): the
   /// next session joins it and the chat shows its earlier messages. Ends
@@ -223,9 +216,7 @@ final class NexaClient {
     media.clear();
     toolCalls.reset();
     await _sessions.end(reason: 'resume');
-    _sessions
-      ..conversationId = conversationId
-      ..resumePending = true;
+    conversations.open(conversationId);
   }
 
   Future<List<ChatMessage>> _earlierMessages(String conversationId) async {
@@ -252,7 +243,7 @@ final class NexaClient {
     media.clear();
     toolCalls.reset();
     await _sessions.end(reason: 'new_conversation');
-    _sessions.conversationId = null;
+    conversations.startNew();
   }
 
   /// Dynamic UI surfaces of this client (chat, voice, host pickers).

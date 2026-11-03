@@ -336,8 +336,7 @@ final class NexaVoiceController {
     // Tools and saved spoken turns need the server conversation. A call
     // can start before the chat has created it (e.g. the assistant panel
     // on a cold start): join or create it first.
-    if (_sessions.conversationId == null &&
-        _sessions.conversationProvider != null) {
+    if (_sessions.conversationId == null && _sessions.canCreateConversation) {
       try {
         await _sessions.start();
       } on NexaException catch (e) {

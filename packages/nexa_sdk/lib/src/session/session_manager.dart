@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:clock/clock.dart';
 import 'package:nexa_core/nexa_core.dart';
+import 'package:nexa_sdk/src/features/conversation/conversation_coordinator.dart';
 
 /// Owns the single active session: starts it with a fresh credential, exposes
 /// the handle, ends it, and publishes lifecycle events to the host.
@@ -32,18 +33,72 @@ final class SessionManager {
   /// (labeeb.sdk/1; set by `NexaClient`).
   Future<List<String>> Function()? clientToolsProvider;
 
-  /// Returns the server conversation the next session joins, creating one
-  /// when needed (null: the backend keeps no conversations).
+  /// Owner of the conversation id (set by `NexaClient`). When present it
+  /// creates the conversation (stable `client_ref`) and takes precedence
+  /// over [conversationProvider].
+  ConversationCoordinator? coordinator;
+
+  /// Legacy hook for hosts and tests without a coordinator: returns the
+  /// server conversation the next session joins, creating one when needed
+  /// (null: the backend keeps no conversations).
   Future<String?> Function()? conversationProvider;
 
+  /// Whether a call or chat can ask for a conversation to be created.
+  bool get canCreateConversation =>
+      coordinator != null || conversationProvider != null;
+
+  String? _localConversationId;
+  bool _localResumePending = false;
+
   /// The server conversation of the active (or next) session.
-  String? conversationId;
+  String? get conversationId =>
+      coordinator?.conversationId ?? _localConversationId;
+
+  @Deprecated('Use ConversationCoordinator (NexaClient.conversations).')
+  set conversationId(String? id) => _setConversation(id, force: true);
+
+  void _setConversation(String? id, {bool force = false}) {
+    final c = coordinator;
+    if (c == null) {
+      _localConversationId = id;
+    } else if (id != null) {
+      c.adopt(id);
+    } else if (force) {
+      c.startNew();
+    }
+  }
+
+  Future<String?> _ensureConversation() async {
+    final c = coordinator;
+    if (c == null) {
+      final provider = conversationProvider;
+      return provider == null ? null : await provider();
+    }
+    try {
+      return await c.ensureConversation(reason: 'session');
+    } on NexaException catch (e) {
+      // Sessions still work without one; tools and uploads will say so.
+      _logger.log(
+        NexaLogLevel.warning,
+        'conversation not created: ${e.code.name}',
+      );
+      return null;
+    }
+  }
 
   /// Loads earlier messages of a resumed conversation (set by NexaClient).
   Future<List<ChatMessage>> Function(String conversationId)? historyLoader;
 
   /// True after a resume until the chat showed the earlier messages.
-  bool resumePending = false;
+  bool get resumePending => coordinator?.resumePending ?? _localResumePending;
+  set resumePending(bool value) {
+    final c = coordinator;
+    if (c == null) {
+      _localResumePending = value;
+    } else {
+      c.resumePending = value;
+    }
+  }
 
   /// The gateway refused the device-tool declaration of the last session.
   bool declaredToolsRefused = false;
@@ -87,12 +142,10 @@ final class SessionManager {
       final tools = clientToolsProvider == null
           ? const <String>[]
           : await clientToolsProvider!();
-      final conversation =
-          conversationId ??
-          (conversationProvider == null ? null : await conversationProvider!());
+      final conversation = conversationId ?? await _ensureConversation();
       // Keep it even if opening the session fails below (e.g. 429): a
       // retry or a voice call then joins it instead of creating another.
-      conversationId = conversation;
+      _setConversation(conversation);
       Future<SessionHandle> open(List<String> declared) =>
           _transport.startSession(
             credential: credential,
@@ -122,7 +175,7 @@ final class SessionManager {
         declaredToolsRefused = true;
         handle = await open(const []);
       }
-      conversationId = handle.conversationId ?? conversation;
+      _setConversation(handle.conversationId ?? conversation);
       _current = handle;
       emit(NexaSessionStarted(clock.now(), handle.sessionId));
       final missing = _config.requestedCapabilities.difference(
