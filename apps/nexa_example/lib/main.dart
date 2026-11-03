@@ -18,6 +18,7 @@ import 'package:nexa_example/assistant/device_assistant_page.dart';
 import 'package:nexa_example/assistant/labeeb_router.dart';
 import 'package:nexa_example/brand/labeeb_brand.dart';
 import 'package:nexa_example/brand/labeeb_theme_controller.dart';
+import 'package:nexa_example/crash/crash_sink.dart';
 import 'package:nexa_example/dev/dynamic_ui_gallery_page.dart';
 import 'package:nexa_example/dev/qa/qa_recorder.dart';
 import 'package:nexa_example/dev_token_auth_provider.dart';
@@ -30,6 +31,10 @@ import 'package:nexa_example/playground/settings_page.dart';
 import 'package:nexa_example/playground/voice_page.dart';
 import 'package:nexa_sdk/nexa_sdk.dart';
 import 'package:path_provider/path_provider.dart';
+
+/// The account whose local cache is used. No sign-in exists yet (backend
+/// B2): one account per install until a host auth provider supplies it.
+const _accountKey = 'default';
 
 /// LABEEB | لبيب: the assistant app, built on the NEXA SDK (its example host).
 ///
@@ -47,11 +52,12 @@ import 'package:path_provider/path_provider.dart';
 /// [DevTokenAuthProvider] until the customer's host backend exists. The
 /// host-side pieces (`HostAuthProvider`, `HostPermissionHandler`) are exactly
 /// what a real host would write.
-/// The account whose local cache is used. No sign-in exists yet (backend
-/// B2): one account per install until a host auth provider supplies it.
-const _accountKey = 'default';
-
 Future<void> main() async {
+  // Uncaught errors go to a CrashSink (type and stack, never message text).
+  // No vendor yet: debug builds print the type, release builds report nothing.
+  installCrashHandlers(
+    kDebugMode ? const DebugPrintCrashSink() : const NoopCrashSink(),
+  );
   WidgetsFlutterBinding.ensureInitialized();
   ExampleConfig.validate();
   await Labeeb.loadAssets();
