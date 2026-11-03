@@ -98,6 +98,7 @@ class NexaVoiceCapsule extends StatefulWidget {
       switch (error) {
         NetworkException() => l10n.offline,
         QuotaExceededException() => l10n.voiceStateQuotaExceeded,
+        RateLimitedException() => l10n.rateLimited,
         PermissionDeniedException() => l10n.voiceStateMicrophoneDenied,
         AuthenticationException() => l10n.authError,
         SessionExpiredException() => l10n.sessionExpired,
@@ -156,57 +157,75 @@ class _NexaVoiceCapsuleState extends State<NexaVoiceCapsule> {
       color: scheme.surface,
       child: Column(
         children: [
-          // Banners may be tall at large text: they scroll instead of
-          // pushing the controls off the screen.
-          Flexible(
-            child: SingleChildScrollView(
-              child: Column(
-                children: [
-                  if (!widget.eventsVerified && _inCall)
-                    NexaStatusBanner(
-                      key: const Key('nexa_voice_unverified_banner'),
-                      tone: NexaBannerTone.warning,
-                      message: l10n.voiceUnverifiedEvents,
-                    ),
-                  if (error != null)
-                    NexaStatusBanner(
-                      key: const Key('nexa_voice_error_banner'),
-                      tone: NexaBannerTone.error,
-                      message: NexaVoiceCapsule.voiceErrorText(l10n, error),
-                      actionLabel: state == VoiceState.microphoneDenied
-                          ? (widget.onOpenSettings == null
-                                ? null
-                                : l10n.voiceOpenSettings)
-                          : (widget.onRetry == null ? null : l10n.voiceRetry),
-                      onAction: state == VoiceState.microphoneDenied
-                          ? widget.onOpenSettings
-                          : widget.onRetry,
-                    )
-                  else if (state == VoiceState.weakNetwork ||
-                      state == VoiceState.reconnecting)
-                    // One notice for connection trouble, weak or lost.
-                    NexaStatusBanner(
-                      key: const Key('nexa_voice_connection_banner'),
-                      tone: NexaBannerTone.warning,
-                      message: state == VoiceState.weakNetwork
-                          ? l10n.voiceHintWeakNetwork
-                          : l10n.voiceHintReconnecting,
-                    ),
-                ],
-              ),
-            ),
-          ),
+          // The controls keep their natural height at the bottom. The area
+          // above them is shared: banners take their own height (at most
+          // half of it, scrolling inside; they can be tall at large text) and
+          // the captions get the rest. A Flexible banner area would take half
+          // of the free space even when empty and lift the controls.
           Expanded(
-            child: _captions
-                ? _Captions(entries: widget.transcript)
-                : Center(
-                    child: Text(
-                      l10n.voiceCaptionsHidden,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: scheme.onSurfaceVariant,
+            child: LayoutBuilder(
+              builder: (context, area) => Column(
+                children: [
+                  ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxHeight: area.maxHeight * 0.5,
+                    ),
+                    child: SingleChildScrollView(
+                      child: Column(
+                        children: [
+                          if (!widget.eventsVerified && _inCall)
+                            NexaStatusBanner(
+                              key: const Key('nexa_voice_unverified_banner'),
+                              tone: NexaBannerTone.warning,
+                              message: l10n.voiceUnverifiedEvents,
+                            ),
+                          if (error != null)
+                            NexaStatusBanner(
+                              key: const Key('nexa_voice_error_banner'),
+                              tone: NexaBannerTone.error,
+                              message: NexaVoiceCapsule.voiceErrorText(
+                                l10n,
+                                error,
+                              ),
+                              actionLabel: state == VoiceState.microphoneDenied
+                                  ? (widget.onOpenSettings == null
+                                        ? null
+                                        : l10n.voiceOpenSettings)
+                                  : (widget.onRetry == null
+                                        ? null
+                                        : l10n.voiceRetry),
+                              onAction: state == VoiceState.microphoneDenied
+                                  ? widget.onOpenSettings
+                                  : widget.onRetry,
+                            )
+                          else if (state == VoiceState.weakNetwork ||
+                              state == VoiceState.reconnecting)
+                            // One notice for connection trouble, weak or lost.
+                            NexaStatusBanner(
+                              key: const Key('nexa_voice_connection_banner'),
+                              tone: NexaBannerTone.warning,
+                              message: state == VoiceState.weakNetwork
+                                  ? l10n.voiceHintWeakNetwork
+                                  : l10n.voiceHintReconnecting,
+                            ),
+                        ],
                       ),
                     ),
                   ),
+                  Expanded(
+                    child: _captions
+                        ? _Captions(entries: widget.transcript)
+                        : Center(
+                            child: Text(
+                              l10n.voiceCaptionsHidden,
+                              style: Theme.of(context).textTheme.bodyMedium
+                                  ?.copyWith(color: scheme.onSurfaceVariant),
+                            ),
+                          ),
+                  ),
+                ],
+              ),
+            ),
           ),
           _Panel(
             state: state,

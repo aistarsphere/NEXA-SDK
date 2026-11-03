@@ -310,6 +310,31 @@ void main() {
     );
   });
 
+  group('no old brand left in visible labels', () {
+    test('the default palette is named AMEER Mocha', () {
+      final src = File(
+        'lib/brand/labeeb_theme_controller.dart',
+      ).readAsStringSync();
+      expect(src, contains("en: 'AMEER Mocha'"));
+      expect(src, contains("ar: 'أمير موكا'"));
+      expect(src, isNot(contains('LABEEB Mocha')));
+      expect(src, isNot(contains('لبيب موكا')));
+    });
+
+    test('user-facing string files only keep the wake phrase', () {
+      for (final f in [
+        'lib/assistant/app_strings.dart',
+        'lib/assistant/device_assistant_strings.dart',
+      ]) {
+        final text = File(f).readAsStringSync();
+        expect(text.contains('LABEEB'), isFalse, reason: f);
+        // «يا لبيب» is the detector's phrase; any other use is an old name.
+        final stripped = text.replaceAll('يا لبيب', '');
+        expect(stripped.contains('لبيب'), isFalse, reason: f);
+      }
+    });
+  });
+
   group('where the app shows its brand', () {
     Future<NexaClient> client() async {
       final c = await Nexa.initialize(

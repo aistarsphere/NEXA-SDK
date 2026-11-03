@@ -53,8 +53,8 @@ final class LabeebPaletteSpec {
 const labeebPalettes = [
   LabeebPaletteSpec(
     id: 'pal_mocha',
-    en: 'LABEEB Mocha',
-    ar: 'لبيب موكا',
+    en: 'AMEER Mocha',
+    ar: 'أمير موكا',
     light: [
       0xFFF7F3F0,
       0xFFFAF6F3,

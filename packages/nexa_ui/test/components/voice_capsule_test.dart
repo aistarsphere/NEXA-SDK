@@ -52,6 +52,47 @@ void main() {
     reducedMotion: reducedMotion,
   );
 
+  group('error banners say what happened', () {
+    testWidgets('a rate limit is named, not "something went wrong"', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        capsule(
+          state: VoiceState.disconnected,
+          error: const RateLimitedException(),
+          onRetry: () {},
+        ),
+      );
+      expect(
+        find.text('Too many requests. Please wait a moment.'),
+        findsOneWidget,
+      );
+      expect(
+        find.text('Something went wrong. Please try again.'),
+        findsNothing,
+      );
+    });
+
+    testWidgets('the same in Arabic', (tester) async {
+      await tester.pumpWidget(
+        capsule(
+          state: VoiceState.disconnected,
+          error: const RateLimitedException(),
+          locale: const Locale('ar'),
+          onRetry: () {},
+        ),
+      );
+      expect(find.text('something went wrong'), findsNothing);
+      expect(
+        find.descendant(
+          of: find.byKey(const Key('nexa_voice_error_banner')),
+          matching: find.textContaining('طلبات'),
+        ),
+        findsOneWidget,
+      );
+    });
+  });
+
   group('connection trouble uses one banner', () {
     testWidgets('weak network and reconnecting both show it', (tester) async {
       await tester.pumpWidget(capsule(state: VoiceState.weakNetwork));
