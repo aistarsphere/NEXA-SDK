@@ -204,6 +204,19 @@ void main() {
           ..presenter = (() => ctx);
   });
 
+  LabeebToolCallController restarted(LabeebPendingStore store) {
+    final dio = Dio(BaseOptions(baseUrl: 'https://gw.test/nexa/api'))
+      ..httpClientAdapter = gw;
+    return LabeebToolCallController(
+        api: LabeebSdkClient(dio),
+        media: NexaConversationMedia(),
+        tools: [LabeebLocationTool(_FakeLocation())],
+      )
+      ..chatSession = (() => 'ses_chat')
+      ..conversation = (() => 'conv_1')
+      ..pendingStore = store;
+  }
+
   /// Lets in-memory HTTP round trips started in the fake zone finish.
   Future<void> settle(WidgetTester tester) async {
     for (var i = 0; i < 30; i++) {
@@ -1206,6 +1219,108 @@ void main() {
       await tester.tap(toggle);
       await tester.pump();
       expect(player.calls, ['play', 'pause', 'resume']);
+    });
+  });
+
+  group('pending state across a restart (D-01)', () {
+    const tool = 'device.location.get_current';
+    const base = '/v1/sdk/sessions/ses_tools/tool-calls/tc_9';
+
+    testWidgets('a voice-raised call is still answered in its own session', (
+      tester,
+    ) async {
+      final store = InMemoryPendingStore();
+      c.pendingStore = store;
+      c.ingestVoice(
+        'tool_call_requested',
+        _call('tc_9', tool, 'awaiting_approval'),
+        toolsSessionId: 'ses_tools',
+      );
+      await c.flushPending();
+
+      // The process restarts: a fresh controller over the same store.
+      final c2 = restarted(store);
+      await c2.importPending('conv_1');
+      gw.routes['GET $base'] = (r) =>
+          (200, _call('tc_9', tool, 'awaiting_approval'));
+      gw.routes['POST $base/approval'] = (r) =>
+          (200, _call('tc_9', tool, 'awaiting_client'));
+      c2.restore([
+        LabeebMessage(
+          id: 'm1',
+          role: 'assistant',
+          text: '',
+          createdAt: DateTime.utc(2026, 11, 3),
+          parts: const [
+            {'type': 'tool_request', 'tool_call_id': 'tc_9', 'tool': tool},
+          ],
+        ),
+      ]);
+      await settle(tester);
+      expect(
+        c2.activities.single.phase,
+        LabeebLocalPhase.awaitingUser,
+        reason: 'the user can approve or deny again; nothing runs by itself',
+      );
+
+      unawaited(c2.decide('tc_9', allow: true));
+      await settle(tester);
+      final approvals = gw.requests.where((r) => r.path.endsWith('/approval'));
+      expect(approvals.single.path, '$base/approval');
+      c2.dispose();
+    });
+
+    testWidgets('finished calls are not kept', (tester) async {
+      final store = InMemoryPendingStore();
+      c.pendingStore = store;
+      c.ingestVoice(
+        'tool_call_requested',
+        _call('tc_9', tool, 'awaiting_approval'),
+        toolsSessionId: 'ses_tools',
+      );
+      await c.flushPending();
+      expect((await store.load('conv_1')).calls, hasLength(1));
+
+      c.ingestVoice(
+        'tool_call_completed',
+        _call('tc_9', tool, 'succeeded', side: 'server'),
+        toolsSessionId: 'ses_tools',
+      );
+      await c.flushPending();
+      expect((await store.load('conv_1')).calls, isEmpty);
+    });
+
+    testWidgets('a half-filled form survives', (tester) async {
+      final store = InMemoryPendingStore();
+      c.pendingStore = store;
+      c.setUiValue('ui_1', 'city', 'Basra');
+      await c.flushPending();
+
+      final c2 = restarted(store);
+      await c2.importPending('conv_1');
+      expect(c2.uiValue('ui_1', 'city'), 'Basra');
+      c2.dispose();
+    });
+
+    testWidgets('without a conversation nothing is written', (tester) async {
+      final store = InMemoryPendingStore();
+      c
+        ..pendingStore = store
+        ..conversation = (() => null);
+      c.setUiValue('ui_1', 'city', 'Basra');
+      await c.flushPending();
+      expect((await store.load('conv_1')).isEmpty, isTrue);
+    });
+
+    testWidgets('only JSON-safe form values are kept', (tester) async {
+      final store = InMemoryPendingStore();
+      c.pendingStore = store;
+      c
+        ..setUiValue('ui_1', 'ok', 'text')
+        ..setUiValue('ui_1', 'bad', Object());
+      await c.flushPending();
+      final saved = (await store.load('conv_1')).uiValues['ui_1']!;
+      expect(saved, {'ok': 'text'});
     });
   });
 }

@@ -34,6 +34,7 @@ export 'src/features/media/nexa_device_actions.dart';
 export 'src/features/media/nexa_media_widgets.dart';
 export 'src/features/tools/labeeb_audio_player.dart';
 export 'src/features/tools/labeeb_device_tools.dart';
+export 'src/features/tools/labeeb_pending_store.dart';
 export 'src/features/tools/labeeb_record_sample.dart';
 export 'src/features/tools/labeeb_tool_call_card.dart';
 export 'src/features/tools/labeeb_tool_calls.dart';

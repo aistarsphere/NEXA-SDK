@@ -23,6 +23,7 @@ import 'package:nexa_sdk/src/features/history/nexa_history.dart';
 import 'package:nexa_sdk/src/features/media/nexa_conversation_media.dart';
 import 'package:nexa_sdk/src/features/media/nexa_device_actions.dart';
 import 'package:nexa_sdk/src/features/tools/labeeb_device_tools.dart';
+import 'package:nexa_sdk/src/features/tools/labeeb_pending_store.dart';
 import 'package:nexa_sdk/src/features/tools/labeeb_tool_calls.dart';
 import 'package:nexa_sdk/src/features/voice/nexa_voice_controller.dart';
 import 'package:nexa_sdk/src/features/voice/nexa_voice_lifecycle.dart';
@@ -64,6 +65,7 @@ abstract final class Nexa {
     NexaHistoryOptions? history,
     NexaInstallationIdStore? installationStore,
     NexaHostCapabilities host = const NexaHostCapabilities(),
+    LabeebPendingStore? pendingStore,
   }) async {
     if (_client != null) {
       throw const ConfigurationException(
@@ -112,6 +114,11 @@ abstract final class Nexa {
     // labeeb.sdk/1: declare the device tools this client can run, and join
     // a server-owned conversation (tools, attachments and voice need one).
     client._sessions.clientToolsProvider = client.toolCalls.declaredTools;
+    // Unfinished tool calls and half-filled forms survive a restart when
+    // the host supplies a store (per account).
+    client.toolCalls
+      ..pendingStore = pendingStore
+      ..pendingConversation = (() => client.conversations.conversationId);
     client
       .._serverConversations = contract
       .._sessions.coordinator = client.conversations;
@@ -271,7 +278,9 @@ final class NexaClient {
       beforeSeq: beforeSeq,
     );
     // Attachments, generated files, tool results and documents come back
-    // as media items at their original time.
+    // as media items at their original time. Pending calls first learn
+    // their sessions from the last run (a call's hidden tools session).
+    if (beforeSeq == null) await toolCalls.importPending(conversationId);
     toolCalls.restore(page.items);
     return ChatHistoryPage([
       for (final m in page.items)

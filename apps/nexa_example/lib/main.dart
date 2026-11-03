@@ -117,6 +117,8 @@ Future<void> main() async {
       // Apps the assistant may open (LABEEB's allowlist).
       apps: LabeebApps.allowlist,
     ),
+    // Unfinished tool calls survive a restart (per account).
+    pendingStore: JsonFilePendingStore.forAccount(support, _accountKey),
     // Anonymous app-scoped installation id (correlation only, not auth).
     installationStore: FileInstallationIdStore(
       File('${support.path}/installation_id'),

@@ -9,6 +9,7 @@ import 'package:nexa_sdk/src/data/network/error_mapper.dart';
 import 'package:nexa_sdk/src/features/dynamic_ui/nexa_host_capabilities.dart';
 import 'package:nexa_sdk/src/features/media/nexa_conversation_media.dart';
 import 'package:nexa_sdk/src/features/tools/labeeb_device_tools.dart';
+import 'package:nexa_sdk/src/features/tools/labeeb_pending_store.dart';
 
 /// What the device is doing with a call (the gateway's status is
 /// authoritative; this only covers the local part).
@@ -117,6 +118,15 @@ final class LabeebToolCallController extends ChangeNotifier {
 
   /// Conversation used for uploads (set by the chat view).
   LabeebSessionResolver conversation = () => null;
+
+  /// Conversation whose pending state is persisted (defaults to
+  /// [conversation]; the client points it at the coordinator so a
+  /// voice-only call is covered too).
+  LabeebSessionResolver? pendingConversation;
+
+  /// Where unfinished calls and half-filled forms survive a restart. Null:
+  /// nothing is persisted.
+  LabeebPendingStore? pendingStore;
 
   /// The view that can present device UI (camera, pickers, sheets).
   BuildContext? Function() presenter = () => null;
@@ -317,6 +327,7 @@ final class LabeebToolCallController extends ChangeNotifier {
     String? sessionId,
   }) {
     if (sessionId != null) _sessionOf[c.id] = sessionId;
+    _schedulePersist();
     final existing = _calls[c.id];
     var a =
         existing?.copyWith(call: c) ??
@@ -451,6 +462,9 @@ final class LabeebToolCallController extends ChangeNotifier {
     }
     try {
       final updated = await api.approve(sid, toolCallId, granted: allow);
+      // A restored call was marked answered so history never runs; the
+      // user's approval is what lets its device step run (once).
+      if (allow) _answered.remove(toolCallId);
       _diagnostics.record('tool.approval', {
         'tool_call_id': toolCallId,
         'granted': allow,
@@ -703,6 +717,7 @@ final class LabeebToolCallController extends ChangeNotifier {
   void setUiValue(String uiId, String componentId, Object? value) {
     _uiValues.putIfAbsent(uiId, () => {})[componentId] = value;
     notifyListeners();
+    _schedulePersist();
   }
 
   /// Sends [event]; returns the gateway error code when refused.
@@ -710,6 +725,92 @@ final class LabeebToolCallController extends ChangeNotifier {
     final sink = uiEventSink;
     if (sink == null) return 'unavailable';
     return sink(event);
+  }
+
+  // ------------------------------------------------- pending state (D-01)
+
+  bool _persistQueued = false;
+
+  /// Writes the pending state after the current event (several changes in
+  /// one turn become one write).
+  void _schedulePersist() {
+    if (pendingStore == null || _persistQueued || _disposed) return;
+    _persistQueued = true;
+    scheduleMicrotask(() {
+      _persistQueued = false;
+      unawaited(flushPending());
+    });
+  }
+
+  /// Writes the pending state now (tests, and before leaving).
+  Future<void> flushPending() async {
+    final store = pendingStore;
+    final cid = (pendingConversation ?? conversation)();
+    if (store == null || cid == null) return;
+    try {
+      await store.save(cid, _pendingSnapshot());
+    } on Object catch (e) {
+      _diagnostics.record('tool.pending_save_failed', {
+        'error': e.runtimeType.toString(),
+      });
+    }
+  }
+
+  /// Unfinished calls (with the session that can answer them) and the
+  /// form values the user typed. No arguments, results or message text.
+  LabeebPendingState _pendingSnapshot() => LabeebPendingState(
+    calls: {
+      for (final a in _calls.values)
+        if (!a.call.status.terminal && _sessionOf[a.call.id] != null)
+          a.call.id: LabeebPendingCall(
+            sessionId: _sessionOf[a.call.id]!,
+            status: a.call.status.wire,
+            seenAt: a.firstSeen,
+          ),
+    },
+    uiValues: {
+      for (final e in _uiValues.entries)
+        if (_jsonSafeMap(e.value) case final safe when safe.isNotEmpty)
+          e.key: safe,
+    },
+  );
+
+  static Map<String, Object?> _jsonSafeMap(Map<String, Object?> m) => {
+    for (final e in m.entries)
+      if (_jsonSafe(e.value)) e.key: e.value,
+  };
+
+  static bool _jsonSafe(Object? v) => switch (v) {
+    null || bool() || num() || String() => true,
+    final List<Object?> l => l.every(_jsonSafe),
+    final Map<Object?, Object?> m =>
+      m.keys.every((k) => k is String) && m.values.every(_jsonSafe),
+    _ => false,
+  };
+
+  /// Loads the pending state of [conversationId] saved by an earlier run:
+  /// the sessions that can answer its calls, and the form values. Call
+  /// before [restore].
+  Future<void> importPending(String conversationId) async {
+    final store = pendingStore;
+    if (store == null) return;
+    final LabeebPendingState saved;
+    try {
+      saved = await store.load(conversationId);
+    } on Object {
+      return;
+    }
+    if (_disposed) return;
+    for (final MapEntry(:key, :value) in saved.calls.entries) {
+      _sessionOf.putIfAbsent(key, () => value.sessionId);
+    }
+    for (final MapEntry(:key, :value) in saved.uiValues.entries) {
+      final mine = _uiValues.putIfAbsent(key, () => {});
+      for (final e in value.entries) {
+        mine.putIfAbsent(e.key, () => e.value);
+      }
+    }
+    if (saved.uiValues.isNotEmpty) notifyListeners();
   }
 
   // ------------------------------------------------------ history resume
@@ -778,8 +879,11 @@ final class LabeebToolCallController extends ChangeNotifier {
     // A request without a stored result: only its live status says what
     // happened (expired, still running…); nothing is assumed.
     for (final MapEntry(key: id, value: (c, m)) in requests.entries) {
-      if (done.contains(id) || m.sessionId == null) continue;
-      unawaited(_follow(id, m.sessionId!, at: m.createdAt, request: c));
+      // The message may not say which session holds the call (a voice call's
+      // tools session): use the one saved by an earlier run.
+      final sid = m.sessionId ?? _sessionOf[id];
+      if (done.contains(id) || sid == null) continue;
+      unawaited(_follow(id, sid, at: m.createdAt, request: c));
     }
   }
 
@@ -799,7 +903,16 @@ final class LabeebToolCallController extends ChangeNotifier {
         NexaToolCallItem(id: 'tc:${c.id}', createdAt: at, toolCallId: c.id),
       );
     }
+    // A restored call that still waits for approval can be approved or
+    // denied again by the user (never by itself), in its own session.
+    final restored = _calls[c.id]!;
+    if (c.status == NexaToolCallStatus.awaitingApproval &&
+        _sessionOf[c.id] != null &&
+        restored.phase == LabeebLocalPhase.idle) {
+      _calls[c.id] = restored.copyWith(phase: LabeebLocalPhase.awaitingUser);
+    }
     notifyListeners();
+    _schedulePersist();
     if (!c.status.terminal && sessionId != null) {
       unawaited(_follow(c.id, sessionId, at: at));
     }
