@@ -241,6 +241,20 @@ const _turnScoped = {
   'model_available',
 };
 
+/// Tool and UI events of `labeeb.sdk/1`. They travel on the same sealed topic
+/// as the voice events and carry the same fields as the SSE events
+/// (`contract-1.0.0.json`, "sealed"); the app maps them to
+/// `RealtimeToolEvent`. They are session-level: `turn_id` is optional.
+const voiceToolEventTypes = {
+  'tool_call_requested',
+  'tool_call_updated',
+  'tool_call_progress',
+  'tool_call_completed',
+  'tool_call_failed',
+  'asset_created',
+  'ui_presented',
+};
+
 const _sessionScoped = {
   'session_state',
   'agent_ready',
@@ -275,7 +289,9 @@ VoiceEventVerdict parseEventV1(Object? json) {
   }
   final type = json['type'];
   if (type is! String ||
-      !(_turnScoped.contains(type) || _sessionScoped.contains(type))) {
+      !(_turnScoped.contains(type) ||
+          _sessionScoped.contains(type) ||
+          voiceToolEventTypes.contains(type))) {
     return VoiceEventRejected(VoiceEventRejection.unknownType, '$type');
   }
   final seq = json['seq'];
@@ -447,13 +463,7 @@ RealtimeVoiceEvent? realtimeEventFromV1(VoiceEventV1 e) {
       return RealtimeSessionEnding(e['reason']! as String);
     case 'assistant_text':
       return null; // folded into captions by the transport (needs index)
-    case 'tool_call_requested' ||
-        'tool_call_updated' ||
-        'tool_call_progress' ||
-        'tool_call_completed' ||
-        'tool_call_failed' ||
-        'asset_created' ||
-        'ui_presented':
+    case _ when voiceToolEventTypes.contains(e.type):
       return RealtimeToolEvent(e.type, e.fields);
     default:
       return null;

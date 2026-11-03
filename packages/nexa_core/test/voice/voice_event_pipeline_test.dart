@@ -110,6 +110,117 @@ void main() {
     },
   );
 
+  group('tool and UI events (labeeb.sdk/1 on the same sealed topic)', () {
+    // Regression: the validator only knew speech/session events, so a real
+    // agent's ui_presented / tool_call_* events were rejected as unknownType
+    // and the voice call never showed a form.
+    const toolTypes = [
+      'tool_call_requested',
+      'tool_call_updated',
+      'tool_call_progress',
+      'tool_call_completed',
+      'tool_call_failed',
+      'asset_created',
+      'ui_presented',
+    ];
+
+    for (final type in toolTypes) {
+      test('$type reaches the app as a RealtimeToolEvent', () {
+        pipeline
+          ..onPacket(signer.envelope(1, 'agent_ready'))
+          ..onPacket(
+            signer.envelope(2, type, {
+              'tool_call_id': 'tc_1',
+              'tool': 'app.theme.list_palettes',
+              'status': 'running',
+            }),
+          );
+        final tool = out.whereType<RealtimeToolEvent>().single;
+        expect(tool.type, type);
+        expect(tool.fields['tool_call_id'], 'tc_1');
+        expect(pipeline.lastApplied, 2);
+      });
+    }
+
+    test(
+      'a ui_presented document arrives whole, with its nested components',
+      () {
+        pipeline
+          ..onPacket(signer.envelope(1, 'agent_ready'))
+          ..onPacket(
+            signer.envelope(2, 'ui_presented', {
+              'tool_call_id': 'tc_7',
+              'ui': {
+                'schema': 'nexa.ui/1',
+                'id': 'ui_theme',
+                'category': 'themes_appearance',
+                'root': {
+                  'id': 'pal',
+                  'type': 'palette',
+                  'options': [
+                    {'id': 'pal_green', 'label': 'Green', 'ordinal': 1},
+                  ],
+                },
+              },
+            }),
+          );
+        final ui =
+            out.whereType<RealtimeToolEvent>().single.fields['ui']!
+                as Map<String, Object?>;
+        expect(ui['id'], 'ui_theme');
+        expect((ui['root']! as Map)['options'], hasLength(1));
+      },
+    );
+
+    test('a tool event may carry a turn_id but does not need one', () {
+      pipeline
+        ..onPacket(signer.envelope(1, 'agent_ready'))
+        ..onPacket(
+          signer.envelope(2, 'tool_call_requested', {'tool_call_id': 'a'}),
+        )
+        ..onPacket(
+          signer.envelope(3, 'tool_call_completed', {
+            'tool_call_id': 'a',
+            'turn_id': 'turn_9',
+          }),
+        );
+      expect(out.whereType<RealtimeToolEvent>(), hasLength(2));
+    });
+
+    test('tool events keep their place in the gapless sequence', () {
+      pipeline
+        ..onPacket(signer.envelope(1, 'agent_ready'))
+        ..onPacket(signer.envelope(3, 'ui_presented', {'tool_call_id': 'a'}));
+      expect(
+        resumeRequests,
+        1,
+        reason: 'a gap before a tool event is repaired',
+      );
+      pipeline.onPacket(
+        signer.envelope(2, 'session_state', {'state': 'listening'}),
+      );
+      expect(out.whereType<RealtimeToolEvent>(), hasLength(1));
+      expect(pipeline.lastApplied, 3);
+    });
+
+    test('a forged tool event is still rejected', () {
+      pipeline.onPacket(signer.envelope(1, 'agent_ready'));
+      final forged =
+          jsonDecode(signer.envelope(2, 'ui_presented', {'tool_call_id': 'a'}))
+              as Map<String, Object?>;
+      forged['sig'] = '00' * 64;
+      pipeline.onPacket(jsonEncode(forged));
+      expect(out.whereType<RealtimeToolEvent>(), isEmpty);
+    });
+
+    test('an unknown type is still rejected', () {
+      pipeline
+        ..onPacket(signer.envelope(1, 'agent_ready'))
+        ..onPacket(signer.envelope(2, 'agent_mood'));
+      expect(out.whereType<RealtimeToolEvent>(), isEmpty);
+    });
+  });
+
   test(
     'duplicates are dropped silently; a gap requests resume and holds events',
     () {

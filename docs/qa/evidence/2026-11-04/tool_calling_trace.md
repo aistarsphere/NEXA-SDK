@@ -34,3 +34,24 @@ with real traffic.
 
 Not captured: the payload of the rejected events, the agent's error when a colour is spoken, and whether the
 `resume` RPC failure matters (it logs on every call).
+
+## C. Voice call after the V-01 fix (build with `voiceToolEventTypes`) → WORKS on the Nubia
+Request injected as synthesized Arabic speech (macOS `say -v Majed`) from the Mac speaker next to the phone; no human spoke.
+
+    02:49:49 voice session created, tools=true, client_tools include app.theme.apply, server_tools=51
+    02:50:10 voice tool event: tool_call_requested tool=app.theme.list_palettes status=running
+    02:50:10 voice tool event: tool_call_completed  tool=app.theme.list_palettes status=succeeded
+    02:50:10 voice tool event: ui_presented                                     (the 7-colour picker appears in the call screen)
+    (spoken: "اللون الأخضر"; transcript shows the user line)
+    02:50:41 voice tool event: tool_call_requested tool=app.theme.apply status=awaiting_approval   (app previews green; Apply / Not now card)
+    02:51:11 → POST …/tool-calls/tc_rt_…/approval ← 200    (user tapped Apply, ~30 s later)
+    02:51:11 voice tool event: tool_call_updated status=awaiting_client
+    02:51:11 → GET/PUT /me/preferences ← 200               (colour persisted)
+    02:51:11 → POST …/tool-calls/tc_rt_…/result ← 200
+    02:51:11 voice tool event: tool_call_updated status=succeeded
+
+Observation: while the approval card waited, the assistant said (caption) "please try again or check your internet — do you want to retry?".
+That text is the technical error reported by the owner. The card is what unblocks the agent; before V-01 the card could never appear.
+The agent's wait limit and error text are AWS-side; the approval here came about 30 s after the request.
+
+Screenshots: `v01_voice_picker_in_call.png`, `v01_voice_spoken_green_preview.png`, `v01_voice_applied.png`. The theme was reset afterwards.

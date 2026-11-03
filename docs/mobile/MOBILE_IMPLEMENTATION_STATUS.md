@@ -6,7 +6,7 @@ Updated 2026-11-03 (plan v1.0). The implementing session updates this file at th
 
 The authoritative state is `AMEER_CURRENT_IMPLEMENTATION_STATUS.md`. Corrections to the rows below, nothing deleted:
 
-* **D-01, D-02, C-03** are `DONE` for unit tests but **cannot work in a real voice call**: the voice event validator
+* **V-01 FIXED (2026-11-04, device-verified)**; the next bullet describes the situation before the fix. **D-01, D-02, C-03** were `DONE` for unit tests but **could not work in a real voice call**: the voice event validator
   rejects every tool/UI event (`unknownType`), so these code paths never receive real traffic (defect **V-01**, Flutter,
   P0; device evidence in `docs/qa/evidence/2026-11-04/tool_calling_trace.md`). The typed (chat) flow works end to end on
   the Nubia.

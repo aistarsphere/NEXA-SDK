@@ -20,6 +20,15 @@ Status words: **VERIFIED ON DEVICE** (physical phone, evidence file), **VERIFIED
 | Builds | debug APK ✔; profile APK (arm64, dev defines) ✔ and installed on the Nubia and an emulator; local release APK ✔ (debug-signed, **not distributable**; no release key exists) |
 | Devices | Nubia NX679J (adb `bf5c6761`, Android 13) connected and used today; Xiaomi 25010PN30G not connected; emulator `emulator-5554` (Android 16) used for launcher/splash only |
 
+## 0. Update 2026-11-04 (after the report): V-01 fixed and verified on the Nubia
+
+`voiceToolEventTypes` now lets `tool_call_*`, `asset_created` and `ui_presented` through the v1 validator (core 126
+tests green, 12 new pipeline tests with real signed envelopes). In a live call on the Nubia the colour picker appears,
+a spoken colour starts `app.theme.apply`, the Apply card works, the preference is saved and the tool reports `succeeded`
+(`docs/qa/evidence/2026-11-04/tool_calling_trace.md` §C). Rows 11 and 12 of the matrix are now **VERIFIED ON DEVICE**
+for voice as well; D-01, D-02 and C-03 are reachable again (re-verification of their own behaviour: pending).
+The spoken "technical error" appears while the approval card is waiting (agent-side wait; AWS to confirm limit and wording).
+
 ## 2. Executive summary
 
 * **Usable today on a real phone:** conversation list as the root, text chat against the production gateway, **typed**
