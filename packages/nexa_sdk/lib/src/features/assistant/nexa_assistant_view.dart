@@ -5,6 +5,8 @@ import 'package:nexa_core/nexa_core.dart';
 import 'package:nexa_device/nexa_device.dart' show PluginUrlOpener;
 import 'package:nexa_sdk/src/features/assistant/nexa_assistant_options.dart';
 import 'package:nexa_sdk/src/features/dynamic_ui/nexa_surface_presentation.dart';
+import 'package:nexa_sdk/src/features/history/nexa_conversation_list_page.dart';
+import 'package:nexa_sdk/src/features/history/nexa_history.dart';
 import 'package:nexa_sdk/src/features/history/nexa_history_view.dart';
 import 'package:nexa_sdk/src/features/media/nexa_media_widgets.dart';
 import 'package:nexa_sdk/src/features/tools/labeeb_voice_companion.dart';
@@ -75,6 +77,31 @@ class NexaAssistantView extends StatelessWidget {
     ),
   );
 
+  /// The conversation list (needs `history` configured; without it the chat
+  /// page). The host owns navigation: [onNew] opens a fresh chat, [onOpen]
+  /// resumes the entry, [onCall] starts a call (null hides it).
+  Widget listPage({
+    required void Function(BuildContext context) onNew,
+    required void Function(BuildContext context, NexaHistoryEntry entry) onOpen,
+    void Function(BuildContext context)? onCall,
+  }) {
+    final history = client.history;
+    if (history == null || !features.history) return chatPage();
+    return _AssistantScope(
+      client: client,
+      child: Builder(
+        builder: (context) => NexaConversationListPage(
+          history: history,
+          title: _BrandTitle(assistant: this),
+          onNew: () => onNew(context),
+          onCall: voiceEnabled && onCall != null ? () => onCall(context) : null,
+          onOpen: (e) => onOpen(context, e),
+          onOpenSettings: onOpenSettings,
+        ),
+      ),
+    );
+  }
+
   /// The live-call page for a host route such as `/c/:id/call`. The call
   /// starts on open and ends when the page is disposed; [onClose] is the
   /// close button (the host pops its route).
@@ -95,7 +122,8 @@ class NexaAssistantView extends StatelessWidget {
     child: _VoiceRequests(
       assistant: this,
       child: switch (launchMode) {
-        NexaLaunchMode.chat => _ChatPage(assistant: this),
+        NexaLaunchMode.chat ||
+        NexaLaunchMode.list => _ChatPage(assistant: this),
         NexaLaunchMode.voice => _LiveVoicePage(assistant: this, root: true),
         NexaLaunchMode.home => _HomePage(assistant: this),
       },
@@ -169,8 +197,11 @@ class _AssistantScope extends StatelessWidget {
 // ------------------------------------------------------------------ header
 
 class _BrandTitle extends StatelessWidget {
-  const _BrandTitle({required this.assistant});
+  const _BrandTitle({required this.assistant, this.compact = false});
   final NexaAssistantView assistant;
+
+  /// Name only (a pushed page with a back button and several actions).
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
@@ -180,8 +211,10 @@ class _BrandTitle extends StatelessWidget {
     final subtitle = brand.subtitleFor(lang);
     return Row(
       children: [
-        NexaBrandMark(brand: brand),
-        const SizedBox(width: 10),
+        if (!compact) ...[
+          NexaBrandMark(brand: brand),
+          const SizedBox(width: 10),
+        ],
         Flexible(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -303,17 +336,21 @@ class _ChatPageState extends State<_ChatPage> {
     final l10n = NexaLocalizations.of(context);
     final voice = a.voiceEnabled;
     final settings = _settingsAction(context, a);
-    final history = _historyAction(
-      context,
-      a,
-      onResumed: () {
-        if (mounted) setState(() => _conversation++);
-      },
-    );
+    // With the list as the root, the list is the history.
+    final listRoot = a.launchMode == NexaLaunchMode.list;
+    final history = listRoot
+        ? null
+        : _historyAction(
+            context,
+            a,
+            onResumed: () {
+              if (mounted) setState(() => _conversation++);
+            },
+          );
     return Scaffold(
       appBar: AppBar(
         titleSpacing: widget.pushed ? 0 : 16,
-        title: _BrandTitle(assistant: a),
+        title: _BrandTitle(assistant: a, compact: listRoot),
         actions: [
           if (voice)
             IconButton(

@@ -528,6 +528,10 @@ class NexaLocalizationsAr extends NexaLocalizations {
   String get historyEmpty => 'لا توجد محادثات محفوظة على هذا الجهاز بعد.';
 
   @override
+  String get listEmpty =>
+      'لا توجد محادثات بعد. ابدأ واحدة بالكتابة أو بالتحدث.';
+
+  @override
   String get historyChat => 'محادثة';
 
   @override

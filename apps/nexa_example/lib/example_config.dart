@@ -31,13 +31,14 @@ abstract final class ExampleConfig {
 
   static const String appVersion = '1.1.0';
 
-  /// What the assistant opens with: `chat` (default), `voice` or `home`
-  /// (`--dart-define=NEXA_LAUNCH_MODE=home`).
+  /// What the assistant opens with: `list` (default: the conversation
+  /// list), `chat`, `voice` or `home` (`--dart-define=NEXA_LAUNCH_MODE=home`).
   static NexaLaunchMode get launchMode =>
       switch (const String.fromEnvironment('NEXA_LAUNCH_MODE')) {
         'voice' => NexaLaunchMode.voice,
         'home' => NexaLaunchMode.home,
-        _ => NexaLaunchMode.chat,
+        'chat' => NexaLaunchMode.chat,
+        _ => NexaLaunchMode.list,
       };
 
   /// Feature visibility (`--dart-define=NEXA_SHOW_VOICE=false` …). These only

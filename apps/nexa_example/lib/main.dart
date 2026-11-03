@@ -222,7 +222,9 @@ class ExampleApp extends StatelessWidget {
       GoRoute(
         path: '/c/:id',
         builder: (context, state) => RouteConversation(
+          key: ValueKey('chat_${state.pathParameters['id']}'),
           client: client,
+          alwaysResume: true,
           conversationId: state.pathParameters['id']!,
           builder: (context) => AssistantPage(
             client: client,
@@ -260,6 +262,7 @@ class ExampleApp extends StatelessWidget {
           client: client,
           auth: auth,
           voiceRequests: device?.voiceRequests,
+          list: ExampleConfig.launchMode == NexaLaunchMode.list,
         ),
         routes: [
           GoRoute(

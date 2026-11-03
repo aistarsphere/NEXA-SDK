@@ -26,6 +26,7 @@ export 'src/features/dynamic_ui/nexa_surface_presentation.dart';
 export 'src/features/dynamic_ui/nexa_surface_view.dart';
 export 'src/features/dynamic_ui/nexa_ui_view.dart';
 export 'src/features/history/labeeb_conversations_api.dart';
+export 'src/features/history/nexa_conversation_list_page.dart';
 export 'src/features/history/nexa_history.dart';
 export 'src/features/history/nexa_history_view.dart';
 export 'src/features/media/nexa_conversation_media.dart';

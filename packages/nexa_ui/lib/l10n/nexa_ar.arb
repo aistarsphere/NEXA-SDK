@@ -162,6 +162,7 @@
   "voiceShowSomething": "اعرض شيئًا",
   "historyTitle": "السجل",
   "historyEmpty": "لا توجد محادثات محفوظة على هذا الجهاز بعد.",
+  "listEmpty": "لا توجد محادثات بعد. ابدأ واحدة بالكتابة أو بالتحدث.",
   "historyChat": "محادثة",
   "historyVoice": "مكالمة صوتية",
   "historyUntitled": "محادثة",

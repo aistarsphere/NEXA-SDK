@@ -17,6 +17,7 @@ class AssistantPage extends StatelessWidget {
     required this.auth,
     this.voiceRequests,
     this.chatOnly = false,
+    this.list = false,
     super.key,
   });
 
@@ -28,6 +29,9 @@ class AssistantPage extends StatelessWidget {
 
   /// `/c/:id`: always the chat page, whatever the launch mode.
   final bool chatOnly;
+
+  /// `/`: the conversation list (falls back to the chat without history).
+  final bool list;
 
   bool get _connected => switch (auth) {
     final DevTokenAuthProvider dev => dev.hasToken && !dev.isExpired,
@@ -73,6 +77,9 @@ class AssistantPage extends StatelessWidget {
   }
 
   Widget _assistant(BuildContext context) {
+    if (list) {
+      return labeebListPage(context, client, voiceRequests: voiceRequests);
+    }
     final view = labeebAssistantView(
       context,
       client,

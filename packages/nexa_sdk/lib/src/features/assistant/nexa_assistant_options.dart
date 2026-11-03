@@ -46,6 +46,10 @@ enum NexaLaunchMode {
 
   /// A home screen with the brand and both entry points.
   home,
+
+  /// The conversation list is the root screen. The host router shows
+  /// [NexaAssistantView.listPage]; the view itself falls back to the chat.
+  list,
 }
 
 /// Host-controlled visibility of assistant features. These can only **hide**

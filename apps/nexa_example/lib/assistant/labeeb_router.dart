@@ -27,6 +27,26 @@ NexaAssistantView labeebAssistantView(
       unawaited(openLabeebCall(ctx, client, fromHome: fromHome)),
 );
 
+/// The conversation list (`/`): New opens `/c/new`, an entry resumes at
+/// `/c/:id`, Call opens the call over a chat over the list.
+Widget labeebListPage(
+  BuildContext context,
+  NexaClient client, {
+  Stream<void>? voiceRequests,
+}) =>
+    labeebAssistantView(context, client, voiceRequests: voiceRequests).listPage(
+      onNew: (ctx) => unawaited(_startNew(ctx, client)),
+      onOpen: (ctx, entry) =>
+          unawaited(ctx.push<void>('/c/${entry.sessionId}')),
+      onCall: (ctx) => unawaited(openLabeebCall(ctx, client, fromList: true)),
+    );
+
+Future<void> _startNew(BuildContext context, NexaClient client) async {
+  final router = GoRouter.of(context);
+  await client.newConversation();
+  unawaited(router.push<void>('/c/new'));
+}
+
 bool _opening = false;
 
 // `state` follows the top (also imperatively pushed) route; `uri` of the
@@ -41,6 +61,7 @@ Future<void> openLabeebCall(
   BuildContext context,
   NexaClient client, {
   bool fromHome = false,
+  bool fromList = false,
 }) async {
   final router = GoRouter.of(context);
   if (_opening || _inCall(router)) return;
@@ -59,6 +80,7 @@ Future<void> openLabeebCall(
     if (_inCall(router)) return;
     final target = id ?? 'new';
     if (fromHome) router.go('/c/$target');
+    if (fromList) unawaited(router.push<void>('/c/$target'));
     unawaited(router.push<void>('/c/$target/call'));
   } finally {
     _opening = false;
@@ -72,12 +94,18 @@ class RouteConversation extends StatefulWidget {
     required this.client,
     required this.conversationId,
     required this.builder,
+    this.alwaysResume = false,
     super.key,
   });
 
   final NexaClient client;
   final String conversationId;
   final WidgetBuilder builder;
+
+  /// Reload the conversation even when it is already current (a chat page
+  /// mounting again needs its history; a call page over the chat must not
+  /// restart the chat session).
+  final bool alwaysResume;
 
   @override
   State<RouteConversation> createState() => _RouteConversationState();
@@ -88,7 +116,8 @@ class _RouteConversationState extends State<RouteConversation> {
 
   Future<void> _open() async {
     final id = widget.conversationId;
-    if (id != 'new' && widget.client.conversationId != id) {
+    if (id != 'new' &&
+        (widget.alwaysResume || widget.client.conversationId != id)) {
       await widget.client.resumeConversation(id);
     }
   }
