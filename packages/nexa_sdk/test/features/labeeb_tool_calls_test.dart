@@ -1222,6 +1222,137 @@ void main() {
     });
   });
 
+  group('ui document states (D-03)', () {
+    Map<String, Object?> confirmDoc(String id) => {
+      'schema': 'nexa.ui/1',
+      'id': id,
+      'category': 'choices_forms',
+      'presentation': 'inline_card',
+      'root': {
+        'id': 'ok',
+        'type': 'confirm',
+        'text': 'Continue?',
+        'on_confirm': {'type': 'send_ui_event', 'event': 'confirm'},
+      },
+    };
+
+    testWidgets('an unknown root shows the document\'s fallback text', (
+      tester,
+    ) async {
+      c.onUi({
+        'schema': 'nexa.ui/1',
+        'id': 'ui_fb',
+        'category': 'choices_forms',
+        'presentation': 'inline_card',
+        'fallback_text': 'Three cafés nearby: Alpha, Beta, Gamma.',
+        'root': {'id': 'x', 'type': 'hologram'},
+      });
+      await host(tester, NexaUiDocumentCard(uiId: 'ui_fb', controller: c));
+      expect(
+        find.text('Three cafés nearby: Alpha, Beta, Gamma.'),
+        findsOneWidget,
+      );
+      expect(find.byKey(const Key('nexa_ui_loading')), findsNothing);
+    });
+
+    testWidgets('a per-language fallback follows the locale', (tester) async {
+      c.onUi({
+        'schema': 'nexa.ui/1',
+        'id': 'ui_fb2',
+        'category': 'choices_forms',
+        'presentation': 'inline_card',
+        'fallback_text': {'en': 'English words', 'ar': 'كلمات'},
+        'root': {'id': 'x', 'type': 'hologram'},
+      });
+      await host(tester, NexaUiDocumentCard(uiId: 'ui_fb2', controller: c));
+      expect(find.text('English words'), findsOneWidget);
+    });
+
+    testWidgets('an unknown root without fallback says it cannot be shown', (
+      tester,
+    ) async {
+      c.onUi({
+        'schema': 'nexa.ui/1',
+        'id': 'ui_none',
+        'category': 'choices_forms',
+        'presentation': 'inline_card',
+        'root': {'id': 'x', 'type': 'hologram'},
+      });
+      await host(tester, NexaUiDocumentCard(uiId: 'ui_none', controller: c));
+      expect(find.byKey(const Key('nexa_ui_unsupported')), findsOneWidget);
+      expect(find.byKey(const Key('nexa_ui_loading')), findsNothing);
+    });
+
+    testWidgets('a truncated voice document still shows Loading', (
+      tester,
+    ) async {
+      c.onUi({
+        'schema': 'nexa.ui/1',
+        'id': 'ui_big',
+        'category': 'choices_forms',
+        'truncated': true,
+      });
+      await host(tester, NexaUiDocumentCard(uiId: 'ui_big', controller: c));
+      expect(find.byKey(const Key('nexa_ui_loading')), findsOneWidget);
+    });
+
+    testWidgets('a stale document is greyed out and stays disabled', (
+      tester,
+    ) async {
+      var sent = 0;
+      c
+        ..uiEventSink = ((e) async {
+          sent++;
+          return 'unknown_ui_component';
+        })
+        ..onUi(confirmDoc('ui_old'));
+      await host(tester, NexaUiDocumentCard(uiId: 'ui_old', controller: c));
+      await tester.tap(find.byKey(const Key('nexa_ui_confirm_ok')));
+      await tester.pump();
+      await tester.pump();
+      expect(c.isUiExpired('ui_old'), isTrue);
+      expect(find.byKey(const Key('nexa_ui_expired')), findsOneWidget);
+      expect(find.byKey(const Key('nexa_ui_refused')), findsOneWidget);
+
+      await tester.tap(
+        find.byKey(const Key('nexa_ui_confirm_ok')),
+        warnIfMissed: false,
+      );
+      await tester.pump();
+      expect(sent, 1, reason: 'an expired document sends nothing more');
+
+      // Another card of the same document is expired too.
+      await host(tester, NexaUiDocumentCard(uiId: 'ui_old', controller: c));
+      expect(find.byKey(const Key('nexa_ui_expired')), findsOneWidget);
+    });
+
+    testWidgets('a network failure offers Retry; success clears the error', (
+      tester,
+    ) async {
+      var sent = 0;
+      c
+        ..uiEventSink = ((e) async => ++sent == 1 ? 'network_error' : null)
+        ..onUi(confirmDoc('ui_net'));
+      await host(tester, NexaUiDocumentCard(uiId: 'ui_net', controller: c));
+      await tester.tap(find.byKey(const Key('nexa_ui_confirm_ok')));
+      await tester.pump();
+      await tester.pump();
+      expect(find.byKey(const Key('nexa_ui_refused')), findsOneWidget);
+      expect(
+        c.isUiExpired('ui_net'),
+        isFalse,
+        reason: 'not stale, just failed',
+      );
+
+      await tester.tap(find.byKey(const Key('nexa_ui_retry')));
+      await tester.pump();
+      await tester.pump();
+      expect(sent, 2);
+      expect(find.byKey(const Key('nexa_ui_refused')), findsNothing);
+      expect(find.byKey(const Key('nexa_ui_retry')), findsNothing);
+    });
+  });
+
   group('ui_event in flight (D-02)', () {
     NexaUiEvent ev(String component) => NexaUiEvent(
       uiId: 'ui_1',

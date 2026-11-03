@@ -43,6 +43,9 @@ class _NexaUiViewState extends State<NexaUiView> {
   /// Gateway refusal of the last event (e.g. `unknown_ui_component`).
   String? _refused;
 
+  /// Sends the failed event again (a delivery failure, not a stale one).
+  Future<void> Function()? _retry;
+
   LabeebToolCallController get _c => widget.controller;
 
   /// Returns the gateway refusal code of a `ui_event`, else null.
@@ -64,6 +67,8 @@ class _NexaUiViewState extends State<NexaUiView> {
         if (url != null) await _open(url);
         return null;
       case 'send_ui_event' || 'client_tool':
+        // An expired document sends nothing (it is greyed out).
+        if (_c.isUiExpired(doc.id)) return null;
         // A client_tool action is a request to the assistant, which then
         // issues the tool call; nothing runs from the document itself.
         setState(() {
@@ -79,12 +84,25 @@ class _NexaUiViewState extends State<NexaUiView> {
             value: value,
           ),
         );
+        final stale =
+            code == 'unknown_ui_component' || code == 'unknown_ui_option';
+        if (stale) _c.markUiExpired(doc.id);
         if (mounted) {
           setState(() {
             _sending = null;
             // An ignored second tap is not a refusal.
             if (code != LabeebToolCallController.uiEventInFlight) {
               _refused = code;
+              _retry = code == null || stale
+                  ? null
+                  : () => _send(
+                      doc,
+                      node,
+                      action,
+                      defaultEvent: defaultEvent,
+                      optionIds: optionIds,
+                      value: value,
+                    );
             }
           });
         }
@@ -137,6 +155,7 @@ class _NexaUiViewState extends State<NexaUiView> {
         final lang = Localizations.localeOf(context).languageCode;
         final title = doc.titleFor(lang);
         final root = doc.root;
+        final expired = _c.isUiExpired(doc.id);
         return Column(
           key: Key('nexa_ui_${doc.id}'),
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -152,7 +171,7 @@ class _NexaUiViewState extends State<NexaUiView> {
                   ),
                 ),
               ),
-            if (root == null)
+            if (root == null && doc.truncated)
               Row(
                 key: const Key('nexa_ui_loading'),
                 children: [
@@ -164,20 +183,47 @@ class _NexaUiViewState extends State<NexaUiView> {
                   Text(l10n.duiLoading),
                 ],
               )
+            else if (root == null)
+              // Nothing could be drawn (unknown root): the assistant's own
+              // words when it gave some, else an honest notice.
+              Text(
+                doc.fallbackFor(lang) ?? l10n.duiUnsupported,
+                key: doc.fallbackFor(lang) == null
+                    ? const Key('nexa_ui_unsupported')
+                    : const Key('nexa_ui_fallback'),
+                style: theme.textTheme.bodyMedium,
+              )
+            else if (expired)
+              Opacity(
+                key: const Key('nexa_ui_expired'),
+                opacity: 0.5,
+                child: IgnorePointer(child: _node(context, doc, root, lang)),
+              )
             else
               _node(context, doc, root, lang),
-            if (_refused != null)
+            if (_refused != null || expired)
               Padding(
                 padding: const EdgeInsets.only(top: 8),
-                child: Text(
-                  _refused == 'unknown_ui_component' ||
-                          _refused == 'unknown_ui_option'
-                      ? l10n.duiStale
-                      : l10n.duiNotDelivered,
-                  key: const Key('nexa_ui_refused'),
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.error,
-                  ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        expired ? l10n.duiStale : l10n.duiNotDelivered,
+                        key: _refused != null
+                            ? const Key('nexa_ui_refused')
+                            : const Key('nexa_ui_expired_label'),
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.error,
+                        ),
+                      ),
+                    ),
+                    if (!expired && _retry != null)
+                      TextButton(
+                        key: const Key('nexa_ui_retry'),
+                        onPressed: () => unawaited(_retry!()),
+                        child: Text(l10n.retry),
+                      ),
+                  ],
                 ),
               ),
           ],

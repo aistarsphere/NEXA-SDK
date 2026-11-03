@@ -729,6 +729,16 @@ final class LabeebToolCallController extends ChangeNotifier {
   Future<String?> Function(NexaUiEvent event)? fallbackUiEventSink;
 
   final Set<String> _uiInFlight = {};
+  final Set<String> _expiredUi = {};
+
+  /// The gateway said this document is no longer current
+  /// (`unknown_ui_component`/`unknown_ui_option`): it stays visible but
+  /// greyed out and sends nothing more.
+  bool isUiExpired(String uiId) => _expiredUi.contains(uiId);
+
+  void markUiExpired(String uiId) {
+    if (_expiredUi.add(uiId)) notifyListeners();
+  }
 
   /// An event of [componentId] in document [uiId] is on its way.
   bool isUiEventInFlight(String uiId, String componentId) =>
@@ -1069,6 +1079,7 @@ final class LabeebToolCallController extends ChangeNotifier {
     _answered.clear();
     _uiValues.clear();
     _uiInFlight.clear();
+    _expiredUi.clear();
     _bytes.clear();
     notifyListeners();
   }

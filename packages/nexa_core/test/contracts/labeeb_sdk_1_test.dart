@@ -207,6 +207,35 @@ void main() {
       );
     });
 
+    test('an unknown root type is kept without a tree (fallback text)', () {
+      final d = parseNexaUiDocument({
+        ...doc({'id': 'x', 'type': 'hologram'}),
+        'fallback_text': {'en': 'Plain words', 'ar': 'كلمات'},
+      });
+      expect(d.root, isNull);
+      expect(d.truncated, isFalse);
+      expect(d.fallbackFor('en'), 'Plain words');
+      expect(d.fallbackFor('ar'), 'كلمات');
+      expect(
+        parseNexaUiDocument({
+          ...doc({'id': 'x', 'type': 'hologram'}),
+          'fallback_text': 'Just text',
+        }).fallbackFor('ar'),
+        'Just text',
+      );
+    });
+
+    test('a missing or malformed root is still invalid', () {
+      expect(
+        () => parseNexaUiDocument({...doc({}), 'root': null}),
+        throwsA(isA<NexaUiDocumentException>()),
+      );
+      expect(
+        () => parseNexaUiDocument({...doc({}), 'root': 'text'}),
+        throwsA(isA<NexaUiDocumentException>()),
+      );
+    });
+
     test('truncated voice document keeps id and category only', () {
       final d = parseNexaUiDocument({
         'id': 'ui_big',

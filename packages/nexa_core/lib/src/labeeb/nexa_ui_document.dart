@@ -211,6 +211,11 @@ final class NexaUiDocument {
 
   String? titleFor(String languageCode) => localizedText(title, languageCode);
 
+  /// Plain text the assistant gave for clients that cannot show the
+  /// document (`fallback_text`: a string or a `{en, ar}` map).
+  String? fallbackFor(String languageCode) =>
+      localizedText(raw['fallback_text'], languageCode);
+
   /// Every node, depth first.
   Iterable<NexaUiNode> get nodes sync* {
     Iterable<NexaUiNode> walk(NexaUiNode n) sync* {
@@ -350,6 +355,21 @@ NexaUiDocument parseNexaUiDocument(
 
   final root = parseNode(json['root'], 1);
   if (root == null) {
+    // A root of a type this client does not know is kept without a tree:
+    // the card shows the document's `fallback_text`, or says it cannot be
+    // shown. A missing or malformed root is still an invalid document.
+    final r = json['root'];
+    if (r is Map && r['type'] is String) {
+      return NexaUiDocument(
+        id: id,
+        category: category,
+        presentation: NexaUiPresentation.fromWire(json['presentation']),
+        title: json['title'],
+        root: null,
+        toolCallId: toolCallId,
+        raw: json,
+      );
+    }
     throw const NexaUiDocumentException('missing or unsupported root');
   }
   return NexaUiDocument(
