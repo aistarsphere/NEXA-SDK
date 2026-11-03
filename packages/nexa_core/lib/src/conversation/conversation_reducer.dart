@@ -22,6 +22,50 @@ import 'package:nexa_core/src/tools/tool_result.dart';
 final class ConversationReducer {
   const ConversationReducer();
 
+  /// Merges messages persisted by the server (e.g. the turns of a call that
+  /// were recorded in the conversation) into [state].
+  ///
+  /// Rules: persisted wins by id (except a message still streaming here);
+  /// otherwise the same role and text within 2 s is the same message (the
+  /// client-posted copy and the gateway's copy); the result is ordered by
+  /// time, ties keeping the existing order. Pure: no I/O, idempotent.
+  ConversationState mergePersisted(
+    ConversationState state,
+    List<ChatMessage> persisted,
+  ) {
+    if (persisted.isEmpty) return state;
+    final out = [...state.messages];
+    for (final f in persisted) {
+      final i = out.indexWhere((x) => x.id == f.id);
+      if (i >= 0) {
+        if (out[i].status != MessageStatus.streaming) {
+          out[i] = out[i].copyWith(
+            text: f.text,
+            status: f.status,
+            createdAt: f.createdAt,
+            origin: f.origin,
+          );
+        }
+        continue;
+      }
+      final duplicate = out.any(
+        (x) =>
+            x.role == f.role &&
+            x.text == f.text &&
+            x.createdAt.difference(f.createdAt).abs() <=
+                const Duration(seconds: 2),
+      );
+      if (!duplicate) out.add(f);
+    }
+    final order = [for (final (i, x) in out.indexed) (i, x)]
+      ..sort((a, b) {
+        final c = a.$2.createdAt.compareTo(b.$2.createdAt);
+        return c != 0 ? c : a.$1.compareTo(b.$1);
+      });
+    final merged = [for (final e in order) e.$2];
+    return state.copyWith(messages: merged);
+  }
+
   /// Applies [event] to [state].
   ConversationState reduce(ConversationState state, ConversationEvent event) {
     final next = switch (event) {

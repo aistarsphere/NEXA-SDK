@@ -1070,6 +1070,12 @@ abstract class NexaLocalizations {
   /// **'No conversations saved on this device yet.'**
   String get historyEmpty;
 
+  /// No description provided for @messageSpoken.
+  ///
+  /// In en, this message translates to:
+  /// **'Spoken'**
+  String get messageSpoken;
+
   /// No description provided for @listEmpty.
   ///
   /// In en, this message translates to:

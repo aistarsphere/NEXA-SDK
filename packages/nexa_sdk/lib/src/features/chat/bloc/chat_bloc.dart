@@ -46,6 +46,7 @@ final class ChatBloc extends Bloc<ChatEvent, ChatState> {
     on<ChatStarted>(_onStarted, transformer: _sequential());
     on<ChatMessageSent>(_onSent, transformer: _sequential());
     on<ChatOlderRequested>(_onOlder, transformer: _sequential());
+    on<ChatHistoryMerged>(_onHistoryMerged, transformer: _sequential());
     on<ChatMessageRetried>(_onRetried, transformer: _sequential());
     on<ChatGenerationCancelled>(_onCancelled, transformer: _sequential());
     on<ChatToolActionSubmitted>(_onToolAction, transformer: _sequential());
@@ -155,6 +156,10 @@ final class ChatBloc extends Bloc<ChatEvent, ChatState> {
       return;
     }
     _cancelReconnect();
+    // Turns of a call recorded by the gateway (see the coordinator).
+    _persistedSub ??= _sessions.coordinator?.persistedMessages.listen((m) {
+      if (!isClosed) add(ChatHistoryMerged(m));
+    });
     emit(
       state.copyWith(connection: ChatConnection.connecting, clearError: true),
     );
@@ -207,6 +212,15 @@ final class ChatBloc extends Bloc<ChatEvent, ChatState> {
       _diagnostics.record('chat.history_load_failed', {
         'error': e.runtimeType.toString(),
       });
+    }
+  }
+
+  StreamSubscription<List<ChatMessage>>? _persistedSub;
+
+  void _onHistoryMerged(ChatHistoryMerged event, Emitter<ChatState> emit) {
+    final merged = _reducer.mergePersisted(state.conversation, event.messages);
+    if (merged != state.conversation) {
+      emit(state.copyWith(conversation: merged));
     }
   }
 
@@ -765,6 +779,7 @@ final class ChatBloc extends Bloc<ChatEvent, ChatState> {
     // trip, and `isClosed` must flip immediately so widgets can dispose.
     unawaited(_subscription?.cancel());
     _subscription = null;
+    unawaited(_persistedSub?.cancel());
     unawaited(_toolEvents.close());
     return super.close();
   }

@@ -29,10 +29,9 @@ mixin _$NexaConfig {
 /// event-stream failure before asking the user to retry.
  int get maxReconnectAttempts;/// Opaque metadata echoed to the gateway for support/diagnostics
 /// (e.g. host app version). Never put secrets here.
- Map<String, String> get clientMetadata;/// Speak the client tool protocol (`nexa.client_tool.v1`): advertise
-/// device tools at session start, send message `context`, accept
-/// `client_tool_call` events and post results. Off until the backend
-/// implements the contract (the reference gateway does).
+ Map<String, String> get clientMetadata;/// Superseded by contract `labeeb.sdk/1` (tool calls, `client_tools`
+/// and `ui_event` are always spoken now). Kept for source
+/// compatibility; it has no effect.
  bool get clientToolProtocol;
 /// Create a copy of NexaConfig
 /// with the given fields replaced by the non-null parameter values.
@@ -280,10 +279,9 @@ class _NexaConfig extends NexaConfig {
   return EqualUnmodifiableMapView(_clientMetadata);
 }
 
-/// Speak the client tool protocol (`nexa.client_tool.v1`): advertise
-/// device tools at session start, send message `context`, accept
-/// `client_tool_call` events and post results. Off until the backend
-/// implements the contract (the reference gateway does).
+/// Superseded by contract `labeeb.sdk/1` (tool calls, `client_tools`
+/// and `ui_event` are always spoken now). Kept for source
+/// compatibility; it has no effect.
 @override@JsonKey() final  bool clientToolProtocol;
 
 /// Create a copy of NexaConfig

@@ -242,6 +242,7 @@
   "voiceShowSomething": "Show something",
   "historyTitle": "History",
   "historyEmpty": "No conversations saved on this device yet.",
+  "messageSpoken": "Spoken",
   "listEmpty": "No conversations yet. Start one by typing or by talking.",
   "historyChat": "Chat",
   "historyVoice": "Voice call",

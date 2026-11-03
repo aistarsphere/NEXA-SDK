@@ -36,6 +36,24 @@ final class ConversationCoordinator extends ChangeNotifier {
   /// without a server conversation.
   bool get canCreate => _create != null;
 
+  final StreamController<List<ChatMessage>> _persisted =
+      StreamController<List<ChatMessage>>.broadcast();
+
+  /// Messages persisted by the server that the open chat should merge (the
+  /// turns of a call). Never replays: a chat opening later loads history.
+  Stream<List<ChatMessage>> get persistedMessages => _persisted.stream;
+
+  /// Hands persisted [messages] to the open chat(s).
+  void publishPersisted(List<ChatMessage> messages) {
+    if (!_persisted.isClosed && messages.isNotEmpty) _persisted.add(messages);
+  }
+
+  @override
+  void dispose() {
+    unawaited(_persisted.close());
+    super.dispose();
+  }
+
   /// The current server conversation, or null before the first create.
   String? get conversationId => _conversationId;
 

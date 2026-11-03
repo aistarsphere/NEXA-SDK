@@ -6,6 +6,15 @@ part 'chat_message.freezed.dart';
 /// Who authored a message.
 enum MessageRole { user, assistant, system }
 
+/// How a message entered the conversation.
+enum MessageOrigin {
+  /// Typed in the chat.
+  text,
+
+  /// Spoken in a live call (persisted by the gateway, `channel: voice`).
+  voice,
+}
+
 /// Delivery / generation status of a message.
 enum MessageStatus {
   /// User message created locally, not yet acknowledged by the gateway.
@@ -58,6 +67,9 @@ abstract class ChatMessage with _$ChatMessage {
 
     /// Whether the user may retry this message (user role, failed/pending).
     @Default(false) bool retryable,
+
+    /// Typed or spoken (shown with a small microphone mark).
+    @Default(MessageOrigin.text) MessageOrigin origin,
   }) = _ChatMessage;
 
   /// True while the assistant is still producing this message.

@@ -531,6 +531,9 @@ class NexaLocalizationsEn extends NexaLocalizations {
   String get historyEmpty => 'No conversations saved on this device yet.';
 
   @override
+  String get messageSpoken => 'Spoken';
+
+  @override
   String get listEmpty =>
       'No conversations yet. Start one by typing or by talking.';
 

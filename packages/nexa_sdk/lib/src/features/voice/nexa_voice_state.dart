@@ -169,6 +169,10 @@ final class NexaVoiceOptions {
     this.allowLegacyHmac = false,
     this.restartOnVoiceActivation = true,
     this.backgroundGrace = const Duration(seconds: 25),
+    this.postCallReconcileDelays = const [
+      Duration(milliseconds: 500),
+      Duration(milliseconds: 2500),
+    ],
   });
 
   /// After `voice.profile.activate` succeeds during a call, end it and
@@ -180,6 +184,11 @@ final class NexaVoiceOptions {
   /// deliberately. Shorter than the server's reconnect grace (30 s) so the
   /// server is not left to its idle timeout.
   final Duration backgroundGrace;
+
+  /// After a call ends the open chat refetches the conversation at each of
+  /// these delays, so the spoken turns the gateway recorded show up (the
+  /// last turn is persisted around the `DELETE`). Empty disables it.
+  final List<Duration> postCallReconcileDelays;
 
   /// Join with the microphone muted.
   final bool startMuted;

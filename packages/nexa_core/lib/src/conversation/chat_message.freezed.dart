@@ -20,7 +20,8 @@ mixin _$ChatMessage {
  int get lastDeltaIndex;/// Stable error code when [status] is [MessageStatus.failed].
  String? get errorCode;/// Developer-facing error message when failed.
  String? get errorMessage;/// Whether the user may retry this message (user role, failed/pending).
- bool get retryable;
+ bool get retryable;/// Typed or spoken (shown with a small microphone mark).
+ MessageOrigin get origin;
 /// Create a copy of ChatMessage
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -31,16 +32,16 @@ $ChatMessageCopyWith<ChatMessage> get copyWith => _$ChatMessageCopyWithImpl<Chat
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is ChatMessage&&(identical(other.id, id) || other.id == id)&&(identical(other.role, role) || other.role == role)&&(identical(other.status, status) || other.status == status)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.text, text) || other.text == text)&&(identical(other.clientMessageId, clientMessageId) || other.clientMessageId == clientMessageId)&&const DeepCollectionEquality().equals(other.toolCallIds, toolCallIds)&&(identical(other.lastDeltaIndex, lastDeltaIndex) || other.lastDeltaIndex == lastDeltaIndex)&&(identical(other.errorCode, errorCode) || other.errorCode == errorCode)&&(identical(other.errorMessage, errorMessage) || other.errorMessage == errorMessage)&&(identical(other.retryable, retryable) || other.retryable == retryable));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ChatMessage&&(identical(other.id, id) || other.id == id)&&(identical(other.role, role) || other.role == role)&&(identical(other.status, status) || other.status == status)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.text, text) || other.text == text)&&(identical(other.clientMessageId, clientMessageId) || other.clientMessageId == clientMessageId)&&const DeepCollectionEquality().equals(other.toolCallIds, toolCallIds)&&(identical(other.lastDeltaIndex, lastDeltaIndex) || other.lastDeltaIndex == lastDeltaIndex)&&(identical(other.errorCode, errorCode) || other.errorCode == errorCode)&&(identical(other.errorMessage, errorMessage) || other.errorMessage == errorMessage)&&(identical(other.retryable, retryable) || other.retryable == retryable)&&(identical(other.origin, origin) || other.origin == origin));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,id,role,status,createdAt,text,clientMessageId,const DeepCollectionEquality().hash(toolCallIds),lastDeltaIndex,errorCode,errorMessage,retryable);
+int get hashCode => Object.hash(runtimeType,id,role,status,createdAt,text,clientMessageId,const DeepCollectionEquality().hash(toolCallIds),lastDeltaIndex,errorCode,errorMessage,retryable,origin);
 
 @override
 String toString() {
-  return 'ChatMessage(id: $id, role: $role, status: $status, createdAt: $createdAt, text: $text, clientMessageId: $clientMessageId, toolCallIds: $toolCallIds, lastDeltaIndex: $lastDeltaIndex, errorCode: $errorCode, errorMessage: $errorMessage, retryable: $retryable)';
+  return 'ChatMessage(id: $id, role: $role, status: $status, createdAt: $createdAt, text: $text, clientMessageId: $clientMessageId, toolCallIds: $toolCallIds, lastDeltaIndex: $lastDeltaIndex, errorCode: $errorCode, errorMessage: $errorMessage, retryable: $retryable, origin: $origin)';
 }
 
 
@@ -51,7 +52,7 @@ abstract mixin class $ChatMessageCopyWith<$Res>  {
   factory $ChatMessageCopyWith(ChatMessage value, $Res Function(ChatMessage) _then) = _$ChatMessageCopyWithImpl;
 @useResult
 $Res call({
- MessageId id, MessageRole role, MessageStatus status, DateTime createdAt, String text, ClientMessageId? clientMessageId, List<ToolCallId> toolCallIds, int lastDeltaIndex, String? errorCode, String? errorMessage, bool retryable
+ MessageId id, MessageRole role, MessageStatus status, DateTime createdAt, String text, ClientMessageId? clientMessageId, List<ToolCallId> toolCallIds, int lastDeltaIndex, String? errorCode, String? errorMessage, bool retryable, MessageOrigin origin
 });
 
 
@@ -68,7 +69,7 @@ class _$ChatMessageCopyWithImpl<$Res>
 
 /// Create a copy of ChatMessage
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? role = null,Object? status = null,Object? createdAt = null,Object? text = null,Object? clientMessageId = freezed,Object? toolCallIds = null,Object? lastDeltaIndex = null,Object? errorCode = freezed,Object? errorMessage = freezed,Object? retryable = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? role = null,Object? status = null,Object? createdAt = null,Object? text = null,Object? clientMessageId = freezed,Object? toolCallIds = null,Object? lastDeltaIndex = null,Object? errorCode = freezed,Object? errorMessage = freezed,Object? retryable = null,Object? origin = null,}) {
   return _then(_self.copyWith(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as MessageId,role: null == role ? _self.role : role // ignore: cast_nullable_to_non_nullable
@@ -81,7 +82,8 @@ as List<ToolCallId>,lastDeltaIndex: null == lastDeltaIndex ? _self.lastDeltaInde
 as int,errorCode: freezed == errorCode ? _self.errorCode : errorCode // ignore: cast_nullable_to_non_nullable
 as String?,errorMessage: freezed == errorMessage ? _self.errorMessage : errorMessage // ignore: cast_nullable_to_non_nullable
 as String?,retryable: null == retryable ? _self.retryable : retryable // ignore: cast_nullable_to_non_nullable
-as bool,
+as bool,origin: null == origin ? _self.origin : origin // ignore: cast_nullable_to_non_nullable
+as MessageOrigin,
   ));
 }
 
@@ -166,10 +168,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( MessageId id,  MessageRole role,  MessageStatus status,  DateTime createdAt,  String text,  ClientMessageId? clientMessageId,  List<ToolCallId> toolCallIds,  int lastDeltaIndex,  String? errorCode,  String? errorMessage,  bool retryable)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( MessageId id,  MessageRole role,  MessageStatus status,  DateTime createdAt,  String text,  ClientMessageId? clientMessageId,  List<ToolCallId> toolCallIds,  int lastDeltaIndex,  String? errorCode,  String? errorMessage,  bool retryable,  MessageOrigin origin)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _ChatMessage() when $default != null:
-return $default(_that.id,_that.role,_that.status,_that.createdAt,_that.text,_that.clientMessageId,_that.toolCallIds,_that.lastDeltaIndex,_that.errorCode,_that.errorMessage,_that.retryable);case _:
+return $default(_that.id,_that.role,_that.status,_that.createdAt,_that.text,_that.clientMessageId,_that.toolCallIds,_that.lastDeltaIndex,_that.errorCode,_that.errorMessage,_that.retryable,_that.origin);case _:
   return orElse();
 
 }
@@ -187,10 +189,10 @@ return $default(_that.id,_that.role,_that.status,_that.createdAt,_that.text,_tha
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( MessageId id,  MessageRole role,  MessageStatus status,  DateTime createdAt,  String text,  ClientMessageId? clientMessageId,  List<ToolCallId> toolCallIds,  int lastDeltaIndex,  String? errorCode,  String? errorMessage,  bool retryable)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( MessageId id,  MessageRole role,  MessageStatus status,  DateTime createdAt,  String text,  ClientMessageId? clientMessageId,  List<ToolCallId> toolCallIds,  int lastDeltaIndex,  String? errorCode,  String? errorMessage,  bool retryable,  MessageOrigin origin)  $default,) {final _that = this;
 switch (_that) {
 case _ChatMessage():
-return $default(_that.id,_that.role,_that.status,_that.createdAt,_that.text,_that.clientMessageId,_that.toolCallIds,_that.lastDeltaIndex,_that.errorCode,_that.errorMessage,_that.retryable);case _:
+return $default(_that.id,_that.role,_that.status,_that.createdAt,_that.text,_that.clientMessageId,_that.toolCallIds,_that.lastDeltaIndex,_that.errorCode,_that.errorMessage,_that.retryable,_that.origin);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -207,10 +209,10 @@ return $default(_that.id,_that.role,_that.status,_that.createdAt,_that.text,_tha
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( MessageId id,  MessageRole role,  MessageStatus status,  DateTime createdAt,  String text,  ClientMessageId? clientMessageId,  List<ToolCallId> toolCallIds,  int lastDeltaIndex,  String? errorCode,  String? errorMessage,  bool retryable)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( MessageId id,  MessageRole role,  MessageStatus status,  DateTime createdAt,  String text,  ClientMessageId? clientMessageId,  List<ToolCallId> toolCallIds,  int lastDeltaIndex,  String? errorCode,  String? errorMessage,  bool retryable,  MessageOrigin origin)?  $default,) {final _that = this;
 switch (_that) {
 case _ChatMessage() when $default != null:
-return $default(_that.id,_that.role,_that.status,_that.createdAt,_that.text,_that.clientMessageId,_that.toolCallIds,_that.lastDeltaIndex,_that.errorCode,_that.errorMessage,_that.retryable);case _:
+return $default(_that.id,_that.role,_that.status,_that.createdAt,_that.text,_that.clientMessageId,_that.toolCallIds,_that.lastDeltaIndex,_that.errorCode,_that.errorMessage,_that.retryable,_that.origin);case _:
   return null;
 
 }
@@ -222,7 +224,7 @@ return $default(_that.id,_that.role,_that.status,_that.createdAt,_that.text,_tha
 
 
 class _ChatMessage extends ChatMessage {
-  const _ChatMessage({required this.id, required this.role, required this.status, required this.createdAt, this.text = '', this.clientMessageId, final  List<ToolCallId> toolCallIds = const <ToolCallId>[], this.lastDeltaIndex = -1, this.errorCode, this.errorMessage, this.retryable = false}): _toolCallIds = toolCallIds,super._();
+  const _ChatMessage({required this.id, required this.role, required this.status, required this.createdAt, this.text = '', this.clientMessageId, final  List<ToolCallId> toolCallIds = const <ToolCallId>[], this.lastDeltaIndex = -1, this.errorCode, this.errorMessage, this.retryable = false, this.origin = MessageOrigin.text}): _toolCallIds = toolCallIds,super._();
   
 
 @override final  MessageId id;
@@ -249,6 +251,8 @@ class _ChatMessage extends ChatMessage {
 @override final  String? errorMessage;
 /// Whether the user may retry this message (user role, failed/pending).
 @override@JsonKey() final  bool retryable;
+/// Typed or spoken (shown with a small microphone mark).
+@override@JsonKey() final  MessageOrigin origin;
 
 /// Create a copy of ChatMessage
 /// with the given fields replaced by the non-null parameter values.
@@ -260,16 +264,16 @@ _$ChatMessageCopyWith<_ChatMessage> get copyWith => __$ChatMessageCopyWithImpl<_
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ChatMessage&&(identical(other.id, id) || other.id == id)&&(identical(other.role, role) || other.role == role)&&(identical(other.status, status) || other.status == status)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.text, text) || other.text == text)&&(identical(other.clientMessageId, clientMessageId) || other.clientMessageId == clientMessageId)&&const DeepCollectionEquality().equals(other._toolCallIds, _toolCallIds)&&(identical(other.lastDeltaIndex, lastDeltaIndex) || other.lastDeltaIndex == lastDeltaIndex)&&(identical(other.errorCode, errorCode) || other.errorCode == errorCode)&&(identical(other.errorMessage, errorMessage) || other.errorMessage == errorMessage)&&(identical(other.retryable, retryable) || other.retryable == retryable));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ChatMessage&&(identical(other.id, id) || other.id == id)&&(identical(other.role, role) || other.role == role)&&(identical(other.status, status) || other.status == status)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.text, text) || other.text == text)&&(identical(other.clientMessageId, clientMessageId) || other.clientMessageId == clientMessageId)&&const DeepCollectionEquality().equals(other._toolCallIds, _toolCallIds)&&(identical(other.lastDeltaIndex, lastDeltaIndex) || other.lastDeltaIndex == lastDeltaIndex)&&(identical(other.errorCode, errorCode) || other.errorCode == errorCode)&&(identical(other.errorMessage, errorMessage) || other.errorMessage == errorMessage)&&(identical(other.retryable, retryable) || other.retryable == retryable)&&(identical(other.origin, origin) || other.origin == origin));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,id,role,status,createdAt,text,clientMessageId,const DeepCollectionEquality().hash(_toolCallIds),lastDeltaIndex,errorCode,errorMessage,retryable);
+int get hashCode => Object.hash(runtimeType,id,role,status,createdAt,text,clientMessageId,const DeepCollectionEquality().hash(_toolCallIds),lastDeltaIndex,errorCode,errorMessage,retryable,origin);
 
 @override
 String toString() {
-  return 'ChatMessage(id: $id, role: $role, status: $status, createdAt: $createdAt, text: $text, clientMessageId: $clientMessageId, toolCallIds: $toolCallIds, lastDeltaIndex: $lastDeltaIndex, errorCode: $errorCode, errorMessage: $errorMessage, retryable: $retryable)';
+  return 'ChatMessage(id: $id, role: $role, status: $status, createdAt: $createdAt, text: $text, clientMessageId: $clientMessageId, toolCallIds: $toolCallIds, lastDeltaIndex: $lastDeltaIndex, errorCode: $errorCode, errorMessage: $errorMessage, retryable: $retryable, origin: $origin)';
 }
 
 
@@ -280,7 +284,7 @@ abstract mixin class _$ChatMessageCopyWith<$Res> implements $ChatMessageCopyWith
   factory _$ChatMessageCopyWith(_ChatMessage value, $Res Function(_ChatMessage) _then) = __$ChatMessageCopyWithImpl;
 @override @useResult
 $Res call({
- MessageId id, MessageRole role, MessageStatus status, DateTime createdAt, String text, ClientMessageId? clientMessageId, List<ToolCallId> toolCallIds, int lastDeltaIndex, String? errorCode, String? errorMessage, bool retryable
+ MessageId id, MessageRole role, MessageStatus status, DateTime createdAt, String text, ClientMessageId? clientMessageId, List<ToolCallId> toolCallIds, int lastDeltaIndex, String? errorCode, String? errorMessage, bool retryable, MessageOrigin origin
 });
 
 
@@ -297,7 +301,7 @@ class __$ChatMessageCopyWithImpl<$Res>
 
 /// Create a copy of ChatMessage
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? role = null,Object? status = null,Object? createdAt = null,Object? text = null,Object? clientMessageId = freezed,Object? toolCallIds = null,Object? lastDeltaIndex = null,Object? errorCode = freezed,Object? errorMessage = freezed,Object? retryable = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? role = null,Object? status = null,Object? createdAt = null,Object? text = null,Object? clientMessageId = freezed,Object? toolCallIds = null,Object? lastDeltaIndex = null,Object? errorCode = freezed,Object? errorMessage = freezed,Object? retryable = null,Object? origin = null,}) {
   return _then(_ChatMessage(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as MessageId,role: null == role ? _self.role : role // ignore: cast_nullable_to_non_nullable
@@ -310,7 +314,8 @@ as List<ToolCallId>,lastDeltaIndex: null == lastDeltaIndex ? _self.lastDeltaInde
 as int,errorCode: freezed == errorCode ? _self.errorCode : errorCode // ignore: cast_nullable_to_non_nullable
 as String?,errorMessage: freezed == errorMessage ? _self.errorMessage : errorMessage // ignore: cast_nullable_to_non_nullable
 as String?,retryable: null == retryable ? _self.retryable : retryable // ignore: cast_nullable_to_non_nullable
-as bool,
+as bool,origin: null == origin ? _self.origin : origin // ignore: cast_nullable_to_non_nullable
+as MessageOrigin,
   ));
 }
 

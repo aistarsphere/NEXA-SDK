@@ -17,6 +17,13 @@ final class ChatOlderRequested extends ChatEvent {
   const ChatOlderRequested();
 }
 
+/// Messages persisted by the server (e.g. the turns of a call) to merge
+/// into the conversation.
+final class ChatHistoryMerged extends ChatEvent {
+  const ChatHistoryMerged(this.messages);
+  final List<ChatMessage> messages;
+}
+
 /// User submitted text.
 final class ChatMessageSent extends ChatEvent {
   const ChatMessageSent(this.text, {this.attachments = const []});

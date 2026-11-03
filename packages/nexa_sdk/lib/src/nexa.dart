@@ -131,6 +131,9 @@ abstract final class Nexa {
             );
       }
       client._voiceLifecycle = NexaVoiceLifecycle(voice)..attach();
+      client._voiceEnded = voice.events
+          .where((e) => e is NexaVoiceEnded)
+          .listen((_) => unawaited(client._reconcileAfterCall(voiceOptions)));
       client._voiceTools = voice.toolEvents.listen(
         (e) => client.toolCalls.ingestVoice(
           e.type,
@@ -198,6 +201,7 @@ final class NexaClient {
   String? get conversationId => _sessions.conversationId;
 
   NexaVoiceLifecycle? _voiceLifecycle;
+  StreamSubscription<NexaVoiceEvent>? _voiceEnded;
   StreamSubscription<NexaVoiceToolEvent>? _voiceTools;
   StreamSubscription<NexaToolCall>? _voiceActivation;
 
@@ -230,6 +234,33 @@ final class NexaClient {
     conversations.open(conversationId);
   }
 
+  /// After a call the gateway has recorded its turns in the conversation:
+  /// fetch the newest page (at each delay of the options, the last turn is
+  /// persisted around the `DELETE`) and hand it to the open chat.
+  Future<void> _reconcileAfterCall(NexaVoiceOptions options) async {
+    // Nothing to fetch without a server conversation: schedule nothing.
+    if (conversations.conversationId == null ||
+        _sessions.historyLoader == null) {
+      return;
+    }
+    for (final delay in options.postCallReconcileDelays) {
+      await Future<void>.delayed(delay);
+      if (_disposed) return; // the injector is gone after dispose
+      final cid = conversations.conversationId;
+      final load = _sessions.historyLoader;
+      if (cid == null || load == null) return;
+      try {
+        final page = await load(cid);
+        if (_disposed) return;
+        conversations.publishPersisted(page.messages);
+      } on Object {
+        // Retried at the next delay and on the next call; the chat is still
+        // correct (it only lacks the spoken turns until then).
+        _injector<NexaDiagnostics>().record('chat.reconcile_failed');
+      }
+    }
+  }
+
   Future<ChatHistoryPage> _earlierMessages(
     String conversationId, {
     int? beforeSeq,
@@ -251,6 +282,9 @@ final class NexaClient {
             status: m.fromUser ? MessageStatus.sent : MessageStatus.completed,
             createdAt: m.createdAt ?? clock.now().toUtc(),
             text: m.text,
+            origin: m.channel == 'voice'
+                ? MessageOrigin.voice
+                : MessageOrigin.text,
           ),
     ], nextBefore: page.nextBefore);
   }
@@ -500,6 +534,7 @@ final class NexaClient {
     final transport = _injector<ChatTransport>();
     sessions.emit(NexaDisposed(clock.now()));
     _voiceLifecycle?.detach();
+    unawaited(_voiceEnded?.cancel());
     unawaited(_voiceTools?.cancel());
     unawaited(_voiceActivation?.cancel());
     if (_injector.isRegistered<NexaVoiceController>()) {
@@ -507,6 +542,7 @@ final class NexaClient {
       await _injector<RealtimeVoiceTransport>().dispose();
     }
     await sessions.dispose();
+    conversations.dispose();
     await transport.dispose();
     await _injector.reset();
     _settings.dispose();

@@ -839,6 +839,32 @@ class _Suggestion extends StatelessWidget {
   }
 }
 
+/// "Spoken": the turn came from a live call (small microphone mark).
+class _SpokenMark extends StatelessWidget {
+  const _SpokenMark();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final color = theme.colorScheme.onSurfaceVariant;
+    return Padding(
+      key: const Key('nexa_message_spoken'),
+      padding: const EdgeInsetsDirectional.only(top: 2, start: 4, end: 4),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.mic_none_rounded, size: 12, color: color),
+          const SizedBox(width: 3),
+          Text(
+            NexaLocalizations.of(context).messageSpoken,
+            style: theme.textTheme.labelSmall?.copyWith(color: color),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _MessageRow extends StatelessWidget {
   const _MessageRow({
     required this.message,
@@ -875,6 +901,8 @@ class _MessageRow extends StatelessWidget {
             message: message,
             onRetry: canRetry ? () => onRetry(message.clientMessageId!) : null,
           ),
+        if (showBubble && message.origin == MessageOrigin.voice)
+          const _SpokenMark(),
         for (final t in tools) ...[
           const SizedBox(height: 8),
           if (t.result case final r?)
