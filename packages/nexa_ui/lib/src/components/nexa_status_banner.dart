@@ -59,31 +59,61 @@ class NexaStatusBanner extends StatelessWidget {
           color: bg,
           borderRadius: BorderRadius.circular(NexaShapes.large),
         ),
-        child: Row(
-          children: [
-            Icon(icon, color: iconColor, size: 20),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                message,
-                style: Theme.of(
-                  context,
-                ).textTheme.bodyMedium?.copyWith(color: fg),
-              ),
-            ),
-            if (actionLabel != null && onAction != null)
-              TextButton(
-                onPressed: onAction,
-                style: TextButton.styleFrom(
-                  foregroundColor: tone == NexaBannerTone.error
-                      ? scheme.error
-                      : scheme.primary,
-                ),
-                child: Text(actionLabel!),
-              ),
-          ],
+        child: _layout(
+          context,
+          icon: Icon(icon, color: iconColor, size: 20),
+          text: Text(
+            message,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: fg),
+          ),
+          action: actionLabel != null && onAction != null
+              ? TextButton(
+                  onPressed: onAction,
+                  style: TextButton.styleFrom(
+                    foregroundColor: tone == NexaBannerTone.error
+                        ? scheme.error
+                        : scheme.primary,
+                  ),
+                  child: Text(actionLabel!),
+                )
+              : null,
         ),
       ),
+    );
+  }
+
+  /// One line (icon, message, action) normally; at large text the action
+  /// moves under the message so nothing overflows.
+  Widget _layout(
+    BuildContext context, {
+    required Widget icon,
+    required Widget text,
+    Widget? action,
+  }) {
+    final large = MediaQuery.textScalerOf(context).scale(10) >= 13;
+    if (!large || action == null) {
+      return Row(
+        children: [
+          icon,
+          const SizedBox(width: 10),
+          Expanded(child: text),
+          ?action,
+        ],
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            icon,
+            const SizedBox(width: 10),
+            Expanded(child: text),
+          ],
+        ),
+        Align(alignment: AlignmentDirectional.centerEnd, child: action),
+      ],
     );
   }
 }

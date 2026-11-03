@@ -156,36 +156,46 @@ class _NexaVoiceCapsuleState extends State<NexaVoiceCapsule> {
       color: scheme.surface,
       child: Column(
         children: [
-          if (!widget.eventsVerified && _inCall)
-            NexaStatusBanner(
-              key: const Key('nexa_voice_unverified_banner'),
-              tone: NexaBannerTone.warning,
-              message: l10n.voiceUnverifiedEvents,
+          // Banners may be tall at large text: they scroll instead of
+          // pushing the controls off the screen.
+          Flexible(
+            child: SingleChildScrollView(
+              child: Column(
+                children: [
+                  if (!widget.eventsVerified && _inCall)
+                    NexaStatusBanner(
+                      key: const Key('nexa_voice_unverified_banner'),
+                      tone: NexaBannerTone.warning,
+                      message: l10n.voiceUnverifiedEvents,
+                    ),
+                  if (error != null)
+                    NexaStatusBanner(
+                      key: const Key('nexa_voice_error_banner'),
+                      tone: NexaBannerTone.error,
+                      message: NexaVoiceCapsule.voiceErrorText(l10n, error),
+                      actionLabel: state == VoiceState.microphoneDenied
+                          ? (widget.onOpenSettings == null
+                                ? null
+                                : l10n.voiceOpenSettings)
+                          : (widget.onRetry == null ? null : l10n.voiceRetry),
+                      onAction: state == VoiceState.microphoneDenied
+                          ? widget.onOpenSettings
+                          : widget.onRetry,
+                    )
+                  else if (state == VoiceState.weakNetwork ||
+                      state == VoiceState.reconnecting)
+                    // One notice for connection trouble, weak or lost.
+                    NexaStatusBanner(
+                      key: const Key('nexa_voice_connection_banner'),
+                      tone: NexaBannerTone.warning,
+                      message: state == VoiceState.weakNetwork
+                          ? l10n.voiceHintWeakNetwork
+                          : l10n.voiceHintReconnecting,
+                    ),
+                ],
+              ),
             ),
-          if (error != null)
-            NexaStatusBanner(
-              key: const Key('nexa_voice_error_banner'),
-              tone: NexaBannerTone.error,
-              message: NexaVoiceCapsule.voiceErrorText(l10n, error),
-              actionLabel: state == VoiceState.microphoneDenied
-                  ? (widget.onOpenSettings == null
-                        ? null
-                        : l10n.voiceOpenSettings)
-                  : (widget.onRetry == null ? null : l10n.voiceRetry),
-              onAction: state == VoiceState.microphoneDenied
-                  ? widget.onOpenSettings
-                  : widget.onRetry,
-            )
-          else if (state == VoiceState.weakNetwork ||
-              state == VoiceState.reconnecting)
-            // One notice for connection trouble, weak or lost.
-            NexaStatusBanner(
-              key: const Key('nexa_voice_connection_banner'),
-              tone: NexaBannerTone.warning,
-              message: state == VoiceState.weakNetwork
-                  ? l10n.voiceHintWeakNetwork
-                  : l10n.voiceHintReconnecting,
-            ),
+          ),
           Expanded(
             child: _captions
                 ? _Captions(entries: widget.transcript)
