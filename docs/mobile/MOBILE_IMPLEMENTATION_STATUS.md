@@ -2,6 +2,19 @@
 
 Updated 2026-11-03 (plan v1.0). The implementing session updates this file at the end of every task: state, commit hash, evidence path. States: `NOT STARTED`, `IN PROGRESS`, `BLOCKED_BACKEND (G-xx)`, `DONE`, `DONE (device pending)`.
 
+## Reconciliation 2026-11-04 (read first)
+
+The authoritative state is `AMEER_CURRENT_IMPLEMENTATION_STATUS.md`. Corrections to the rows below, nothing deleted:
+
+* **D-01, D-02, C-03** are `DONE` for unit tests but **cannot work in a real voice call**: the voice event validator
+  rejects every tool/UI event (`unknownType`), so these code paths never receive real traffic (defect **V-01**, Flutter,
+  P0; device evidence in `docs/qa/evidence/2026-11-04/tool_calling_trace.md`). The typed (chat) flow works end to end on
+  the Nubia.
+* **A-03** has device evidence (Nubia, 2026-11-04); the others marked "device pending" still have none.
+* New defects: V-01..V-05 (see the report §6); empty conversations left by failed call starts; notification badge shows the
+  Flutter logo on the Nubia; unexplained slow first call start.
+* Wake phrase «يا أمير» is **not implemented** (detector is for «يا لبيب» and failed real voices).
+
 Order is the execution order of `MOBILE_MASTER_IMPLEMENTATION_PLAN.md`. Do not start a task whose dependencies are not `DONE`.
 
 | # | Task | Req | Depends on | State | Commit | Evidence (tests / device) |

@@ -496,3 +496,15 @@ Chat: existing back-off; voice: existing GET→token→rejoin; additions: immedi
 ## 4. Error paths (per task, summarised)
 
 `ensureConversation` failure → chat still opens without id (today's behaviour) and shows "tools unavailable"; call start without id proceeds without tools (today). Reconcile fetch failure → diagnostics `chat.reconcile_failed`, silent retry on next resume. FGS start blocked → diagnostics, call continues foreground-only, A-04 ends it after 25 s background. Mute grace never exceeds 1.2 s. Porcupine init failure → fall back to DTW, status `detector_unavailable`.
+
+## Addendum 2026-11-04 — new first tasks (from the reconciliation)
+
+Inserted before everything still open; details and evidence in `AMEER_CURRENT_IMPLEMENTATION_STATUS.md` §6, §10.
+
+| Id | Task | Area | Definition of done |
+|---|---|---|---|
+| V-01 | Accept tool and UI events in the voice path | `nexa_core` `voice_events_v1.dart` | a sealed `ui_presented` / `tool_call_requested` envelope passes the validator and reaches `RealtimeToolEvent`; failing test first; a call on the Nubia shows the colour picker |
+| V-03 | Capture the real voice payload and the spoken-colour error | QA recorder, voice controller | one recorded call with the owner (T-M05-05); error text and ids documented; AWS informed |
+| V-06 | No empty conversations from failed call starts; explain the slow first start | `ConversationCoordinator`, `openLabeebCall` | a failed or rate-limited start leaves no "0 messages" conversation; timings logged |
+
+D-01/D-02/C-03 are re-verified after V-01.
