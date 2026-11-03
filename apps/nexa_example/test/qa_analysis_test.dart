@@ -33,4 +33,82 @@ void main() {
     expect(characterErrorRate('مرحبا', 'مرحبأ'), 0); // alef variants
     expect(characterErrorRate('abcd', 'abxd'), 0.25);
   });
+
+  group('barge-in evidence (E-04)', () {
+    QaAnalysis record(List<QaLine> body) => QaAnalysis.of([
+      l(0, 'qa.record_started', {'type': 'voice'}),
+      ...body,
+    ]);
+
+    test('a confirmed interruption carries the agent ids and timings', () {
+      final a = record([
+        l(100, 'voice.agent_event', {
+          'type': 'assistant_audio_started',
+          'turn_id': 't1',
+        }),
+        l(900, 'voice.phase', {'from': 'aiSpeaking', 'to': 'bargeIn'}),
+        l(1250, 'voice.agent_event', {
+          'type': 'interrupted',
+          'turn_id': 't1',
+          'cancel_id': 'c1',
+          'by_turn_id': 't2',
+          'audio_started': true,
+        }),
+      ]);
+      expect(a.bargeIns, hasLength(1));
+      final b = a.bargeIns.single;
+      expect(b['confirmed'], isTrue);
+      expect(b['cancel_id'], 'c1');
+      expect(b['by_turn_id'], 't2');
+      expect(b['audio_started'], isTrue);
+      expect(
+        b['into_reply_ms'],
+        800,
+        reason: 'user speech at 900, reply at 100',
+      );
+      expect(b['confirm_delay_ms'], 350);
+      expect(a.metrics['barge_ins_confirmed'], 1);
+      expect(a.metrics['barge_ins_unconfirmed'], 0);
+    });
+
+    test('an attempt the agent never confirmed is reported as such', () {
+      final a = record([
+        l(100, 'voice.agent_event', {
+          'type': 'assistant_audio_started',
+          'turn_id': 't1',
+        }),
+        l(900, 'voice.phase', {'from': 'aiSpeaking', 'to': 'bargeIn'}),
+        l(1250, 'voice.agent_event', {
+          'type': 'interrupted',
+          'cancel_id': 'c1',
+          'by_turn_id': 't2',
+          'audio_started': true,
+        }),
+        l(5000, 'voice.phase', {'from': 'aiSpeaking', 'to': 'bargeIn'}),
+        l(6000, 'voice.phase', {'from': 'bargeIn', 'to': 'listening'}),
+      ]);
+      expect(a.bargeIns, hasLength(2));
+      expect(a.bargeIns.last['confirmed'], isFalse);
+      expect(a.bargeIns.last['cancel_id'], isNull);
+      expect(a.metrics['barge_ins_unconfirmed'], 1);
+      expect(
+        a.hypotheses.any((h) => h.contains('without an `interrupted`')),
+        isTrue,
+        reason: 'looks like speech the agent decided was not an interruption',
+      );
+    });
+
+    test('says plainly what the record cannot show', () {
+      final a = record([
+        l(900, 'voice.phase', {'from': 'aiSpeaking', 'to': 'bargeIn'}),
+      ]);
+      expect(a.missing.any((m) => m.contains('microphone level')), isTrue);
+    });
+
+    test('a call without interruptions reports none', () {
+      final a = record([l(10, 'voice.start')]);
+      expect(a.bargeIns, isEmpty);
+      expect(a.metrics['barge_ins_confirmed'], 0);
+    });
+  });
 }

@@ -171,6 +171,8 @@ final class VoiceEventPipeline {
     'weak',
     'quota_kind',
     'cancel_id',
+    'by_turn_id',
+    'audio_started',
     'language',
   };
 

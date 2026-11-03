@@ -43,6 +43,10 @@ final class QaAnalysis {
   final List<String> missing = [];
   final List<String> hypotheses = [];
   final List<Map<String, Object?>> turns = [];
+
+  /// One entry per barge-in attempt (and per agent-side interruption the
+  /// client did not see as an attempt), see [_bargeIns].
+  final List<Map<String, Object?>> bargeIns = [];
   final List<Map<String, Object?>> http = [];
 
   /// Final user/assistant texts, only when the record captured content.
@@ -346,6 +350,7 @@ final class QaAnalysis {
     final interrupted = _agent('interrupted').length;
     metrics['barge_in_attempts'] = bargeAttempts;
     metrics['interruptions_confirmed'] = interrupted;
+    _bargeIns();
     if (bargeAttempts > interrupted) {
       warnings.add(
         '$bargeAttempts barge-in attempt(s), $interrupted '
@@ -409,6 +414,82 @@ final class QaAnalysis {
     }
     if (_first('voice.permission', (l) => l['granted'] == false) != null) {
       errors.add('microphone permission denied');
+    }
+  }
+
+  /// Barge-in evidence for the backend (plan E-04): each attempt (the
+  /// client entered `bargeIn`) is matched with the agent's `interrupted`
+  /// that followed before the next attempt. Facts only: ids, whether the
+  /// reply audio had started, how far into the reply the user spoke, and how
+  /// long the agent took to confirm. Nothing is gated or hidden.
+  void _bargeIns() {
+    final audioStarts = _agent('assistant_audio_started').toList();
+    final attempts = _named('voice.phase')
+        .where(
+          (l) =>
+              l['to'] == 'bargeIn' ||
+              (l['from'] == 'aiSpeaking' && l['to'] == 'userSpeaking'),
+        )
+        .toList();
+    final interrupts = _agent('interrupted').toList();
+    final used = <QaLine>{};
+
+    int? sinceAudio(int at) {
+      QaLine? last;
+      for (final a in audioStarts) {
+        if (a.tMs <= at) last = a;
+      }
+      return last == null ? null : at - last.tMs;
+    }
+
+    for (final (i, a) in attempts.indexed) {
+      final until = i + 1 < attempts.length ? attempts[i + 1].tMs : null;
+      final hit = interrupts
+          .where(
+            (e) =>
+                !used.contains(e) &&
+                e.tMs >= a.tMs &&
+                (until == null || e.tMs < until),
+          )
+          .firstOrNull;
+      if (hit != null) used.add(hit);
+      bargeIns.add({
+        'at_ms': a.tMs,
+        'confirmed': hit != null,
+        'cancel_id': hit?['cancel_id'],
+        'by_turn_id': hit?['by_turn_id'],
+        'audio_started': hit?['audio_started'],
+        'into_reply_ms': sinceAudio(a.tMs),
+        'confirm_delay_ms': hit == null ? null : hit.tMs - a.tMs,
+      });
+    }
+    // The agent interrupted without the client having seen an attempt.
+    for (final e in interrupts.where((e) => !used.contains(e))) {
+      bargeIns.add({
+        'at_ms': e.tMs,
+        'confirmed': true,
+        'cancel_id': e['cancel_id'],
+        'by_turn_id': e['by_turn_id'],
+        'audio_started': e['audio_started'],
+        'into_reply_ms': sinceAudio(e.tMs),
+        'confirm_delay_ms': null,
+      });
+    }
+    final confirmed = bargeIns.where((b) => b['confirmed'] == true).length;
+    metrics['barge_ins_confirmed'] = confirmed;
+    metrics['barge_ins_unconfirmed'] = bargeIns.length - confirmed;
+    if (bargeIns.length > confirmed) {
+      hypotheses.add(
+        '${bargeIns.length - confirmed} speech start(s) during the reply '
+        'ended without an `interrupted` event: the agent judged them not to '
+        'be an interruption (or the event was lost; check the event gaps)',
+      );
+    }
+    if (bargeIns.isNotEmpty) {
+      missing.add(
+        'local microphone level at each interruption (the record does not '
+        'sample it); needed to tell room noise from the user',
+      );
     }
   }
 

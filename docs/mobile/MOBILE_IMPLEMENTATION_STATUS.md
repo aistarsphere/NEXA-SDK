@@ -27,7 +27,7 @@ Order is the execution order of `MOBILE_MASTER_IMPLEMENTATION_PLAN.md`. Do not s
 | 18 | E-01 Mute finalisation | M-07 | C-01, #17 | NOT STARTED (gated by #17) | | T-M07-00..06 |
 | 19 | E-02 Mute debounce + track honesty | M-07.6 | E-01 | NOT STARTED (depends on E-01) | | T-M07-03 |
 | 20 | E-03 Bluetooth / route / focus | M-12.1, M-12.3 | A-03 | NOT STARTED | | T-M12-03, T-M12-04 |
-| 21 | E-04 Barge-in evidence + G-03 request | M-08 | C-04 | NOT STARTED | | T-M08-02, T-M08-03 |
+| 21 | E-04 Barge-in evidence + G-03 request | M-08 | C-04 | DONE (evidence pending) | @@HASH@@ | app `qa_analysis_test` (+4: confirmed interruption with `cancel_id`/`by_turn_id`/`audio_started`, ms into the reply and confirm delay; an unconfirmed attempt reported as such with a hypothesis; what the record cannot show; none when none); CLI report section; `docs/qa/barge-in-evidence.md` (collection steps, six scenarios, results table, request to AWS). No evidence collected: T-M08-02/03 need a person and a device. The record does not sample the local microphone level (listed under "missing" in every report that has an attempt); `audio_started` and `by_turn_id` were added to the recorded agent-event fields (core). This request is the backend gap G-03 and has NOT been sent to AWS |
 | 22 | F-02 Wake engine interface + Porcupine spike | M-10 | F-01 | NOT STARTED | | T-M10-01..03 |
 | 23 | F-03 Speech-embedding classifier spike | M-10 | F-02 | NOT STARTED | | T-M10-02 |
 | 24 | F-04 Speaker verification calibration + consent | M-11 | F-02 | NOT STARTED | | T-M11-01, T-M11-02 |

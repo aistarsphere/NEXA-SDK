@@ -446,6 +446,7 @@ void _report(List<String> rest) {
         'device': device,
         'metrics': a.metrics,
         'turns': a.turns,
+        'barge_ins': a.bargeIns,
         'http': a.http,
         'warnings': a.warnings,
         'errors': a.errors,
@@ -566,6 +567,22 @@ void _report(List<String> rest) {
       'delete_status',
     ]) {
       out.writeln('  $k: ${a.metrics[k] ?? '-'}');
+    }
+    if (a.bargeIns.isNotEmpty) {
+      h('Barge-in evidence (for the backend request)');
+      out.writeln(
+        '  confirmed ${a.metrics['barge_ins_confirmed']}, '
+        'unconfirmed ${a.metrics['barge_ins_unconfirmed']}',
+      );
+      for (final b in a.bargeIns) {
+        out.writeln(
+          '  at ${b['at_ms']} ms · ${b['confirmed'] == true ? 'interrupted' : 'NOT confirmed'}'
+          ' · cancel_id ${b['cancel_id'] ?? '-'} · by_turn_id ${b['by_turn_id'] ?? '-'}'
+          ' · audio_started ${b['audio_started'] ?? '-'}'
+          ' · ${b['into_reply_ms'] ?? '-'} ms into the reply'
+          ' · confirmed after ${b['confirm_delay_ms'] ?? '-'} ms',
+        );
+      }
     }
   } else {
     h('Stream');
