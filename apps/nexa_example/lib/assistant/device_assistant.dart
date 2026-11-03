@@ -17,6 +17,16 @@ import 'package:nexa_sdk/nexa_sdk.dart';
 /// * The wake listener releases the microphone while a voice call runs.
 /// * Nothing here talks to the backend: the voice session starts only
 ///   through the SDK, after a local activation.
+/// Whether an activation should create the server conversation now (plan
+/// F-05): only when there is none, none is being set up by a running call,
+/// and this client can create one. An open conversation is joined.
+@visibleForTesting
+bool ensureConversationOnActivation({
+  required bool hasConversation,
+  required bool canCreate,
+  required bool callActive,
+}) => canCreate && !hasConversation && !callActive;
+
 class DeviceAssistant extends ChangeNotifier {
   DeviceAssistant({required this.client, NexaAssistant? plugin})
     : plugin = plugin ?? NexaAssistant();
@@ -167,7 +177,27 @@ class DeviceAssistant extends ChangeNotifier {
     _requestVoice();
   }
 
+  /// Starts creating the conversation (stable `client_ref`) while the panel
+  /// or the app comes up, so the call finds it. A failure is not fatal: the
+  /// call then runs without tools or saved turns.
+  void _ensureConversation() {
+    final c = client.conversations;
+    if (!ensureConversationOnActivation(
+      hasConversation: c.conversationId != null,
+      canCreate: c.canCreate,
+      callActive: client.voice.state.value.isActive,
+    )) {
+      return;
+    }
+    unawaited(
+      c
+          .ensureConversation(reason: 'assistant')
+          .then<void>((_) {}, onError: (Object _) {}),
+    );
+  }
+
   void _requestVoice() {
+    _ensureConversation();
     if (_voice.hasListener) {
       _voice.add(null);
     } else {
