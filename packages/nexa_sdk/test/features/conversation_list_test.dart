@@ -7,6 +7,42 @@ import 'package:nexa_sdk/nexa_sdk.dart';
 
 import 'history_identity_test.dart' show FakeConversationsApi;
 
+final class _MixedApi implements NexaConversationsApi {
+  @override
+  bool get canList => true;
+  @override
+  Future<NexaHistoryPage> list({String? cursor, int limit = 20}) async =>
+      NexaHistoryPage([
+        for (final (i, n) in [0, 3, 0, 1].indexed)
+          NexaHistoryEntry(
+            id: 'srv_$i',
+            kind: NexaHistoryKind.chat,
+            sessionId: 'conv_$i',
+            startedAt: DateTime.utc(2026, 1, 1, i),
+            updatedAt: DateTime.utc(2026, 1, 1, i),
+            title: n == 0 ? null : 'Talk $i',
+            messageCount: n,
+          ),
+      ]);
+  @override
+  dynamic noSuchMethod(Invocation invocation) => false;
+}
+
+final class _OnlyEmptyApi extends _MixedApi {
+  @override
+  Future<NexaHistoryPage> list({String? cursor, int limit = 20}) async =>
+      NexaHistoryPage([
+        NexaHistoryEntry(
+          id: 'srv_9',
+          kind: NexaHistoryKind.chat,
+          sessionId: 'conv_9',
+          startedAt: DateTime.utc(2026),
+          updatedAt: DateTime.utc(2026),
+          messageCount: 0,
+        ),
+      ]);
+}
+
 final class _FailingApi implements NexaConversationsApi {
   int calls = 0;
   @override
@@ -72,6 +108,25 @@ void main() {
 
     await tester.tap(find.byKey(const Key('nexa_list_srv_3')));
     expect(log, ['open:ses_3']);
+  });
+
+  testWidgets('conversations without messages are not listed (failed call '
+      'starts leave them behind)', (tester) async {
+    await tester.pumpWidget(app(_MixedApi()));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('nexa_list_srv_1')), findsOneWidget);
+    expect(find.byKey(const Key('nexa_list_srv_3')), findsOneWidget);
+    expect(find.byKey(const Key('nexa_list_srv_0')), findsNothing);
+    expect(find.byKey(const Key('nexa_list_srv_2')), findsNothing);
+  });
+
+  testWidgets('only empty conversations: the empty state, not blank rows', (
+    tester,
+  ) async {
+    await tester.pumpWidget(app(_OnlyEmptyApi()));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('nexa_list_empty')), findsOneWidget);
+    expect(find.byKey(const Key('nexa_list_srv_9')), findsNothing);
   });
 
   testWidgets('empty: two entry points', (tester) async {

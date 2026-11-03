@@ -70,11 +70,16 @@ Future<void> openLabeebCall(
     String? id = client.conversationId;
     if (id == null && client.hasServerConversations) {
       try {
-        id = await client.conversations.ensureConversation(
-          reason: fromHome ? 'call_from_root' : 'call',
-        );
+        // Never make the button wait on the network: after a short grace the
+        // call opens anyway and the voice start creates the conversation
+        // itself through the same coordinator (one shared in-flight create).
+        id = await client.conversations
+            .ensureConversation(reason: fromHome ? 'call_from_root' : 'call')
+            .timeout(const Duration(milliseconds: 1500));
       } on NexaException {
         id = null; // the call still works, without tools or saved turns
+      } on TimeoutException {
+        id = null;
       }
     }
     if (_inCall(router)) return;

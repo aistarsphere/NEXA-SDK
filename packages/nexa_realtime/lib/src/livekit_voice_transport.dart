@@ -238,7 +238,10 @@ final class LiveKitVoiceTransport implements RealtimeVoiceTransport {
       }
       return true;
     } on Object catch (e) {
-      _logger.log(NexaLogLevel.debug, 'resume RPC failed: $e');
+      // RpcError's toString hides the code; the code says why (1500 = the
+      // agent has no such method, 1501 = it did not answer in time).
+      final why = e is lk.RpcError ? 'RpcError ${e.code} ${e.message}' : '$e';
+      _logger.log(NexaLogLevel.debug, 'resume RPC failed: $why');
       return false;
     }
   }

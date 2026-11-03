@@ -94,7 +94,12 @@ class _NexaConversationListPageState extends State<NexaConversationListPage> {
       body: ListenableBuilder(
         listenable: h,
         builder: (context, _) {
-          final entries = h.entries;
+          // A conversation with no messages and no title is what a failed call
+          // start leaves behind; it is not worth a row.
+          final entries = [
+            for (final e in h.entries)
+              if (e.count > 0 || (e.title?.trim().isNotEmpty ?? false)) e,
+          ];
           if (entries.isEmpty && h.error != null) {
             return _Message(
               key: const Key('nexa_list_error'),

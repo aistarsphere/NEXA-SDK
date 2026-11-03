@@ -78,3 +78,9 @@ Live «غيّرلي شكل التطبيق» (T-M05-05) · six noise scenarios (T
 | 2026-11-03 | go_router `GoRouter.routerDelegate.currentConfiguration.uri` ignores imperatively pushed routes; use `router.state.uri` to know the top route | go_router 18.1 `match.dart:532` | NOTE (applied in `labeeb_router.dart`) |
 | 2026-11-03 | The flaky gateway test fails about 1 in 3 even when its own file runs alone (2 of 3 full-suite runs during B-01); it was the 410 restart racing the transient `ended` phase | `reference_gateway_integration_test.dart:351` | FIXED 2026-11-04 (commit `6c76d99`, see the row above) |
 | 2026-11-04 | `tool/check.sh` skipped the `nexa_device` and `nexa_assistant` tests, so 28 tests never ran in the gate | `tool/check.sh` | FIXED with G-05 |
+
+### V-06 (2026-11-04) — empty conversations, call button, resume log
+- List hides conversations with 0 messages and no title (failed call starts); 2 new widget tests.
+- `openLabeebCall` waits at most 1.5 s for `ensureConversation`, then opens the call anyway (voice start creates it via the same coordinator).
+- `resume RPC failed` now logs `RpcError <code> <message>`.
+- Device (Nubia): list shows 4 non-empty rows, call screen opens at once. Evidence: `docs/qa/evidence/2026-11-04/v06_*.png`. The resume RPC failure did not occur in this run, so its cause is still open.
