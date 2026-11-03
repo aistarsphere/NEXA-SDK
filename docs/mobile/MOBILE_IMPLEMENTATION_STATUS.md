@@ -6,7 +6,7 @@ Order is the execution order of `MOBILE_MASTER_IMPLEMENTATION_PLAN.md`. Do not s
 
 | # | Task | Req | Depends on | State | Commit | Evidence (tests / device) |
 |---|---|---|---|---|---|---|
-| 0 | F-01 Commit wake-word benchmark (uncommitted files) | M-10 | — | NOT STARTED | | Q1 green |
+| 0 | F-01 Commit wake-word benchmark (uncommitted files) | M-10 | — | DONE | 9156df7 | Q1 clean; nexa_assistant 6 + app 28 Dart tests; Kotlin testDebugUnitTest green (2026-11-03) |
 | 1 | A-01 ConversationCoordinator | M-01, M-02, M-04 | F-01 | NOT STARTED | | T-M01-01, T-M01-02 |
 | 2 | A-02 Route graph owned by the app | M-02 | A-01 | NOT STARTED | | T-M02-01..03 |
 | 3 | A-03 In-call foreground service | M-12.2, M-03.5 | A-02 | NOT STARTED | | T-M12-02, T-M02-05, T-M03-06 |
