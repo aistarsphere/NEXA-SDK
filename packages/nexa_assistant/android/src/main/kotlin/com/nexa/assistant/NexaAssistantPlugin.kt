@@ -264,6 +264,18 @@ class NexaAssistantPlugin :
                 result.success(null)
             }
             "testListen" -> testListen(call.argument<Int>("timeoutMs") ?: 6000, result)
+            "benchRecord" -> benchRecord(
+                call.argument<String>("label") ?: "clip",
+                call.argument<Int>("seconds") ?: 3,
+                result,
+            )
+            "benchClear" -> {
+                val dir = benchDir()
+                val n = dir.listFiles()?.count { it.delete() } ?: 0
+                result.success(n)
+            }
+            "benchCount" -> result.success(benchDir().listFiles()?.size ?: 0)
+            "benchModelSpeed" -> benchModelSpeed(result)
             "requestUnlock" -> requestUnlock(result)
             "endLockScreenSession" -> {
                 showOverLockScreen(false)
@@ -561,6 +573,153 @@ class NexaAssistantPlugin :
                 decisionMap(d, "test") + mapOf("ok" to true, "ownerRequired" to prefs.requireOwner)
             }
         }
+    }
+
+    // ------------------------------------- wake-word benchmark (dev only)
+
+    /**
+     * Labelled benchmark clips, recorded only after the user's consent in
+     * the developer screen: 16 kHz mono WAV in the app's own external files
+     * folder (readable over USB for offline evaluation, removed with the
+     * app or "Delete all"). Never uploaded.
+     */
+    private fun benchDir() =
+        java.io.File(context.getExternalFilesDir(null), "wake_bench").apply { mkdirs() }
+
+    @SuppressLint("MissingPermission")
+    private fun benchRecord(label: String, seconds: Int, result: MethodChannel.Result) {
+        if (!micGranted()) return result.success(mapOf("ok" to false, "reason" to "permission_denied"))
+        if (busyRecording) return result.success(mapOf("ok" to false, "reason" to "busy"))
+        busyRecording = true
+        WakeListenerService.pause(context, "test")
+        thread(name = "nexa-bench") {
+            val total = FilterBank.SAMPLE_RATE * seconds.coerceIn(1, 15)
+            val pcm = ShortArray(total)
+            var filled = 0
+            var reason: String? = null
+            var rec: AudioRecord? = null
+            try {
+                val min = AudioRecord.getMinBufferSize(
+                    FilterBank.SAMPLE_RATE, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT,
+                )
+                rec = AudioRecord(
+                    MediaRecorder.AudioSource.VOICE_RECOGNITION, FilterBank.SAMPLE_RATE,
+                    AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT,
+                    maxOf(min, FilterBank.SAMPLE_RATE),
+                )
+                rec.startRecording()
+                emit(mapOf("type" to "recording", "active" to true))
+                while (filled < total) {
+                    val n = rec.read(pcm, filled, minOf(1600, total - filled))
+                    if (n <= 0) { reason = "microphone_unavailable"; break }
+                    filled += n
+                }
+            } catch (e: Exception) {
+                reason = "microphone_unavailable"
+            } finally {
+                rec?.let { r -> runCatching { r.stop() }; r.release() }
+                emit(mapOf("type" to "recording", "active" to false))
+            }
+            val out = if (reason != null) {
+                mapOf("ok" to false, "reason" to reason)
+            } else {
+                val safe = label.replace(Regex("[^A-Za-z0-9_-]"), "_")
+                val f = java.io.File(benchDir(), "${safe}_${System.currentTimeMillis()}.wav")
+                writeWav(f, pcm, filled)
+                mapOf("ok" to true, "file" to f.name, "count" to (benchDir().listFiles()?.size ?: 0))
+            }
+            busyRecording = false
+            main.post {
+                WakeListenerService.resume(context)
+                result.success(out)
+            }
+        }
+    }
+
+    /**
+     * Times the speech-embedding wake detector (openWakeWord mel + Google
+     * speech_embedding, pushed by the developer to files/models/) in the
+     * streaming setting: each 80 ms step computes the mel of the last
+     * 1.36 s and one 96-d embedding. 60 s of synthetic audio, no
+     * microphone, no network.
+     */
+    private fun benchModelSpeed(result: MethodChannel.Result) {
+        val dir = java.io.File(context.getExternalFilesDir(null), "models")
+        val melF = java.io.File(dir, "melspectrogram.onnx")
+        val embF = java.io.File(dir, "embedding_model.onnx")
+        if (!melF.exists() || !embF.exists()) {
+            return result.success(mapOf("ok" to false, "reason" to "models_missing"))
+        }
+        thread(name = "nexa-bench-speed") {
+            val out = try {
+                val env = ai.onnxruntime.OrtEnvironment.getEnvironment()
+                val opts = ai.onnxruntime.OrtSession.SessionOptions().apply { setIntraOpNumThreads(1) }
+                val heap0 = android.os.Debug.getNativeHeapAllocatedSize()
+                val loadStart = System.nanoTime()
+                val mel = env.createSession(melF.readBytes(), opts)
+                val emb = env.createSession(embF.readBytes(), opts)
+                val loadMs = (System.nanoTime() - loadStart) / 1e6
+                val heapModels = android.os.Debug.getNativeHeapAllocatedSize() - heap0
+                val rnd = java.util.Random(1)
+                val window = 21760 // 1.36 s: enough mel frames for one 76-frame window
+                val steps = 750    // 60 s of 80 ms steps
+                val audio = FloatArray(window) { (rnd.nextGaussian() * 800).toFloat() }
+                val stepMs = DoubleArray(steps)
+                val cpu0 = android.os.Process.getElapsedCpuTime()
+                val wall0 = System.nanoTime()
+                for (s in 0 until steps) {
+                    val t0 = System.nanoTime()
+                    ai.onnxruntime.OnnxTensor.createTensor(
+                        env, java.nio.FloatBuffer.wrap(audio), longArrayOf(1, window.toLong()),
+                    ).use { a ->
+                        mel.run(mapOf(mel.inputNames.first() to a)).use { r ->
+                            @Suppress("UNCHECKED_CAST")
+                            val m = r[0].value as Array<Array<Array<FloatArray>>>
+                            val frames = m.size
+                            val last = FloatArray(76 * 32)
+                            for (i in 0 until 76) {
+                                val src = m[frames - 76 + i][0][0]
+                                for (k in 0 until 32) last[i * 32 + k] = src[k] / 10f + 2f
+                            }
+                            ai.onnxruntime.OnnxTensor.createTensor(
+                                env, java.nio.FloatBuffer.wrap(last), longArrayOf(1, 76, 32, 1),
+                            ).use { e -> emb.run(mapOf(emb.inputNames.first() to e)).close() }
+                        }
+                    }
+                    stepMs[s] = (System.nanoTime() - t0) / 1e6
+                }
+                val wallMs = (System.nanoTime() - wall0) / 1e6
+                val cpuMs = android.os.Process.getElapsedCpuTime() - cpu0
+                mel.close(); emb.close()
+                val sorted = stepMs.sorted()
+                mapOf(
+                    "ok" to true,
+                    "load_ms" to loadMs,
+                    "model_heap_kb" to heapModels / 1024,
+                    "step_ms_median" to sorted[steps / 2],
+                    "step_ms_p95" to sorted[(steps * 0.95).toInt()],
+                    "steps" to steps,
+                    "realtime_cpu_percent_of_one_core" to (sorted.sum() / (steps * 80.0)) * 100,
+                    "wall_ms" to wallMs,
+                    "process_cpu_ms" to cpuMs,
+                )
+            } catch (e: Throwable) {
+                mapOf("ok" to false, "reason" to e.javaClass.simpleName)
+            }
+            android.util.Log.i("NexaWakeBench", "speed $out")
+            main.post { result.success(out) }
+        }
+    }
+
+    private fun writeWav(f: java.io.File, pcm: ShortArray, n: Int) {
+        val data = n * 2
+        val b = java.nio.ByteBuffer.allocate(44 + data).order(java.nio.ByteOrder.LITTLE_ENDIAN)
+        b.put("RIFF".toByteArray()).putInt(36 + data).put("WAVE".toByteArray())
+        b.put("fmt ".toByteArray()).putInt(16).putShort(1).putShort(1)
+            .putInt(FilterBank.SAMPLE_RATE).putInt(FilterBank.SAMPLE_RATE * 2).putShort(2).putShort(16)
+        b.put("data".toByteArray()).putInt(data)
+        for (i in 0 until n) b.putShort(pcm[i])
+        f.writeBytes(b.array())
     }
 
     private fun decisionMap(d: WakeDecision, type: String) = mapOf(

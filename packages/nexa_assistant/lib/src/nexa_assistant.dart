@@ -168,6 +168,20 @@ class NexaAssistant {
   /// Turns listening off and deletes the profile and its key.
   Future<void> deleteVoiceProfile() => _call<void>('deleteVoiceProfile');
 
+  /// Developer benchmark: records [seconds] of audio as a labelled WAV in
+  /// the app's own files folder (only after the user consented in a dev
+  /// screen). Never uploaded.
+  Future<Map<Object?, Object?>> benchRecord(String label, int seconds) =>
+      _map('benchRecord', {'label': label, 'seconds': seconds});
+
+  /// Developer benchmark: on-device speed of the speech-embedding wake
+  /// detector (models pushed to files/models/ by the developer).
+  Future<Map<Object?, Object?>> benchModelSpeed() => _map('benchModelSpeed');
+
+  Future<int> benchClear() async => await _call<int>('benchClear') ?? 0;
+
+  Future<int> benchCount() async => await _call<int>('benchCount') ?? 0;
+
   /// Listens once and reports what the detector decided (no activation).
   Future<NexaWakeDecision> testListen({
     Duration timeout = const Duration(seconds: 6),

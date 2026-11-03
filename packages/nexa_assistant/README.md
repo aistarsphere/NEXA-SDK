@@ -141,3 +141,10 @@ Synthetic voices are far more consistent than people. Measure false accepts
 and false rejects with real speakers on real devices before relying on the
 defaults; the steps are in
 `docs/assistant/ANDROID-ASSISTANT-REPORT.md`.
+
+## Developer benchmark (dev builds only)
+
+Settings → "Wake-word benchmark (dev)" records labelled clips into the app's
+`files/wake_bench` folder (after consent; never uploaded) and times the
+speech-embedding model on the device. It is compiled into the settings page
+only when `NEXA_DEV_TOOLS` is on.

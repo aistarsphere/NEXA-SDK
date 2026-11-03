@@ -7,6 +7,7 @@ import 'package:nexa_example/dev/dev_client_tools_section.dart';
 import 'package:nexa_example/dev/dev_token_section.dart';
 import 'package:nexa_example/dev/qa/dev_qa_section.dart';
 import 'package:nexa_example/dev/qa/qa_recorder.dart';
+import 'package:nexa_example/dev/wake_benchmark_page.dart';
 import 'package:nexa_example/dev_token_auth_provider.dart';
 import 'package:nexa_example/example_config.dart';
 import 'package:nexa_sdk/nexa_sdk.dart';
@@ -234,6 +235,25 @@ class AssistantSettingsPage extends StatelessWidget {
         _InfoCard(
           icon: Icons.fact_check_outlined,
           child: DevQaSection(qa: qa),
+        ),
+      ],
+      if (device case final DeviceAssistant d when d.supported) ...[
+        const SizedBox(height: 8),
+        Card(
+          child: ListTile(
+            key: const Key('settings_wake_benchmark'),
+            leading: const Icon(Icons.graphic_eq_rounded),
+            title: const Text('Wake-word benchmark (dev)'),
+            subtitle: const Text(
+              'Record labelled clips for offline comparison',
+            ),
+            trailing: const Icon(Icons.chevron_right_rounded),
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => WakeBenchmarkPage(plugin: d.plugin),
+              ),
+            ),
+          ),
         ),
       ],
       const SizedBox(height: 8),
