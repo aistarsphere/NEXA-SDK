@@ -386,8 +386,39 @@ class _ChatBodyState extends State<_ChatBody> {
     );
   }
 
+  /// Older messages were added in front (not a new message).
+  bool _prepended(ChatState prev, ChatState now) {
+    final a = prev.conversation.messages;
+    final b = now.conversation.messages;
+    return a.isNotEmpty &&
+        b.length > a.length &&
+        b.first.id != a.first.id &&
+        b.last.id == a.last.id;
+  }
+
+  /// A prepend grows the list above the viewport: move by the added height
+  /// so the message being read stays where it is.
+  void _keepPositionAfterPrepend() {
+    if (!_scroll.hasClients) return;
+    final oldMax = _scroll.position.maxScrollExtent;
+    final oldPixels = _scroll.position.pixels;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_scroll.hasClients) return;
+      _scroll.jumpTo(oldPixels + (_scroll.position.maxScrollExtent - oldMax));
+    });
+  }
+
+  ChatBloc? _bloc;
+
   void _onScroll() {
     if (!_scroll.hasClients) return;
+    final bloc = _bloc;
+    if (bloc != null &&
+        bloc.state.olderBefore != null &&
+        !bloc.state.loadingOlder &&
+        _scroll.position.pixels <= _scroll.position.minScrollExtent + 200) {
+      bloc.add(const ChatOlderRequested());
+    }
     final distance = _scroll.position.maxScrollExtent - _scroll.position.pixels;
     final atBottom = distance <= _nearBottomThreshold;
     if (atBottom != _atBottom || (atBottom && _unseen)) {
@@ -479,7 +510,9 @@ class _ChatBodyState extends State<_ChatBody> {
       listener: (context, state) {
         final prev = _lastState ?? state;
         _lastState = state;
-        if (prev.conversation.messages != state.conversation.messages) {
+        if (_prepended(prev, state)) {
+          _keepPositionAfterPrepend();
+        } else if (prev.conversation.messages != state.conversation.messages) {
           final last = state.conversation.messages.lastOrNull;
           final ownNew =
               last != null &&
@@ -503,7 +536,7 @@ class _ChatBodyState extends State<_ChatBody> {
         }
       },
       builder: (context, state) {
-        final bloc = context.read<ChatBloc>();
+        final bloc = _bloc = context.read<ChatBloc>();
         final conv = state.conversation;
         final timeline = _timeline(conv.messages);
         final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
@@ -554,6 +587,14 @@ class _ChatBodyState extends State<_ChatBody> {
                             ),
                             _ => const SizedBox.shrink(),
                           },
+                        ),
+                      if (state.loadingOlder)
+                        const Align(
+                          alignment: AlignmentDirectional.topCenter,
+                          child: LinearProgressIndicator(
+                            key: Key('nexa_older_loading'),
+                            minHeight: 2,
+                          ),
                         ),
                       Padding(
                         padding: const EdgeInsets.only(bottom: 8),

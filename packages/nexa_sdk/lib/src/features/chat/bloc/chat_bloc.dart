@@ -45,6 +45,7 @@ final class ChatBloc extends Bloc<ChatEvent, ChatState> {
     // round-trip is the exception because it awaits a host dialog.
     on<ChatStarted>(_onStarted, transformer: _sequential());
     on<ChatMessageSent>(_onSent, transformer: _sequential());
+    on<ChatOlderRequested>(_onOlder, transformer: _sequential());
     on<ChatMessageRetried>(_onRetried, transformer: _sequential());
     on<ChatGenerationCancelled>(_onCancelled, transformer: _sequential());
     on<ChatToolActionSubmitted>(_onToolAction, transformer: _sequential());
@@ -194,23 +195,63 @@ final class ChatBloc extends Bloc<ChatEvent, ChatState> {
     if (!_sessions.resumePending || cid == null || load == null) return;
     _sessions.resumePending = false;
     try {
-      final earlier = await load(cid);
-      final known = {for (final m in state.conversation.messages) m.id};
+      final page = await load(cid);
       emit(
         state.copyWith(
-          conversation: state.conversation.copyWith(
-            messages: [
-              for (final m in earlier)
-                if (!known.contains(m.id)) m,
-              ...state.conversation.messages,
-            ],
-          ),
+          conversation: _withOlder(state.conversation, page.messages),
+          olderBefore: page.nextBefore,
+          clearOlderBefore: page.nextBefore == null,
         ),
       );
     } on Object catch (e) {
       _diagnostics.record('chat.history_load_failed', {
         'error': e.runtimeType.toString(),
       });
+    }
+  }
+
+  /// [older] messages in front of the conversation, without duplicates.
+  ConversationState _withOlder(
+    ConversationState conversation,
+    List<ChatMessage> older,
+  ) {
+    final known = {for (final m in conversation.messages) m.id};
+    return conversation.copyWith(
+      messages: [
+        for (final m in older)
+          if (!known.contains(m.id)) m,
+        ...conversation.messages,
+      ],
+    );
+  }
+
+  /// Next older page of a resumed conversation (cursor kept on failure).
+  Future<void> _onOlder(
+    ChatOlderRequested event,
+    Emitter<ChatState> emit,
+  ) async {
+    final cid = _sessions.conversationId;
+    final load = _sessions.historyLoader;
+    final before = state.olderBefore;
+    if (cid == null || load == null || before == null || state.loadingOlder) {
+      return;
+    }
+    emit(state.copyWith(loadingOlder: true));
+    try {
+      final page = await load(cid, beforeSeq: before);
+      emit(
+        state.copyWith(
+          conversation: _withOlder(state.conversation, page.messages),
+          olderBefore: page.nextBefore,
+          clearOlderBefore: page.nextBefore == null,
+          loadingOlder: false,
+        ),
+      );
+    } on Object catch (e) {
+      _diagnostics.record('chat.history_older_failed', {
+        'error': e.runtimeType.toString(),
+      });
+      emit(state.copyWith(loadingOlder: false));
     }
   }
 

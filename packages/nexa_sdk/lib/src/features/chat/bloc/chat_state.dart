@@ -14,6 +14,8 @@ final class ChatState {
     this.resolvedToolCalls = const {},
     this.reconnectAttempt = 0,
     this.error,
+    this.olderBefore,
+    this.loadingOlder = false,
   });
 
   /// Reduced conversation (messages, tool calls, quota...).
@@ -29,6 +31,13 @@ final class ChatState {
 
   /// Last session-level error to surface, if any.
   final NexaException? error;
+
+  /// `before_seq` for the next older page of a resumed conversation; null
+  /// when there is nothing older (or no resumed conversation).
+  final int? olderBefore;
+
+  /// An older page is being loaded.
+  final bool loadingOlder;
 
   /// A user message was sent but the gateway has not acknowledged it yet.
   /// Blocks a second send so one tap cannot produce two messages.
@@ -51,11 +60,16 @@ final class ChatState {
     int? reconnectAttempt,
     NexaException? error,
     bool clearError = false,
+    int? olderBefore,
+    bool clearOlderBefore = false,
+    bool? loadingOlder,
   }) => ChatState(
     conversation: conversation ?? this.conversation,
     connection: connection ?? this.connection,
     resolvedToolCalls: resolvedToolCalls ?? this.resolvedToolCalls,
     reconnectAttempt: reconnectAttempt ?? this.reconnectAttempt,
     error: clearError ? null : (error ?? this.error),
+    olderBefore: clearOlderBefore ? null : (olderBefore ?? this.olderBefore),
+    loadingOlder: loadingOlder ?? this.loadingOlder,
   );
 }

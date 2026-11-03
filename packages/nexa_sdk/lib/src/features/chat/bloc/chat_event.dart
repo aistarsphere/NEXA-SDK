@@ -11,6 +11,12 @@ final class ChatStarted extends ChatEvent {
   const ChatStarted();
 }
 
+/// The user scrolled to the top of a resumed conversation: load the next
+/// older page.
+final class ChatOlderRequested extends ChatEvent {
+  const ChatOlderRequested();
+}
+
 /// User submitted text.
 final class ChatMessageSent extends ChatEvent {
   const ChatMessageSent(this.text, {this.attachments = const []});

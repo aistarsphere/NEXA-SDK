@@ -230,12 +230,19 @@ final class NexaClient {
     conversations.open(conversationId);
   }
 
-  Future<List<ChatMessage>> _earlierMessages(String conversationId) async {
-    final page = await api.messages(conversationId, limit: 100);
+  Future<ChatHistoryPage> _earlierMessages(
+    String conversationId, {
+    int? beforeSeq,
+  }) async {
+    final page = await api.messages(
+      conversationId,
+      limit: 100,
+      beforeSeq: beforeSeq,
+    );
     // Attachments, generated files, tool results and documents come back
     // as media items at their original time.
     toolCalls.restore(page.items);
-    return [
+    return ChatHistoryPage([
       for (final m in page.items)
         if (m.text.isNotEmpty)
           ChatMessage(
@@ -245,7 +252,7 @@ final class NexaClient {
             createdAt: m.createdAt ?? clock.now().toUtc(),
             text: m.text,
           ),
-    ];
+    ], nextBefore: page.nextBefore);
   }
 
   /// Starts a fresh server conversation on the next session.

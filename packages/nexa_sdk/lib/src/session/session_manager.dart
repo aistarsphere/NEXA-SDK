@@ -4,6 +4,16 @@ import 'package:clock/clock.dart';
 import 'package:nexa_core/nexa_core.dart';
 import 'package:nexa_sdk/src/features/conversation/conversation_coordinator.dart';
 
+/// One page of a conversation's persisted messages (oldest first).
+final class ChatHistoryPage {
+  const ChatHistoryPage(this.messages, {this.nextBefore});
+
+  final List<ChatMessage> messages;
+
+  /// Pass as `beforeSeq` for the next older page; null at the start.
+  final int? nextBefore;
+}
+
 /// Owns the single active session: starts it with a fresh credential, exposes
 /// the handle, ends it, and publishes lifecycle events to the host.
 final class SessionManager {
@@ -87,7 +97,8 @@ final class SessionManager {
   }
 
   /// Loads earlier messages of a resumed conversation (set by NexaClient).
-  Future<List<ChatMessage>> Function(String conversationId)? historyLoader;
+  Future<ChatHistoryPage> Function(String conversationId, {int? beforeSeq})?
+  historyLoader;
 
   /// True after a resume until the chat showed the earlier messages.
   bool get resumePending => coordinator?.resumePending ?? _localResumePending;
