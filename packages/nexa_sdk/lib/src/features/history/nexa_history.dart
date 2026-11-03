@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:nexa_core/nexa_core.dart';
 
@@ -71,8 +72,13 @@ final class NexaHistoryEntry {
   final String id;
   final NexaHistoryKind kind;
 
-  /// Chat `ses_…` (conversation id) or voice `vs_…`.
+  /// The server conversation (`conv_…`). Only a device-only history (no
+  /// server) keys rows by chat session `ses_…` or voice session `vs_…`.
   final String sessionId;
+
+  /// The conversation this row belongs to (the preferred name of
+  /// [sessionId], which stays for compatibility).
+  String get conversationId => sessionId;
   final DateTime startedAt;
   final DateTime updatedAt;
   final String? title;
@@ -139,6 +145,22 @@ final class InMemoryHistoryStore implements NexaHistoryStore {
 
 final class JsonFileHistoryStore implements NexaHistoryStore {
   JsonFileHistoryStore(this.file);
+
+  /// One cache file per account inside [directory]:
+  /// `history_<first 8 hex of sha256(accountKey)>.json`, so the account key
+  /// (an id or e-mail) is not readable from the file name and two accounts
+  /// on one device never share a cache.
+  factory JsonFileHistoryStore.forAccount(
+    Directory directory,
+    String accountKey,
+  ) {
+    final h = sha256
+        .convert(utf8.encode(accountKey))
+        .toString()
+        .substring(0, 8);
+    return JsonFileHistoryStore(File('${directory.path}/history_$h.json'));
+  }
+
   final File file;
 
   @override
@@ -362,6 +384,15 @@ final class NexaHistoryController extends ChangeNotifier {
       ..clear()
       ..addAll(await options.cache.load());
     _cacheLoaded = true;
+    // The server owns history: rows keyed by chat or voice sessions (old
+    // client versions) can never match a server row. They are cache only.
+    if (serverBacked) {
+      final before = _cache.length;
+      _cache.removeWhere(
+        (e) => e.sessionId.startsWith('vs_') || e.sessionId.startsWith('ses_'),
+      );
+      if (_cache.length != before) await _persist();
+    }
   }
 
   /// First page (server) or the cache.
@@ -421,8 +452,14 @@ final class NexaHistoryController extends ChangeNotifier {
 
   /// Caches the visible chat conversation for fast rendering. The server
   /// already has it: only the new input was sent (`POST …/messages`).
-  Future<void> recordChat(ConversationState conversation) async {
-    final sid = conversation.sessionId?.value;
+  ///
+  /// Rows are keyed by the server [conversationId]; the chat session id
+  /// only keys a device-only history (no server conversation).
+  Future<void> recordChat(
+    ConversationState conversation, {
+    String? conversationId,
+  }) async {
+    final sid = conversationId ?? conversation.sessionId?.value;
     if (sid == null) return;
     final messages = [
       for (final m in conversation.messages)
@@ -438,19 +475,42 @@ final class NexaHistoryController extends ChangeNotifier {
     await _record(NexaHistoryKind.chat, sid, messages);
   }
 
-  /// Caches a voice call reference (final transcript lines when kept).
+  /// Caches a voice call (final transcript lines when kept). Nothing when
+  /// the server owns history (it records the call in the conversation).
+  /// Device-only: under [conversationId] when known, else the voice session.
   Future<void> recordVoice(
     String voiceSessionId,
-    List<VoiceTranscriptEntry> transcript,
-  ) => _record(NexaHistoryKind.voice, voiceSessionId, [
-    for (final t in transcript)
-      if (t.isFinal && t.text.trim().isNotEmpty)
-        NexaHistoryMessage(
-          fromUser: t.speaker == VoiceSpeaker.user,
-          text: t.text,
-          at: t.at,
-        ),
-  ]);
+    List<VoiceTranscriptEntry> transcript, {
+    String? conversationId,
+  }) async {
+    if (serverBacked) return;
+    final lines = [
+      for (final t in transcript)
+        if (t.isFinal && t.text.trim().isNotEmpty)
+          NexaHistoryMessage(
+            fromUser: t.speaker == VoiceSpeaker.user,
+            text: t.text,
+            at: t.at,
+          ),
+    ];
+    final key = conversationId ?? voiceSessionId;
+    await _loadCache();
+    final existing = _cache.where((e) => e.sessionId == key).firstOrNull;
+    final merged = existing == null
+        ? lines
+        : [
+            ...existing.messages,
+            for (final l in lines)
+              if (!existing.messages.any(
+                (m) =>
+                    m.fromUser == l.fromUser &&
+                    m.text == l.text &&
+                    m.at == l.at,
+              ))
+                l,
+          ];
+    await _record(NexaHistoryKind.voice, key, merged);
+  }
 
   Future<void> _record(
     NexaHistoryKind kind,

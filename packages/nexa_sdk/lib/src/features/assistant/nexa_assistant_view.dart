@@ -278,7 +278,7 @@ Widget? _historyAction(
                 : (entry) async {
                     final nav = Navigator.of(context);
                     final chat = ModalRoute.of(context);
-                    await a.client.resumeConversation(entry.sessionId);
+                    await a.client.resumeConversation(entry.conversationId);
                     // Back to the chat, which mounts on that conversation.
                     nav.popUntil((r) => r == chat || r.isFirst);
                     onResumed();
@@ -628,7 +628,11 @@ class _LiveVoicePageState extends State<_LiveVoicePage> {
     final id = _voiceSessionId;
     final history = widget.assistant.client.history;
     if (id == null || history == null) return;
-    history.recordVoice(id, _voice.state.value.transcript);
+    history.recordVoice(
+      id,
+      _voice.state.value.transcript,
+      conversationId: widget.assistant.client.conversationId,
+    );
   }
 
   void _onState() {

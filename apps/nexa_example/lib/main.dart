@@ -47,6 +47,10 @@ import 'package:path_provider/path_provider.dart';
 /// [DevTokenAuthProvider] until the customer's host backend exists. The
 /// host-side pieces (`HostAuthProvider`, `HostPermissionHandler`) are exactly
 /// what a real host would write.
+/// The account whose local cache is used. No sign-in exists yet (backend
+/// B2): one account per install until a host auth provider supplies it.
+const _accountKey = 'default';
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   ExampleConfig.validate();
@@ -68,6 +72,8 @@ Future<void> main() async {
   // out of production builds (devTools is a compile-time constant).
   final qa = ExampleConfig.devTools ? await _openQaRecorder() : null;
   final support = await getApplicationSupportDirectory();
+  final legacyHistory = File('${support.path}/history.json');
+  if (legacyHistory.existsSync()) await legacyHistory.delete();
   // LABEEB's palette + light/dark/system; the assistant may preview and
   // (with the user's approval) apply it through the SDK host capability.
   final theme = await LabeebThemeController.load(
@@ -116,9 +122,14 @@ Future<void> main() async {
       File('${support.path}/installation_id'),
     ),
     // Local conversation history in the app's private support directory.
+    // The unscoped `history.json` of older builds held ses_/vs_ rows that
+    // can never match the server; it is cache only and is removed so that
+    // "Clear all" leaves no conversation text behind.
     history: NexaHistoryOptions(
       // Bounded UI cache only: the service owns conversation history.
-      cache: JsonFileHistoryStore(File('${support.path}/history.json')),
+      // One file per account (`history_<hash>.json`). There is no sign-in
+      // yet (backend B2), so the single account key is `default`.
+      cache: JsonFileHistoryStore.forAccount(support, _accountKey),
       onClearHostData: qa == null
           ? null
           : () async {

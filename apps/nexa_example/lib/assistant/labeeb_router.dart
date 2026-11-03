@@ -37,7 +37,7 @@ Widget labeebListPage(
     labeebAssistantView(context, client, voiceRequests: voiceRequests).listPage(
       onNew: (ctx) => unawaited(_startNew(ctx, client)),
       onOpen: (ctx, entry) =>
-          unawaited(ctx.push<void>('/c/${entry.sessionId}')),
+          unawaited(ctx.push<void>('/c/${entry.conversationId}')),
       onCall: (ctx) => unawaited(openLabeebCall(ctx, client, fromList: true)),
     );
 

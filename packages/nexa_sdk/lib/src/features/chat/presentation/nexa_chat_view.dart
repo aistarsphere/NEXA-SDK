@@ -496,7 +496,10 @@ class _ChatBodyState extends State<_ChatBody> {
         final history = widget.history;
         if (history != null &&
             prev.conversation.messages != state.conversation.messages) {
-          history.recordChat(state.conversation);
+          history.recordChat(
+            state.conversation,
+            conversationId: context.read<ChatBloc>().conversationId,
+          );
         }
       },
       builder: (context, state) {
