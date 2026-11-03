@@ -461,6 +461,7 @@ final class NexaClient {
       autoStart: autoStart,
       onEnded: onEnded,
       onOpenSettings: onOpenSettings,
+      tools: toolCalls,
     );
   }
 

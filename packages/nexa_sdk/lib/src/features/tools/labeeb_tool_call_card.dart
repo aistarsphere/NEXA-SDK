@@ -10,6 +10,27 @@ import 'package:nexa_sdk/src/features/tools/labeeb_audio_player.dart';
 import 'package:nexa_sdk/src/features/tools/labeeb_tool_calls.dart';
 import 'package:nexa_ui/nexa_ui.dart';
 
+/// "Working on it… (tool title)" while a call-scoped tool runs or waits (same rule
+/// as the compact panel); null when none does.
+String? labeebWorkingLabel(
+  NexaLocalizations l10n,
+  LabeebToolCallController? tools,
+) {
+  final active = tools?.activities
+      .where(
+        (a) => switch (a.call.status) {
+          NexaToolCallStatus.awaitingApproval ||
+          NexaToolCallStatus.awaitingClient ||
+          NexaToolCallStatus.running => true,
+          _ => false,
+        },
+      )
+      .lastOrNull;
+  return active == null
+      ? null
+      : '${l10n.panelWorking} ${labeebToolTitle(l10n, active.call.tool)}';
+}
+
 /// User-facing title of a contract tool (never the raw name).
 String labeebToolTitle(NexaLocalizations l10n, String tool) => switch (tool) {
   LabeebTools.location => l10n.tcToolLocation,

@@ -30,6 +30,7 @@ final class NexaVoiceState {
     this.endReason,
     this.voiceIdentity,
     this.switchingVoice = false,
+    this.interruptConfirmed = false,
   });
 
   /// The voice of this call as the gateway reported it at start (null when
@@ -38,6 +39,11 @@ final class NexaVoiceState {
 
   /// Restarting the call so a newly activated voice applies.
   final bool switchingVoice;
+
+  /// The agent confirmed (`interrupted`) that the user cut the assistant
+  /// off. The UI says "Interrupted" only then; before that the user is
+  /// merely heard (the interruption is the agent's decision).
+  final bool interruptConfirmed;
 
   /// Machine state (see `VoiceState`).
   final VoiceState phase;
@@ -92,6 +98,7 @@ final class NexaVoiceState {
     VoiceIdentity? voiceIdentity,
     bool clearVoiceIdentity = false,
     bool? switchingVoice,
+    bool? interruptConfirmed,
   }) => NexaVoiceState(
     phase: phase ?? this.phase,
     muted: muted ?? this.muted,
@@ -107,6 +114,7 @@ final class NexaVoiceState {
         ? null
         : (voiceIdentity ?? this.voiceIdentity),
     switchingVoice: switchingVoice ?? this.switchingVoice,
+    interruptConfirmed: interruptConfirmed ?? this.interruptConfirmed,
   );
 }
 

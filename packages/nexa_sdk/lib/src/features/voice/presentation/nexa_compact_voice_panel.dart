@@ -227,7 +227,11 @@ class _NexaCompactVoicePanelState extends State<NexaCompactVoicePanel> {
               '${approval != null ? l10n.panelNeedsApproval : l10n.panelOpenToContinue}'
         : tool != null
         ? '${l10n.panelWorking} ${labeebToolTitle(l10n, tool.call.tool)}'
-        : NexaVoiceCapsule.voiceStateLabel(l10n, state.phase);
+        : NexaVoiceCapsule.voiceStateLabel(
+            l10n,
+            state.phase,
+            interruptConfirmed: state.interruptConfirmed,
+          );
     final caption = state.transcript.isEmpty ? null : state.transcript.last;
     final vertical =
         widget.placement == NexaPanelPlacement.left ||

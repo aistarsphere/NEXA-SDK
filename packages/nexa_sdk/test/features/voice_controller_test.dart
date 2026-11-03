@@ -197,6 +197,46 @@ void main() {
     });
   });
 
+  group('barge-in', () {
+    test(
+      'the interruption is flagged only after the agent confirms it',
+      () async {
+        final v = await voice();
+        await v.start();
+        await phase(v, VoiceState.listening);
+        transport
+          ..emit(const RealtimeAssistantThinking())
+          ..emit(const RealtimeAssistantSpeakingStarted());
+        await phase(v, VoiceState.aiSpeaking);
+
+        transport.emit(const RealtimeUserSpeechStarted());
+        await phase(v, VoiceState.bargeIn);
+        expect(v.state.value.interruptConfirmed, isFalse);
+
+        transport.emit(const RealtimeInterrupted());
+        await phase(v, VoiceState.userSpeaking);
+        expect(v.state.value.interruptConfirmed, isTrue);
+
+        // The turn goes on: the flag does not outlive the user's speech.
+        transport.emit(const RealtimeUserSpeechEnded());
+        await phase(v, VoiceState.transcribing);
+        expect(v.state.value.interruptConfirmed, isFalse);
+      },
+    );
+
+    test(
+      'speech while the assistant is quiet is not an interruption',
+      () async {
+        final v = await voice();
+        await v.start();
+        await phase(v, VoiceState.listening);
+        transport.emit(const RealtimeUserSpeechStarted());
+        await phase(v, VoiceState.userSpeaking);
+        expect(v.state.value.interruptConfirmed, isFalse);
+      },
+    );
+  });
+
   group('conversation', () {
     test('a call started before the chat joins a conversation first '
         '(tools need one)', () async {

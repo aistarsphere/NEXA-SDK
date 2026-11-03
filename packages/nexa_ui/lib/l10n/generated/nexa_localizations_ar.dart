@@ -231,7 +231,10 @@ class NexaLocalizationsAr extends NexaLocalizations {
   String get voiceStateAiSpeaking => 'يتحدث';
 
   @override
-  String get voiceStateBargeIn => 'جارٍ المقاطعة…';
+  String get voiceStateBargeIn => 'أستمع إليك…';
+
+  @override
+  String get voiceStateInterrupted => 'تمت المقاطعة';
 
   @override
   String get voiceStateMuted => 'الصوت مكتوم';

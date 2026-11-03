@@ -503,8 +503,14 @@ abstract class NexaLocalizations {
   /// No description provided for @voiceStateBargeIn.
   ///
   /// In en, this message translates to:
-  /// **'Interrupting…'**
+  /// **'Listening to you…'**
   String get voiceStateBargeIn;
+
+  /// No description provided for @voiceStateInterrupted.
+  ///
+  /// In en, this message translates to:
+  /// **'Interrupted'**
+  String get voiceStateInterrupted;
 
   /// No description provided for @voiceStateMuted.
   ///

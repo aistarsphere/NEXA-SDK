@@ -45,6 +45,45 @@ void main() {
 
   Widget host(Widget child) => MaterialApp(home: Scaffold(body: child));
 
+  testWidgets('a running tool shows "Working on it" with its title, then '
+      'the normal state again', (tester) async {
+    await tester.pumpWidget(host(client.voiceView()));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('nexa_voice_start')));
+    await tester.pumpAndSettle();
+    expect(find.text('Listening'), findsOneWidget);
+
+    transport.emit(
+      const RealtimeToolEvent('tool_call_requested', {
+        'tool_call_id': 'tc_1',
+        'tool': LabeebTools.webSearch,
+        'side': 'server',
+        'status': 'running',
+      }),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    final label = tester.widget<Text>(
+      find.byKey(const Key('nexa_voice_state_label')),
+    );
+    expect(label.data, startsWith('Working on it'));
+
+    transport.emit(
+      const RealtimeToolEvent('tool_call_completed', {
+        'tool_call_id': 'tc_1',
+        'tool': LabeebTools.webSearch,
+        'side': 'server',
+        'status': 'succeeded',
+      }),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.text('Listening'), findsOneWidget);
+
+    await client.voice.end();
+    await tester.pumpAndSettle();
+  });
+
   testWidgets('embedded capsule: start → listening → turn → mute → end', (
     tester,
   ) async {

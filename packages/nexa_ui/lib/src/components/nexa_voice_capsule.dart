@@ -28,6 +28,8 @@ class NexaVoiceCapsule extends StatefulWidget {
     this.agentPresent = false,
     this.eventsVerified = true,
     this.error,
+    this.toolLabel,
+    this.interruptConfirmed = false,
     this.showTranscript = true,
     this.onStart,
     this.onEnd,
@@ -49,6 +51,13 @@ class NexaVoiceCapsule extends StatefulWidget {
 
   final NexaException? error;
 
+  /// A call-scoped tool is running (e.g. "Working on it… Web search"). It
+  /// replaces the state label unless the user or the assistant is speaking.
+  final String? toolLabel;
+
+  /// The agent confirmed that the user interrupted the assistant.
+  final bool interruptConfirmed;
+
   /// Initial captions visibility; the user can toggle it in the panel.
   final bool showTranscript;
 
@@ -59,25 +68,30 @@ class NexaVoiceCapsule extends StatefulWidget {
   final VoidCallback? onOpenSettings;
 
   /// Localised label for a voice state (also used by hosts and tests).
-  static String voiceStateLabel(NexaLocalizations l10n, VoiceState state) =>
-      switch (state) {
-        VoiceState.idle => l10n.voiceStateIdle,
-        VoiceState.connecting => l10n.voiceStateConnecting,
-        VoiceState.listening => l10n.voiceStateListening,
-        VoiceState.userSpeaking => l10n.voiceStateUserSpeaking,
-        VoiceState.transcribing => l10n.voiceStateTranscribing,
-        VoiceState.thinking => l10n.voiceStateThinking,
-        VoiceState.aiSpeaking => l10n.voiceStateAiSpeaking,
-        VoiceState.bargeIn => l10n.voiceStateBargeIn,
-        VoiceState.muted => l10n.voiceStateMuted,
-        VoiceState.weakNetwork => l10n.voiceStateWeakNetwork,
-        VoiceState.disconnected => l10n.voiceStateDisconnected,
-        VoiceState.reconnecting => l10n.voiceStateReconnecting,
-        VoiceState.modelBusy => l10n.voiceStateModelBusy,
-        VoiceState.microphoneDenied => l10n.voiceStateMicrophoneDenied,
-        VoiceState.quotaExceeded => l10n.voiceStateQuotaExceeded,
-        VoiceState.ended => l10n.voiceStateEnded,
-      };
+  static String voiceStateLabel(
+    NexaLocalizations l10n,
+    VoiceState state, {
+    bool interruptConfirmed = false,
+  }) => switch (state) {
+    VoiceState.userSpeaking when interruptConfirmed =>
+      l10n.voiceStateInterrupted,
+    VoiceState.idle => l10n.voiceStateIdle,
+    VoiceState.connecting => l10n.voiceStateConnecting,
+    VoiceState.listening => l10n.voiceStateListening,
+    VoiceState.userSpeaking => l10n.voiceStateUserSpeaking,
+    VoiceState.transcribing => l10n.voiceStateTranscribing,
+    VoiceState.thinking => l10n.voiceStateThinking,
+    VoiceState.aiSpeaking => l10n.voiceStateAiSpeaking,
+    VoiceState.bargeIn => l10n.voiceStateBargeIn,
+    VoiceState.muted => l10n.voiceStateMuted,
+    VoiceState.weakNetwork => l10n.voiceStateWeakNetwork,
+    VoiceState.disconnected => l10n.voiceStateDisconnected,
+    VoiceState.reconnecting => l10n.voiceStateReconnecting,
+    VoiceState.modelBusy => l10n.voiceStateModelBusy,
+    VoiceState.microphoneDenied => l10n.voiceStateMicrophoneDenied,
+    VoiceState.quotaExceeded => l10n.voiceStateQuotaExceeded,
+    VoiceState.ended => l10n.voiceStateEnded,
+  };
 
   /// Plain-language text for a voice error (also used by compact panels).
   static String voiceErrorText(NexaLocalizations l10n, NexaException error) =>
@@ -184,6 +198,8 @@ class _NexaVoiceCapsuleState extends State<NexaVoiceCapsule> {
             muted: widget.muted,
             inCall: _inCall,
             agentPresent: widget.agentPresent,
+            toolLabel: widget.toolLabel,
+            interruptConfirmed: widget.interruptConfirmed,
             captions: _captions,
             // The error banner already offers "Try again"; avoid two.
             retryLabel: error == null,
@@ -329,11 +345,15 @@ class _Panel extends StatelessWidget {
     required this.captions,
     required this.retryLabel,
     required this.onToggleCaptions,
+    this.toolLabel,
+    this.interruptConfirmed = false,
     this.onStart,
     this.onEnd,
     this.onToggleMute,
   });
 
+  final bool interruptConfirmed;
+  final String? toolLabel;
   final VoiceState state;
   final bool muted;
   final bool inCall;
@@ -351,7 +371,19 @@ class _Panel extends StatelessWidget {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final colors = NexaColors.of(context);
-    final label = NexaVoiceCapsule.voiceStateLabel(l10n, state);
+    final showTool =
+        toolLabel != null &&
+        inCall &&
+        state != VoiceState.aiSpeaking &&
+        state != VoiceState.userSpeaking &&
+        state != VoiceState.bargeIn;
+    final label = showTool
+        ? toolLabel!
+        : NexaVoiceCapsule.voiceStateLabel(
+            l10n,
+            state,
+            interruptConfirmed: interruptConfirmed,
+          );
     final waiting = inCall && !agentPresent;
     final hint = NexaVoiceCapsule.voiceStateHint(l10n, state);
     final canMute =

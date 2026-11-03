@@ -232,7 +232,10 @@ class NexaLocalizationsEn extends NexaLocalizations {
   String get voiceStateAiSpeaking => 'Speaking';
 
   @override
-  String get voiceStateBargeIn => 'Interrupting…';
+  String get voiceStateBargeIn => 'Listening to you…';
+
+  @override
+  String get voiceStateInterrupted => 'Interrupted';
 
   @override
   String get voiceStateMuted => 'Muted';

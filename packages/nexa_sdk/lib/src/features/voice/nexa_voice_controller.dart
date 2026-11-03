@@ -284,7 +284,13 @@ final class NexaVoiceController {
         'to': transition.state.name,
         'cause': event.runtimeType.toString(),
       });
-      _set(_state.value.copyWith(phase: transition.state));
+      // The confirmation belongs to one stretch of the user's speech.
+      _set(
+        _state.value.copyWith(
+          phase: transition.state,
+          interruptConfirmed: false,
+        ),
+      );
       _emit(
         NexaVoicePhaseChanged(clock.now(), from: before, to: transition.state),
       );
@@ -565,7 +571,11 @@ final class NexaVoiceController {
       case RealtimeAssistantSpeakingEnded():
         _dispatch(const VoiceAssistantTurnEnded());
       case RealtimeInterrupted():
+        final wasBargeIn = _state.value.phase == VoiceState.bargeIn;
         _dispatch(const VoiceInterruptAcknowledged());
+        if (wasBargeIn && _state.value.phase == VoiceState.userSpeaking) {
+          _set(_state.value.copyWith(interruptConfirmed: true));
+        }
       case RealtimeModelBusy():
         _dispatch(const VoiceModelBusy());
       case RealtimeModelAvailable():

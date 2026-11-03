@@ -1,8 +1,9 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:nexa_core/nexa_core.dart';
+import 'package:nexa_sdk/src/features/tools/labeeb_tool_call_card.dart';
+import 'package:nexa_sdk/src/features/tools/labeeb_tool_calls.dart';
 import 'package:nexa_sdk/src/features/voice/nexa_voice_controller.dart';
-import 'package:nexa_sdk/src/features/voice/nexa_voice_state.dart';
 import 'package:nexa_sdk/src/features/voice/presentation/nexa_voice_identity_note.dart';
 import 'package:nexa_sdk/src/nexa_ui_settings.dart' as sdk;
 import 'package:nexa_ui/nexa_ui.dart';
@@ -19,8 +20,12 @@ class NexaVoiceView extends StatelessWidget {
     this.autoStart = false,
     this.onEnded,
     this.onOpenSettings,
+    this.tools,
     super.key,
   });
+
+  /// Call-scoped tools: a running one shows "Working on it…" in the capsule.
+  final LabeebToolCallController? tools;
 
   final NexaVoiceController controller;
   final ValueListenable<sdk.NexaUiSettings> settings;
@@ -55,6 +60,7 @@ class NexaVoiceView extends StatelessWidget {
                 autoStart: autoStart,
                 onEnded: onEnded,
                 onOpenSettings: onOpenSettings,
+                tools: tools,
               ),
             ),
           ),
@@ -71,7 +77,9 @@ class _VoiceBody extends StatefulWidget {
     required this.autoStart,
     this.onEnded,
     this.onOpenSettings,
+    this.tools,
   });
+  final LabeebToolCallController? tools;
   final NexaVoiceController controller;
   final bool showTranscript;
   final bool autoStart;
@@ -112,29 +120,37 @@ class _VoiceBodyState extends State<_VoiceBody> {
 
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder<NexaVoiceState>(
-      valueListenable: widget.controller.state,
-      builder: (context, s, _) => Column(
-        children: [
-          NexaVoiceIdentityNote(controller: widget.controller),
-          Expanded(
-            child: NexaVoiceCapsule(
-              state: s.phase,
-              transcript: s.transcript,
-              muted: s.muted,
-              agentPresent: s.agentPresent,
-              eventsVerified: s.eventsVerified,
-              error: s.error,
-              showTranscript: widget.showTranscript,
-              onStart: widget.controller.start,
-              onEnd: widget.controller.end,
-              onToggleMute: widget.controller.toggleMute,
-              onRetry: widget.controller.start,
-              onOpenSettings: widget.onOpenSettings,
+    return ListenableBuilder(
+      listenable: Listenable.merge([widget.controller.state, ?widget.tools]),
+      builder: (context, _) {
+        final s = widget.controller.state.value;
+        return Column(
+          children: [
+            NexaVoiceIdentityNote(controller: widget.controller),
+            Expanded(
+              child: NexaVoiceCapsule(
+                state: s.phase,
+                transcript: s.transcript,
+                muted: s.muted,
+                agentPresent: s.agentPresent,
+                eventsVerified: s.eventsVerified,
+                error: s.error,
+                interruptConfirmed: s.interruptConfirmed,
+                toolLabel: labeebWorkingLabel(
+                  NexaLocalizations.of(context),
+                  widget.tools,
+                ),
+                showTranscript: widget.showTranscript,
+                onStart: widget.controller.start,
+                onEnd: widget.controller.end,
+                onToggleMute: widget.controller.toggleMute,
+                onRetry: widget.controller.start,
+                onOpenSettings: widget.onOpenSettings,
+              ),
             ),
-          ),
-        ],
-      ),
+          ],
+        );
+      },
     );
   }
 }

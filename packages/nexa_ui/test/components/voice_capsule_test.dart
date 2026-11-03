@@ -20,6 +20,7 @@ void main() {
     bool agentPresent = true,
     bool eventsVerified = true,
     NexaException? error,
+    bool interruptConfirmed = false,
     List<VoiceTranscriptEntry> transcript = const [],
     VoidCallback? onStart,
     VoidCallback? onEnd,
@@ -39,6 +40,7 @@ void main() {
         agentPresent: agentPresent,
         eventsVerified: eventsVerified,
         error: error,
+        interruptConfirmed: interruptConfirmed,
         onStart: onStart,
         onEnd: onEnd,
         onToggleMute: onToggleMute,
@@ -49,6 +51,36 @@ void main() {
     locale: locale,
     reducedMotion: reducedMotion,
   );
+
+  group('barge-in labels are honest', () {
+    testWidgets('before the agent confirms: "Listening to you", never '
+        '"Interrupting"', (tester) async {
+      await tester.pumpWidget(capsule(state: VoiceState.bargeIn));
+      expect(find.text('Listening to you…'), findsOneWidget);
+      expect(find.text('Interrupting…'), findsNothing);
+    });
+
+    testWidgets('after the agent confirmed the interruption', (tester) async {
+      await tester.pumpWidget(
+        capsule(state: VoiceState.userSpeaking, interruptConfirmed: true),
+      );
+      expect(find.text('Interrupted'), findsOneWidget);
+    });
+
+    testWidgets('the user speaking without an interruption is unchanged', (
+      tester,
+    ) async {
+      await tester.pumpWidget(capsule(state: VoiceState.userSpeaking));
+      expect(find.text('Interrupted'), findsNothing);
+    });
+
+    testWidgets('Arabic labels', (tester) async {
+      await tester.pumpWidget(
+        capsule(state: VoiceState.bargeIn, locale: const Locale('ar')),
+      );
+      expect(find.text('أستمع إليك…'), findsOneWidget);
+    });
+  });
 
   group('NexaVoiceCapsule', () {
     testWidgets('idle shows Start; in-call shows mute + end', (tester) async {
