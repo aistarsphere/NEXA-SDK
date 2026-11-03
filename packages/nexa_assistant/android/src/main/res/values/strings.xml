@@ -10,4 +10,7 @@
     <string name="nexa_assistant_tap_to_talk">Tap to talk to your assistant</string>
     <string name="nexa_assistant_reenable_title">Wake phrase is off after restart</string>
     <string name="nexa_assistant_reenable_text">Open the app once to turn it back on.</string>
+    <string name="nexa_assistant_channel_call">Live call</string>
+    <string name="nexa_assistant_call_title">Live call</string>
+    <string name="nexa_assistant_call_end">End call</string>
 </resources>

@@ -146,6 +146,9 @@ sealed class NexaAssistantEvent {
         'decision' || 'test' => NexaWakeDecision.fromMap(m),
         'recording' => NexaRecordingChanged(active: m['active'] == true),
         'surface' => NexaAssistantSurface.fromMap(m),
+        'call' when m['event'] == 'end_requested' => NexaCallEndRequested(
+          reason: m['reason'] as String? ?? 'notification',
+        ),
         _ => null,
       };
 }
@@ -257,6 +260,29 @@ final class NexaWakeDecision extends NexaAssistantEvent {
   final double? speakerScore;
   final double? speakerThreshold;
   final int? durationMs;
+}
+
+/// The user asked to end the call outside the app: the "End call" action
+/// of the call notification (`notification`) or the app was swiped away
+/// (`task_removed`). The host ends the call.
+final class NexaCallEndRequested extends NexaAssistantEvent {
+  const NexaCallEndRequested({required this.reason});
+  final String reason;
+}
+
+/// Result of asking for the in-call foreground service.
+final class NexaCallServiceStart {
+  const NexaCallServiceStart({required this.ok, this.reason});
+
+  factory NexaCallServiceStart.fromMap(Map<Object?, Object?> m) =>
+      NexaCallServiceStart(ok: m['ok'] == true, reason: m['reason'] as String?);
+
+  /// The service holds the microphone while the app is in the background.
+  final bool ok;
+
+  /// Why not: `unsupported`, `not_foreground` (Android 14+ only allows the
+  /// start while the app is on screen) or `fgs_blocked`.
+  final String? reason;
 }
 
 final class NexaRecordingChanged extends NexaAssistantEvent {

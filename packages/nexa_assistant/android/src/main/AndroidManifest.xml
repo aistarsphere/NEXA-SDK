@@ -47,6 +47,12 @@
             android:exported="false"
             android:foregroundServiceType="microphone" />
 
+        <!-- Live call: holds the microphone while the app is in the background. -->
+        <service
+            android:name="com.nexa.assistant.CallForegroundService"
+            android:exported="false"
+            android:foregroundServiceType="microphone" />
+
         <receiver
             android:name="com.nexa.assistant.NexaAssistantBootReceiver"
             android:exported="false">

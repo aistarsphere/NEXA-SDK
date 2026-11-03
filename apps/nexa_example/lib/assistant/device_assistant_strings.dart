@@ -11,7 +11,14 @@ final class DeviceAssistantStrings {
         Localizations.localeOf(context).languageCode == 'ar',
       );
 
+  static DeviceAssistantStrings ofCode(String languageCode) =>
+      DeviceAssistantStrings._(languageCode == 'ar');
+
   String _t(String en, String ar) => _ar ? ar : en;
+
+  // Call notification (foreground service).
+  String get callNotificationTitle => _t('LABEEB call', 'مكالمة لبيب');
+  String get callNotificationEnd => _t('End call', 'إنهاء المكالمة');
 
   // Settings entry and page.
   String get title => _t('LABEEB as assistant', 'لبيب كمساعد للجهاز');

@@ -75,7 +75,7 @@ Q1 `flutter analyze packages apps tools`; Q3 `tool/check.sh` or the touched pack
 
 ## 12. Known exceptions and platform facts
 
-* Android 14+: a microphone foreground service cannot be created from the background; start it while an activity is visible (wake listener and the planned call service). Reboot/force-stop stop the wake listener; the app posts a notification.
+* Android 14+: a microphone foreground service cannot be created from the background; start it while an activity is visible (wake listener and `CallForegroundService`, which the plugin starts only while resumed and reports `not_foreground`/`fgs_blocked` otherwise; `DeviceAssistant.callServiceHeld` tells A-04 whether the call is held). Reboot/force-stop stop the wake listener; the app posts a notification.
 * Hardware always-on hotword is privileged (preinstalled apps only); the software listener is the only option.
 * The MFCC+DTW wake detector fails on real voices (5/5 rejected, 2026-10-30); it remains the fallback behind the `WakeDetector` interface until a trained Arabic model (Porcupine or self-trained) passes the benchmark.
 * Speaker verification is a wake-gating convenience, never authorisation; no liveness.

@@ -19,6 +19,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import android.os.PowerManager
 import android.provider.Settings
 import com.nexa.assistant.engine.FilterBank
@@ -77,6 +78,9 @@ class NexaAssistantPlugin :
         WakeListenerService.onState = { s, r -> emit(mapOf("type" to "listener", "state" to s, "reason" to r)) }
         WakeListenerService.onDecision = { d -> emit(decisionMap(d, "decision")) }
         PanelBridge.emitter = { m -> emit(m) }
+        CallForegroundService.onEndRequested = { reason ->
+            emit(mapOf("type" to "call", "event" to "end_requested", "reason" to reason))
+        }
     }
 
     override fun onDetachedFromEngine(b: FlutterPlugin.FlutterPluginBinding) {
@@ -86,6 +90,7 @@ class NexaAssistantPlugin :
         WakeListenerService.onDecision = null
         ActivationRouter.deliverToHost = null
         PanelBridge.emitter = null
+        CallForegroundService.onEndRequested = null
     }
 
     // ---------------------------------------------------------------- events
@@ -276,6 +281,11 @@ class NexaAssistantPlugin :
             }
             "benchCount" -> result.success(benchDir().listFiles()?.size ?: 0)
             "benchModelSpeed" -> benchModelSpeed(result)
+            "callStarted" -> callStarted(call.argument<String>("title"), call.argument<String>("endLabel"), result)
+            "callEnded" -> {
+                CallForegroundService.stop(context)
+                result.success(null)
+            }
             "requestUnlock" -> requestUnlock(result)
             "endLockScreenSession" -> {
                 showOverLockScreen(false)
@@ -283,6 +293,25 @@ class NexaAssistantPlugin :
                 result.success(null)
             }
             else -> result.notImplemented()
+        }
+    }
+
+    /** Android 14+ only lets a microphone service start while the app is on screen. */
+    private fun callStarted(title: String?, endLabel: String?, result: MethodChannel.Result) {
+        if (!resumed) {
+            result.success(mapOf("ok" to false, "reason" to "not_foreground"))
+            return
+        }
+        try {
+            CallForegroundService.start(
+                context,
+                title ?: context.getString(R.string.nexa_assistant_call_title),
+                endLabel ?: context.getString(R.string.nexa_assistant_call_end),
+            )
+            result.success(mapOf("ok" to true))
+        } catch (e: Exception) {
+            Log.w("NexaAssistant", "call service refused: ${e.javaClass.simpleName}")
+            result.success(mapOf("ok" to false, "reason" to "fgs_blocked"))
         }
     }
 

@@ -163,4 +163,50 @@ void main() {
     await a.events.toList();
     expect(calls, isEmpty);
   });
+
+  group('call foreground service', () {
+    test(
+      'callStarted forwards the notification text and reports the result',
+      () async {
+        replies['callStarted'] = {'ok': false, 'reason': 'not_foreground'};
+        final r = await android().callStarted(
+          title: 'LABEEB call',
+          endLabel: 'End call',
+          conversationId: 'conv_1',
+        );
+        expect(r.ok, isFalse);
+        expect(r.reason, 'not_foreground');
+        final call = calls.singleWhere((c) => c.method == 'callStarted');
+        expect(call.arguments, {
+          'title': 'LABEEB call',
+          'endLabel': 'End call',
+          'conversationId': 'conv_1',
+        });
+      },
+    );
+
+    test('callEnded reaches the platform', () async {
+      await android().callEnded();
+      expect(calls.map((c) => c.method), contains('callEnded'));
+    });
+
+    test('other platforms report the service as unavailable', () async {
+      final r = await NexaAssistant(
+        supported: false,
+      ).callStarted(title: 't', endLabel: 'e');
+      expect(r.ok, isFalse);
+      expect(r.reason, 'unsupported');
+      expect(calls, isEmpty);
+    });
+
+    test('the End call action arrives as an event', () {
+      final e = NexaAssistantEvent.fromMap({
+        'type': 'call',
+        'event': 'end_requested',
+        'reason': 'notification',
+      });
+      expect(e, isA<NexaCallEndRequested>());
+      expect((e! as NexaCallEndRequested).reason, 'notification');
+    });
+  });
 }

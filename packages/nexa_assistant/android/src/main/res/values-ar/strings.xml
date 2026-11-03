@@ -10,4 +10,7 @@
     <string name="nexa_assistant_tap_to_talk">اضغط للتحدث مع مساعدك</string>
     <string name="nexa_assistant_reenable_title">عبارة التنبيه متوقفة بعد إعادة التشغيل</string>
     <string name="nexa_assistant_reenable_text">افتح التطبيق مرة واحدة لإعادة تشغيلها.</string>
+    <string name="nexa_assistant_channel_call">المكالمة المباشرة</string>
+    <string name="nexa_assistant_call_title">مكالمة مباشرة</string>
+    <string name="nexa_assistant_call_end">إنهاء المكالمة</string>
 </resources>

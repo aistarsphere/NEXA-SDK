@@ -59,6 +59,11 @@ class DeviceAssistant extends ChangeNotifier {
   }
 
   final ValueNotifier<bool> _voiceBusy = ValueNotifier(false);
+
+  /// The in-call foreground service is running (the call survives the app
+  /// going to the background). False when Android refused it or no call.
+  final ValueNotifier<bool> callServiceHeld = ValueNotifier(false);
+  bool _callActive = false;
   StreamSubscription<NexaAssistantEvent>? _events;
   VoidCallback? _unfollow;
 
@@ -76,6 +81,10 @@ class DeviceAssistant extends ChangeNotifier {
           _onActivation(e);
         case NexaAssistantSurface():
           _onSurface(e);
+        case NexaCallEndRequested():
+          if (client.voice.state.value.isActive) {
+            unawaited(client.voice.end());
+          }
         default:
           break;
       }
@@ -113,8 +122,37 @@ class DeviceAssistant extends ChangeNotifier {
 
   /// The wake listener stays off the microphone during a call and while
   /// the panel is open (also after a failed start, until it closes).
-  void _syncVoice() =>
-      _voiceBusy.value = client.voice.state.value.isActive || _surface.panel;
+  void _syncVoice() {
+    final active = client.voice.state.value.isActive;
+    _voiceBusy.value = active || _surface.panel;
+    if (active != _callActive) {
+      _callActive = active;
+      unawaited(active ? _startCallService() : _stopCallService());
+    }
+  }
+
+  Future<void> _startCallService() async {
+    final strings = DeviceAssistantStrings.ofCode(
+      client.uiSettings.value.languageTag.split('-').first,
+    );
+    final r = await plugin.callStarted(
+      title: strings.callNotificationTitle,
+      endLabel: strings.callNotificationEnd,
+      conversationId: client.conversationId,
+    );
+    // The call may have ended while Android answered.
+    if (!_callActive) {
+      if (r.ok) unawaited(plugin.callEnded());
+      return;
+    }
+    callServiceHeld.value = r.ok;
+    if (!r.ok) debugPrint('[assistant] call service not held: ${r.reason}');
+  }
+
+  Future<void> _stopCallService() async {
+    callServiceHeld.value = false;
+    await plugin.callEnded();
+  }
 
   void _onActivation(NexaAssistantActivation a) {
     if (a.locked) {
@@ -165,6 +203,7 @@ class DeviceAssistant extends ChangeNotifier {
     unawaited(_events?.cancel());
     unawaited(_voice.close());
     _voiceBusy.dispose();
+    callServiceHeld.dispose();
     super.dispose();
   }
 }

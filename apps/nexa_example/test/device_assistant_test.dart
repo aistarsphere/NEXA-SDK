@@ -91,6 +91,56 @@ void main() {
     }
   }
 
+  testWidgets('a call holds the call service and releases it at the end', (
+    tester,
+  ) async {
+    final (client, device) = await setUpApp(tester);
+    replies['callStarted'] = {'ok': true};
+    await tester.pumpWidget(app(client, device));
+    await device.start();
+    await tester.pumpAndSettle();
+
+    push({'type': 'activation', 'source': 'wake', 'locked': false});
+    await frames(tester);
+    expect(calls.where((c) => c == 'callStarted'), hasLength(1));
+    expect(device.callServiceHeld.value, isTrue);
+
+    await tester.tap(find.byKey(const Key('live_voice_close')));
+    await frames(tester);
+    expect(calls.where((c) => c == 'callEnded'), hasLength(1));
+    expect(device.callServiceHeld.value, isFalse);
+  });
+
+  testWidgets('a blocked call service leaves the call running unheld', (
+    tester,
+  ) async {
+    final (client, device) = await setUpApp(tester);
+    replies['callStarted'] = {'ok': false, 'reason': 'fgs_blocked'};
+    await tester.pumpWidget(app(client, device));
+    await device.start();
+    await tester.pumpAndSettle();
+
+    push({'type': 'activation', 'source': 'wake', 'locked': false});
+    await frames(tester);
+    expect(find.byKey(const Key('live_voice_view')), findsOneWidget);
+    expect(device.callServiceHeld.value, isFalse);
+  });
+
+  testWidgets('End call in the notification ends the call', (tester) async {
+    final (client, device) = await setUpApp(tester);
+    replies['callStarted'] = {'ok': true};
+    await tester.pumpWidget(app(client, device));
+    await device.start();
+    await tester.pumpAndSettle();
+    push({'type': 'activation', 'source': 'wake', 'locked': false});
+    await frames(tester);
+    expect(client.voice.state.value.isActive, isTrue);
+
+    push({'type': 'call', 'event': 'end_requested', 'reason': 'notification'});
+    await frames(tester);
+    expect(client.voice.state.value.isActive, isFalse);
+  });
+
   testWidgets('wake activation opens live voice; mic handed over', (
     tester,
   ) async {
@@ -109,7 +159,7 @@ void main() {
 
     await tester.tap(find.byKey(const Key('live_voice_close')));
     await frames(tester);
-    expect(calls.last, 'resumeListening');
+    expect(calls, containsAllInOrder(['suspendListening', 'resumeListening']));
   });
 
   testWidgets('locked activation shows only the gate until unlocked', (

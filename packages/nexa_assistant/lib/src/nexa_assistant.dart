@@ -147,6 +147,31 @@ class NexaAssistant {
     return () => inUse.removeListener(sync);
   }
 
+  // ------------------------------------------------------- call service
+
+  /// Keeps the microphone alive while a call runs in the background (an
+  /// Android foreground service with an ongoing notification and an "End
+  /// call" action; its press arrives as [NexaCallEndRequested]). Android
+  /// 14+ only allows the start while the app is on screen; otherwise the
+  /// result says why and the call continues without it.
+  Future<NexaCallServiceStart> callStarted({
+    required String title,
+    required String endLabel,
+    String? conversationId,
+  }) async {
+    final m = await _call<Map<Object?, Object?>>('callStarted', {
+      'title': title,
+      'endLabel': endLabel,
+      'conversationId': ?conversationId,
+    });
+    return m == null
+        ? const NexaCallServiceStart(ok: false, reason: 'unsupported')
+        : NexaCallServiceStart.fromMap(m);
+  }
+
+  /// Releases the call service (safe when none runs).
+  Future<void> callEnded() => _call<void>('callEnded');
+
   // ---------------------------------------------------------- enrolment
 
   /// Begins a new local enrolment (pauses listening).
