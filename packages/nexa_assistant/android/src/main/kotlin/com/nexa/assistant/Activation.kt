@@ -122,7 +122,7 @@ internal object ActivationRouter {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
         val n = Notifications.builder(context, CHANNEL)
-            .setSmallIcon(R.drawable.nexa_assistant_mic)
+            .setSmallIcon(Notifications.smallIcon(context))
             .setContentTitle(context.getString(R.string.nexa_assistant_tap_to_talk))
             .setContentIntent(pending)
             .setAutoCancel(true)
@@ -134,6 +134,17 @@ internal object ActivationRouter {
 }
 
 internal object Notifications {
+    /**
+     * Small icon for every notification of the plugin. A host app that ships
+     * `drawable/nexa_notification_icon` (white silhouette on transparent, 24 dp)
+     * gets its own symbol; otherwise the plugin's microphone glyph is used.
+     * Looked up by name, so the host keeps it with `res/raw/keep.xml`.
+     */
+    fun smallIcon(context: Context): Int {
+        val id = context.resources.getIdentifier("nexa_notification_icon", "drawable", context.packageName)
+        return if (id != 0) id else R.drawable.nexa_assistant_mic
+    }
+
     @Suppress("DEPRECATION")
     fun builder(context: Context, channel: String): android.app.Notification.Builder =
         if (Build.VERSION.SDK_INT >= 26) android.app.Notification.Builder(context, channel)

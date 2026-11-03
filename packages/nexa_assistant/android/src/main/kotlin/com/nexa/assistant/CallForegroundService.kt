@@ -121,7 +121,7 @@ class CallForegroundService : Service() {
             PendingIntent.getActivity(this, 5, it, PendingIntent.FLAG_IMMUTABLE)
         }
         return Notifications.builder(this, CHANNEL)
-            .setSmallIcon(R.drawable.nexa_assistant_mic)
+            .setSmallIcon(Notifications.smallIcon(this))
             .setContentTitle(title)
             .setCategory(Notification.CATEGORY_CALL)
             .setOngoing(true)

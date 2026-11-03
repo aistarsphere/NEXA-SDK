@@ -1,6 +1,6 @@
 import 'package:flutter/widgets.dart';
 
-/// Strings for "LABEEB as assistant" (English and Modern Standard Arabic).
+/// Strings for "AMEER as assistant" (English and Modern Standard Arabic).
 final class DeviceAssistantStrings {
   const DeviceAssistantStrings._(this._ar);
 
@@ -17,11 +17,11 @@ final class DeviceAssistantStrings {
   String _t(String en, String ar) => _ar ? ar : en;
 
   // Call notification (foreground service).
-  String get callNotificationTitle => _t('LABEEB call', 'مكالمة لبيب');
+  String get callNotificationTitle => _t('AMEER call', 'مكالمة أمير');
   String get callNotificationEnd => _t('End call', 'إنهاء المكالمة');
 
   // Settings entry and page.
-  String get title => _t('LABEEB as assistant', 'لبيب كمساعد للجهاز');
+  String get title => _t('AMEER as assistant', 'أمير كمساعد للجهاز');
   String get entrySubtitle => _t(
     'Default assistant, wake phrase and your voice',
     'المساعد الافتراضي وعبارة التنبيه وصوتك',
@@ -29,13 +29,13 @@ final class DeviceAssistantStrings {
 
   String get defaultAssistant => _t('Default assistant', 'المساعد الافتراضي');
   String get isDefault =>
-      _t('LABEEB is your default assistant', 'لبيب هو مساعدك الافتراضي');
+      _t('AMEER is your default assistant', 'أمير هو مساعدك الافتراضي');
   String get notDefault => _t(
     'Another assistant is selected. Tap the button below, then tap the FIRST '
-        'item, "Digital assistant app", and choose LABEEB. Leave "Voice '
+        'item, "Digital assistant app", and choose AMEER. Leave "Voice '
         'input" as it is: that is voice typing.',
     'تم اختيار مساعد آخر. اضغط الزر أدناه، ثم اضغط البند الأول «تطبيق المساعد '
-        'الرقمي» واختر لبيب. اترك «الإدخال الصوتي» كما هو: فهو للكتابة '
+        'الرقمي» واختر أمير. اترك «الإدخال الصوتي» كما هو: فهو للكتابة '
         'الصوتية.',
   );
   String get recheck => _t('Check again', 'تحقق مجدداً');
@@ -49,9 +49,9 @@ final class DeviceAssistantStrings {
   );
   String get roleHelp => _t(
     'Still not set? Android settings → Apps → Default apps → Digital '
-        'assistant app → LABEEB. Then come back and tap Check again.',
+        'assistant app → AMEER. Then come back and tap Check again.',
     'لم يتم بعد؟ إعدادات أندرويد ← التطبيقات ← التطبيقات الافتراضية ← تطبيق '
-        'المساعد الرقمي ← لبيب. ثم عد واضغط تحقق مجدداً.',
+        'المساعد الرقمي ← أمير. ثم عد واضغط تحقق مجدداً.',
   );
   String get chooseInSettings =>
       _t('Choose digital assistant', 'اختيار المساعد الرقمي');
@@ -111,31 +111,31 @@ final class DeviceAssistantStrings {
   );
   String get wakeOff => _t('Off', 'متوقف');
   String get wakeNeedsEnrollment => _t(
-    'Record your voice first so LABEEB knows how you say it.',
-    'سجّل صوتك أولاً ليتعرف لبيب على طريقة نطقك لها.',
+    'Record your voice first so AMEER knows how you say it.',
+    'سجّل صوتك أولاً ليتعرف أمير على طريقة نطقك لها.',
   );
   String get wakeNeedsForeground =>
-      _t('Open LABEEB to turn it on.', 'افتح لبيب لتشغيلها.');
+      _t('Open AMEER to turn it on.', 'افتح أمير لتشغيلها.');
   String get wakeBlocked => _t(
-    'Android did not allow listening to start. Open LABEEB and try again.',
-    'لم يسمح أندرويد ببدء الاستماع. افتح لبيب وحاول مجدداً.',
+    'Android did not allow listening to start. Open AMEER and try again.',
+    'لم يسمح أندرويد ببدء الاستماع. افتح أمير وحاول مجدداً.',
   );
   String get micNeeded =>
       _t('Microphone permission is needed.', 'يلزم إذن الميكروفون.');
   String get notificationsOff => _t(
     'Notifications are off: Android hides the “listening” notice. Turn them '
-        'on so you always see when LABEEB listens.',
+        'on so you always see when AMEER listens.',
     'الإشعارات متوقفة: يخفي أندرويد إشعار «يستمع». فعّلها لترى دائماً متى '
-        'يستمع لبيب.',
+        'يستمع أمير.',
   );
   String get allowNotifications =>
       _t('Allow notifications', 'السماح بالإشعارات');
   String get hardwareHotword => _t(
     'Android’s low-power hotword chip is reserved for preinstalled '
-        'assistants. LABEEB uses its own on-device listener, which uses more '
+        'assistants. AMEER uses its own on-device listener, which uses more '
         'battery.',
     'شريحة التنبيه منخفضة الطاقة في أندرويد مخصصة للمساعدات المثبتة مسبقاً. '
-        'يستخدم لبيب مستمعاً خاصاً به على الجهاز، ويستهلك بطارية أكثر.',
+        'يستخدم أمير مستمعاً خاصاً به على الجهاز، ويستهلك بطارية أكثر.',
   );
 
   String get voiceTitle => _t('Your voice', 'صوتك');
@@ -186,13 +186,13 @@ final class DeviceAssistantStrings {
 
   String get background => _t('Background and battery', 'الخلفية والبطارية');
   String get batteryOk => _t(
-    'Battery optimisation is off for LABEEB.',
-    'تحسين البطارية متوقف للبيب.',
+    'Battery optimisation is off for AMEER.',
+    'تحسين البطارية متوقف لأمير.',
   );
   String get batteryOn => _t(
-    'Android may stop listening to save battery. Allow LABEEB to run '
+    'Android may stop listening to save battery. Allow AMEER to run '
         'unrestricted.',
-    'قد يوقف أندرويد الاستماع لتوفير البطارية. اسمح للبيب بالعمل دون قيود.',
+    'قد يوقف أندرويد الاستماع لتوفير البطارية. اسمح لأمير بالعمل دون قيود.',
   );
   String get batterySettings => _t('Battery settings', 'إعدادات البطارية');
   String get oemSettings =>
@@ -206,17 +206,17 @@ final class DeviceAssistantStrings {
   String get limits => _t(
     'Listening continues with the screen off or locked while its '
         'notification is shown. It stops after a restart or when the app is '
-        'force-stopped: open LABEEB once to turn it back on. Some phones also '
+        'force-stopped: open AMEER once to turn it back on. Some phones also '
         'stop it when the app is swiped away.',
     'يستمر الاستماع والشاشة مطفأة أو مقفلة طالما يظهر إشعاره. يتوقف بعد إعادة '
-        'التشغيل أو عند إيقاف التطبيق إجبارياً: افتح لبيب مرة لإعادة تشغيله. '
+        'التشغيل أو عند إيقاف التطبيق إجبارياً: افتح أمير مرة لإعادة تشغيله. '
         'وبعض الهواتف توقفه عند إزالة التطبيق من التطبيقات الأخيرة.',
   );
 
   String get privacy => _t('Privacy', 'الخصوصية');
   String get privacyBody => _t(
     'The phrase and your voice are checked on this device only. Nothing is '
-        'recorded or sent while LABEEB waits; a conversation starts only after '
+        'recorded or sent while AMEER waits; a conversation starts only after '
         'it recognises the phrase. Your voice profile is encrypted on this '
         'device, never uploaded and not backed up.',
     'تُفحص العبارة وصوتك على هذا الجهاز فقط. لا يُسجَّل أو يُرسَل شيء أثناء '

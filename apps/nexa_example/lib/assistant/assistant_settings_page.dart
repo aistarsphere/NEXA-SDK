@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:nexa_example/assistant/app_strings.dart';
 import 'package:nexa_example/assistant/device_assistant.dart';
 import 'package:nexa_example/assistant/device_assistant_strings.dart';
+import 'package:nexa_example/brand/ameer_logo.dart';
 import 'package:nexa_example/dev/dev_client_tools_section.dart';
 import 'package:nexa_example/dev/dev_token_section.dart';
 import 'package:nexa_example/dev/qa/dev_qa_section.dart';
@@ -104,7 +105,9 @@ class AssistantSettingsPage extends StatelessWidget {
             ),
             _SectionLabel(s.about),
             _InfoCard(
+              key: const Key('settings_about'),
               icon: Icons.auto_awesome_rounded,
+              leading: const AmeerLogo(size: 48, semanticLabel: null),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -381,9 +384,17 @@ class _SectionLabel extends StatelessWidget {
 }
 
 class _InfoCard extends StatelessWidget {
-  const _InfoCard({required this.icon, required this.child});
+  const _InfoCard({
+    required this.icon,
+    required this.child,
+    this.leading,
+    super.key,
+  });
   final IconData icon;
   final Widget child;
+
+  /// Replaces [icon] (e.g. the AMEER logo in About).
+  final Widget? leading;
 
   @override
   Widget build(BuildContext context) {
@@ -397,7 +408,7 @@ class _InfoCard extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: scheme.primary),
+          leading ?? Icon(icon, color: scheme.primary),
           const SizedBox(width: 12),
           Expanded(
             child: DefaultTextStyle.merge(

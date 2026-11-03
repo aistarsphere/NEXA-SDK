@@ -12,7 +12,7 @@ final class AppStrings {
 
   String _t(String en, String ar) => _ar ? ar : en;
 
-  String get appName => _t('LABEEB', 'لبيب');
+  String get appName => _t('AMEER', 'أمير');
   String get assistantSubtitle => _t('Your assistant', 'مساعدك الذكي');
   String get liveVoice => _t('Live voice', 'محادثة صوتية');
   String get liveConversation => _t('Live conversation', 'مكالمة مباشرة');
@@ -68,10 +68,10 @@ final class AppStrings {
       _t('Assistant not connected', 'المساعد غير متصل');
   String get notConnectedBody => _t(
     'This build has no sign-in service yet, so it can\'t start a '
-        'conversation. Access to LABEEB is issued by your organisation\'s '
+        'conversation. Access to AMEER is issued by your organisation\'s '
         'server.',
     'هذه النسخة لا تحتوي على خدمة تسجيل دخول بعد، لذلك لا يمكنها بدء '
-        'محادثة. يمنح خادم مؤسستك الوصول إلى لبيب.',
+        'محادثة. يمنح خادم مؤسستك الوصول إلى أمير.',
   );
   String get tokenExpiredTitle => _t('Access expired', 'انتهت صلاحية الوصول');
   String get devTokenBody => _t(

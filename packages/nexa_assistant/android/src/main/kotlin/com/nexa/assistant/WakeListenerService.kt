@@ -324,7 +324,7 @@ class WakeListenerService : Service() {
         }
         @Suppress("DEPRECATION")
         return Notifications.builder(this, CHANNEL)
-            .setSmallIcon(R.drawable.nexa_assistant_mic)
+            .setSmallIcon(Notifications.smallIcon(this))
             .setContentTitle(text)
             .setContentText(getString(R.string.nexa_assistant_on_device_only))
             .setOngoing(true)

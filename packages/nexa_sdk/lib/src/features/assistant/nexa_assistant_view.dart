@@ -197,11 +197,12 @@ class _AssistantScope extends StatelessWidget {
 // ------------------------------------------------------------------ header
 
 class _BrandTitle extends StatelessWidget {
-  const _BrandTitle({required this.assistant, this.compact = false});
+  const _BrandTitle({required this.assistant});
   final NexaAssistantView assistant;
 
-  /// Name only (a pushed page with a back button and several actions).
-  final bool compact;
+  /// Below this width the mark is dropped so the name still fits (a pushed
+  /// page with a back button and several actions at large text).
+  static const _minWidthForMark = 120.0;
 
   @override
   Widget build(BuildContext context) {
@@ -209,12 +210,29 @@ class _BrandTitle extends StatelessWidget {
     final lang = Localizations.localeOf(context).languageCode;
     final brand = assistant.brand;
     final subtitle = brand.subtitleFor(lang);
+    return LayoutBuilder(
+      builder: (context, box) => _row(
+        context,
+        theme,
+        lang,
+        brand,
+        subtitle,
+        mark: box.maxWidth >= _minWidthForMark,
+      ),
+    );
+  }
+
+  Widget _row(
+    BuildContext context,
+    ThemeData theme,
+    String lang,
+    NexaBrand brand,
+    String? subtitle, {
+    required bool mark,
+  }) {
     return Row(
       children: [
-        if (!compact) ...[
-          NexaBrandMark(brand: brand),
-          const SizedBox(width: 10),
-        ],
+        if (mark) ...[NexaBrandMark(brand: brand), const SizedBox(width: 10)],
         Flexible(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -350,7 +368,7 @@ class _ChatPageState extends State<_ChatPage> {
     return Scaffold(
       appBar: AppBar(
         titleSpacing: widget.pushed ? 0 : 16,
-        title: _BrandTitle(assistant: a, compact: listRoot),
+        title: _BrandTitle(assistant: a),
         actions: [
           if (voice)
             IconButton(

@@ -1,4 +1,4 @@
-// LABEEB as Android assistant: device activations → live voice, the lock
+// AMEER as Android assistant: device activations → live voice, the lock
 // gate, and the microphone hand-over. Channels are mocked (no device).
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';

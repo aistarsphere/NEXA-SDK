@@ -1,5 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- LABEEB surface (light), matches LabeebPalette.light.surface. -->
+    <!-- Launcher icon background: the deep brown of the app palette
+         (LabeebPalette.light.onPrimaryContainer). Used behind the AMEER symbol. -->
+    <color name="ic_launcher_background">#2E1C13</color>
+    <!-- Splash and window background (light), LabeebPalette.light.surface. -->
     <color name="labeeb_launch_background">#F7F3F0</color>
 </resources>

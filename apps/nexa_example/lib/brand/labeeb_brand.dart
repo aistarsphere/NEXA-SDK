@@ -1,18 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:nexa_example/brand/ameer_logo.dart';
 import 'package:nexa_example/brand/labeeb_palette.dart';
 import 'package:nexa_sdk/nexa_sdk.dart';
 
-/// LABEEB | لبيب: the customer-facing brand of this app. The assistant
-/// engine underneath is the brand-neutral NEXA SDK; everything visible here
-/// (name, logo, colours, fonts) is supplied by the app.
+/// AMEER | أمير: the customer-facing brand of this app (the class keeps its
+/// historical name `Labeeb`; identifiers, packages and API paths are not
+/// renamed). The assistant engine underneath is the brand-neutral NEXA SDK;
+/// everything visible here (name, logo, colours, fonts) is supplied by the app.
+/// Brand rules and assets: `docs/mobile/AMEER_BRANDING.md`.
 abstract final class Labeeb {
-  static const nameEn = 'LABEEB';
-  static const nameAr = 'لبيب';
+  static const nameEn = 'AMEER';
+  static const nameAr = 'أمير';
 
-  /// Final logo goes here (square PNG, transparent background, ≥ 512 px).
-  /// Until the file exists the app shows a text mark ("L" / "ل").
-  static const logoAsset = 'assets/brand/labeeb_logo.png';
+  /// The approved AMEER logo (square PNG canvas, transparent background),
+  /// generated from `assets/new_logo.png` by `tool/branding/`.
+  static const logoAsset = AmeerLogo.asset;
 
   static bool _hasLogo = false;
 
@@ -54,14 +57,7 @@ abstract final class Labeeb {
     localizedSubtitles: profile.value?.welcomeMessage == null
         ? const {'ar': 'مساعدك الذكي'}
         : const {},
-    logoBuilder: _hasLogo
-        ? (context, size) => Image.asset(
-            logoAsset,
-            width: size,
-            height: size,
-            fit: BoxFit.contain,
-          )
-        : null,
+    logoBuilder: _hasLogo ? (context, size) => AmeerLogo(size: size) : null,
   );
 }
 

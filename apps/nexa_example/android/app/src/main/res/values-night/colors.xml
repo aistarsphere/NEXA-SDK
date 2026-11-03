@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- LABEEB surface (dark), matches LabeebPalette.dark.surface. -->
+    <!-- Splash and window background (dark), LabeebPalette.dark.surface. -->
     <color name="labeeb_launch_background">#110D0B</color>
 </resources>

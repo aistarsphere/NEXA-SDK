@@ -3,6 +3,7 @@
 Updated 2026-11-03. Companion files: `.ai/flutter-architecture.md` (SDK package rules, still authoritative for package boundaries), `.ai/assumptions-and-blockers.md` (B1–B13), `docs/adr/`.
 
 Primary documents for the Beta (source of truth, in this order):
+0. `docs/mobile/AMEER_BRANDING.md` — the official AMEER logo, generated assets, splash, notification icon, naming rules, dashboard contract.
 1. `docs/mobile/MOBILE_BETA_REQUIREMENTS.md` — requirements M-01…M-16 with status.
 2. `docs/mobile/MOBILE_ARCHITECTURE_AUDIT.md` — evidence, findings F-xx, backend gaps G-xx.
 3. `docs/mobile/MOBILE_MASTER_IMPLEMENTATION_PLAN.md` — tasks A-01…G-05 in execution order.
@@ -13,7 +14,7 @@ This file is not a log. Record decisions and conventions here; record progress i
 
 ## 1. Product mission
 
-LABEEB (لبيب) is an Arabic-first assistant with one persistent, server-owned conversation history. Text chat and live voice are modes of the same conversation. Android first (Xiaomi 25010PN30G / Android 16, Nubia NX679J / Android 13). Beta is a technical implementation against the AWS gateway; company admins and the app never select AI models (M-16).
+AMEER (أمير; the app's earlier name LABEEB / لبيب survives in identifiers and in the wake phrase «يا لبيب», see `AMEER_BRANDING.md` §6) is an Arabic-first assistant with one persistent, server-owned conversation history. Text chat and live voice are modes of the same conversation. Android first (Xiaomi 25010PN30G / Android 16, Nubia NX679J / Android 13). Beta is a technical implementation against the AWS gateway; company admins and the app never select AI models (M-16).
 
 ## 2. Baseline
 

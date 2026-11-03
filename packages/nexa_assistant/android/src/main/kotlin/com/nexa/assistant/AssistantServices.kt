@@ -298,7 +298,7 @@ class NexaAssistantBootReceiver : BroadcastReceiver() {
             )
         }
         val n = Notifications.builder(context, channel)
-            .setSmallIcon(R.drawable.nexa_assistant_mic)
+            .setSmallIcon(Notifications.smallIcon(context))
             .setContentTitle(context.getString(R.string.nexa_assistant_reenable_title))
             .setContentText(context.getString(R.string.nexa_assistant_reenable_text))
             .setContentIntent(

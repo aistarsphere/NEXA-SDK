@@ -89,7 +89,7 @@ void main() {
 
     expect(find.text('كيف يمكنني مساعدتك اليوم؟'), findsOneWidget);
     expect(
-      Directionality.of(tester.element(find.text('لبيب'))),
+      Directionality.of(tester.element(find.text('أمير'))),
       TextDirection.rtl,
     );
   });
@@ -138,17 +138,14 @@ void main() {
   });
 
   testWidgets(
-    'assistant: LABEEB brand with text fallback, home and voice-only',
+    'assistant: AMEER brand with text fallback, home and voice-only',
     (tester) async {
       await phone(tester);
       final client = await mockClient();
       Widget app(NexaLaunchMode mode, {bool voice = true}) => MaterialApp(
         key: ValueKey('$mode-$voice'),
         home: client.assistantView(
-          brand: const NexaBrand(
-            name: 'LABEEB',
-            localizedNames: {'ar': 'لبيب'},
-          ),
+          brand: const NexaBrand(name: 'AMEER', localizedNames: {'ar': 'أمير'}),
           launchMode: mode,
           features: NexaAssistantFeatures(voice: voice),
         ),
@@ -156,7 +153,7 @@ void main() {
 
       await tester.pumpWidget(app(NexaLaunchMode.chat));
       await tester.pumpAndSettle();
-      expect(find.text('LABEEB'), findsOneWidget);
+      expect(find.text('AMEER'), findsOneWidget);
       expect(find.byKey(const Key('nexa_brand_fallback')), findsOneWidget);
       expect(find.byKey(const Key('assistant_voice')), findsOneWidget);
 

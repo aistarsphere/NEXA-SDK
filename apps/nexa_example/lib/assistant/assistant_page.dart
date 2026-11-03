@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:nexa_example/assistant/app_strings.dart';
 import 'package:nexa_example/assistant/labeeb_router.dart';
+import 'package:nexa_example/brand/ameer_logo.dart';
 import 'package:nexa_example/brand/labeeb_brand.dart';
 import 'package:nexa_example/dev_token_auth_provider.dart';
 import 'package:nexa_example/example_config.dart';
@@ -114,6 +115,12 @@ class _NotConnected extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                const AmeerLogo(
+                  key: Key('assistant_not_connected_logo'),
+                  size: 72,
+                  semanticLabel: null,
+                ),
+                const SizedBox(height: 12),
                 Container(
                   width: 64,
                   height: 64,
