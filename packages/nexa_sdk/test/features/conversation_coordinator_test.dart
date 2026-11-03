@@ -138,4 +138,18 @@ void main() {
     expect(c.conversationId, 'conv_a');
     expect(notified, 1);
   });
+
+  test(
+    'a coordinator without a creator tracks ids but cannot create',
+    () async {
+      final c = ConversationCoordinator(installationId: 'inst');
+      expect(c.canCreate, isFalse);
+      await expectLater(
+        c.ensureConversation(reason: 't'),
+        throwsA(isA<ConfigurationException>()),
+      );
+      c.open('conv_3');
+      expect(await c.ensureConversation(reason: 't'), 'conv_3');
+    },
+  );
 }

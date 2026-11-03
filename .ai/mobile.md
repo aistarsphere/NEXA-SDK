@@ -38,7 +38,7 @@ Intended (plan Phase A/B): add `ConversationCoordinator` (nexa_sdk) as the singl
 
 ## 5. Navigation conventions
 
-One conversation id per route; at most one `/call` route; closing the call route ends the call and lands on `/c/:id`; history resume navigates to `/c/:id` and remounts the chat; the Android system panel is an overlay over the router (`DeviceAssistantPanelHost`) that drives the same `NexaVoiceController`; the lock gate covers everything until Android unlocks.
+Routes (app, `labeeb_router.dart`): `/` chat root (list from B-01), `/c/:id` chat (resumes `id`; `new` = current/next), `/c/:id/call` full-screen call; the SDK is told through `onOpenCall` and exposes `callPage`/`chatPage`; use `router.state.uri` (not `currentConfiguration.uri`) for the top route. One conversation id per route; at most one `/call` route; closing the call route ends the call and lands on `/c/:id`; history resume navigates to `/c/:id` and remounts the chat; the Android system panel is an overlay over the router (`DeviceAssistantPanelHost`) that drives the same `NexaVoiceController`; the lock gate covers everything until Android unlocks.
 
 ## 6. State management rules
 

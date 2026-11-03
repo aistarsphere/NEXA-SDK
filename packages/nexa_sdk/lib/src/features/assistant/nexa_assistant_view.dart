@@ -31,6 +31,7 @@ class NexaAssistantView extends StatelessWidget {
     this.onOpenMicrophoneSettings,
     this.headerBadge,
     this.voiceRequests,
+    this.onOpenCall,
     super.key,
   });
 
@@ -54,6 +55,34 @@ class NexaAssistantView extends StatelessWidget {
   /// it; the SDK never listens to the microphone for it.
   final Stream<void>? voiceRequests;
 
+  /// Lets the host's router own the call route. Called instead of the
+  /// SDK's own push whenever the user (or [voiceRequests]) opens live
+  /// voice; the host shows [callPage] and must not open a second one.
+  ///
+  /// [fromHome] is true when the user started the call on the home splash:
+  /// the host should show the conversation first so closing the call lands
+  /// on it.
+  final void Function(BuildContext context, {required bool fromHome})?
+  onOpenCall;
+
+  /// The chat page without the launch-mode switch, for a host route such as
+  /// `/c/:id`.
+  Widget chatPage() => _AssistantScope(
+    client: client,
+    child: _VoiceRequests(
+      assistant: this,
+      child: _ChatPage(assistant: this),
+    ),
+  );
+
+  /// The live-call page for a host route such as `/c/:id/call`. The call
+  /// starts on open and ends when the page is disposed; [onClose] is the
+  /// close button (the host pops its route).
+  Widget callPage({VoidCallback? onClose}) => _AssistantScope(
+    client: client,
+    child: _LiveVoicePage(assistant: this, onClose: onClose),
+  );
+
   /// Voice is offered only when the host allows it **and** requested the
   /// capability; the backend still decides whether a call may start.
   bool get voiceEnabled =>
@@ -73,18 +102,40 @@ class NexaAssistantView extends StatelessWidget {
     ),
   );
 
-  void _openVoice(BuildContext context) =>
-      Navigator.of(context).push(_liveVoiceRoute(this));
+  /// Opens live voice. At most one call page per client; from the home
+  /// splash the chat is opened first so closing the call lands on the
+  /// conversation.
+  void _openVoice(BuildContext context, {bool fromHome = false}) {
+    final host = onOpenCall;
+    if (host != null) {
+      host(context, fromHome: fromHome);
+      return;
+    }
+    if (_callRouteOpen[client] ?? false) return;
+    _callRouteOpen[client] = true;
+    final nav = Navigator.of(context);
+    if (fromHome) unawaited(nav.push(_chatRoute()));
+    unawaited(
+      nav
+          .push(_liveVoiceRoute(this))
+          .whenComplete(() => _callRouteOpen[client] = false),
+    );
+  }
 
-  void _openChat(BuildContext context) => Navigator.of(context).push(
-    MaterialPageRoute<void>(
-      builder: (_) => _AssistantScope(
-        client: client,
-        child: _ChatPage(assistant: this, pushed: true),
-      ),
+  Route<void> _chatRoute() => MaterialPageRoute<void>(
+    builder: (_) => _AssistantScope(
+      client: client,
+      child: _ChatPage(assistant: this, pushed: true),
     ),
   );
+
+  void _openChat(BuildContext context) =>
+      Navigator.of(context).push(_chatRoute());
 }
+
+/// Clients with an SDK-pushed call page open (a second push would end the
+/// call under the first when either closes).
+final Expando<bool> _callRouteOpen = Expando<bool>('nexa call route open');
 
 /// Locale, direction and theme of the assistant chrome (the chat and voice
 /// views apply the same themselves).
@@ -362,7 +413,7 @@ class _HomePage extends StatelessWidget {
                       width: double.infinity,
                       child: FilledButton.tonalIcon(
                         key: const Key('assistant_home_voice'),
-                        onPressed: () => a._openVoice(context),
+                        onPressed: () => a._openVoice(context, fromHome: true),
                         icon: const Icon(Icons.graphic_eq_rounded),
                         label: Text(l10n.assistantStartVoice),
                       ),
@@ -395,7 +446,6 @@ class _VoiceRequests extends StatefulWidget {
 
 class _VoiceRequestsState extends State<_VoiceRequests> {
   StreamSubscription<void>? _sub;
-  bool _open = false;
 
   @override
   void initState() {
@@ -419,18 +469,13 @@ class _VoiceRequestsState extends State<_VoiceRequests> {
   /// compact assistant panel) continues on it.
   void _onRequest() {
     final a = widget.assistant;
-    if (!mounted || !a.voiceEnabled || _open) return;
+    if (!mounted || !a.voiceEnabled) return;
     final voice = a.client.voice;
     if (a.launchMode == NexaLaunchMode.voice) {
       if (!voice.state.value.isActive) unawaited(voice.start());
       return;
     }
-    _open = true;
-    unawaited(
-      Navigator.of(
-        context,
-      ).push(_liveVoiceRoute(a)).whenComplete(() => _open = false),
-    );
+    a._openVoice(context);
   }
 
   @override
@@ -478,9 +523,16 @@ Route<void> _liveVoiceRoute(NexaAssistantView assistant) =>
 /// the SDK voice view. Pushed: the call starts on open and ends when the
 /// page closes. As the root ([NexaLaunchMode.voice]): the user starts it.
 class _LiveVoicePage extends StatefulWidget {
-  const _LiveVoicePage({required this.assistant, this.root = false});
+  const _LiveVoicePage({
+    required this.assistant,
+    this.root = false,
+    this.onClose,
+  });
   final NexaAssistantView assistant;
   final bool root;
+
+  /// Close button action; null pops the enclosing navigator route.
+  final VoidCallback? onClose;
 
   @override
   State<_LiveVoicePage> createState() => _LiveVoicePageState();
@@ -595,7 +647,8 @@ class _LiveVoicePageState extends State<_LiveVoicePage> {
             : IconButton(
                 key: const Key('live_voice_close'),
                 tooltip: l10n.assistantClose,
-                onPressed: () => Navigator.of(context).maybePop(),
+                onPressed:
+                    widget.onClose ?? () => Navigator.of(context).maybePop(),
                 icon: const Icon(Icons.close_rounded),
               ),
         titleSpacing: widget.root ? 16 : 0,

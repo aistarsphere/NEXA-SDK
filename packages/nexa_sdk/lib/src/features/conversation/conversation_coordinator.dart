@@ -12,8 +12,8 @@ import 'package:uuid/uuid.dart';
 /// a retry after a timeout cannot make a duplicate.
 final class ConversationCoordinator extends ChangeNotifier {
   ConversationCoordinator({
-    required Future<String> Function({required String clientRef}) create,
     required String installationId,
+    Future<String> Function({required String clientRef})? create,
     String Function()? newId,
     NexaDiagnostics diagnostics = const NoopNexaDiagnostics(),
   }) : _create = create,
@@ -21,7 +21,7 @@ final class ConversationCoordinator extends ChangeNotifier {
        _newId = newId ?? (() => const Uuid().v4()),
        _diagnostics = diagnostics;
 
-  final Future<String> Function({required String clientRef}) _create;
+  final Future<String> Function({required String clientRef})? _create;
   final String _installationId;
   final String Function() _newId;
   final NexaDiagnostics _diagnostics;
@@ -30,6 +30,11 @@ final class ConversationCoordinator extends ChangeNotifier {
   String? _pendingClientRef;
   Future<String>? _creating;
   int _lastKnownSeq = 0;
+
+  /// Whether this coordinator can create conversations (a real gateway).
+  /// Without it ([open]/[adopt] still track an id) a session or call runs
+  /// without a server conversation.
+  bool get canCreate => _create != null;
 
   /// The current server conversation, or null before the first create.
   String? get conversationId => _conversationId;
@@ -45,13 +50,20 @@ final class ConversationCoordinator extends ChangeNotifier {
   Future<String> ensureConversation({required String reason}) {
     final id = _conversationId;
     if (id != null) return Future.value(id);
+    if (_create == null) {
+      return Future.error(
+        const ConfigurationException(
+          'This client keeps no server conversations',
+        ),
+      );
+    }
     return _creating ??= _createNow(reason);
   }
 
   Future<String> _createNow(String reason) async {
     final ref = _pendingClientRef ??= '$_installationId:${_newId()}';
     try {
-      final id = await _create(clientRef: ref);
+      final id = await _create!(clientRef: ref);
       // startNew/open while the request was in flight: the user moved on.
       if (_pendingClientRef == ref) {
         _pendingClientRef = null;

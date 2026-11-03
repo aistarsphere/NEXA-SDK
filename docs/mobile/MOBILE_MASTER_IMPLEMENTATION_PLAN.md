@@ -88,6 +88,7 @@ void openCall(BuildContext c, String id) {
 | Tests | widget: double tap on voice → one `/c/x/call` entry; back from call → `/c/x`; root call → `/c/new/call` → end → `/c/new`; history resume → `/c/y` with remount; existing `assistant_test.dart`, `app_smoke_test.dart` updated |
 | Device acceptance | T-M02-01..04 |
 | DoD | no `Navigator.push` of full pages inside `nexa_assistant_view.dart` for LABEEB's path; router test file added |
+| Implemented 2026-11-03 | `onOpenCall(context, {fromHome})` + `NexaAssistantView.callPage/chatPage`; SDK-pushed path kept for third-party hosts with a per-client guard (`_callRouteOpen`) and home→chat→call ordering; app `openLabeebCall` (single in-flight, `router.state` check, ensureConversation, `new` when offline/mock); `/c/:id` resumes via `RouteConversation` (microtask, never in build); coordinator is always attached and `canCreate` only on a real gateway |
 | Depends on | A-01 |
 | Rollback | keep `assistantView()` path; switch `AssistantPage` back |
 | Out of scope | list screen design (B-01) |

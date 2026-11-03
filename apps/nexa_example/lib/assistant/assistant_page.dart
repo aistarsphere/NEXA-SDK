@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:nexa_example/assistant/app_strings.dart';
+import 'package:nexa_example/assistant/labeeb_router.dart';
 import 'package:nexa_example/brand/labeeb_brand.dart';
 import 'package:nexa_example/dev_token_auth_provider.dart';
 import 'package:nexa_example/example_config.dart';
-import 'package:nexa_example/host_permission_handler.dart';
 import 'package:nexa_sdk/nexa_sdk.dart';
 
 /// The LABEEB assistant. Chat, live voice, navigation between them and the
@@ -16,6 +16,7 @@ class AssistantPage extends StatelessWidget {
     required this.client,
     required this.auth,
     this.voiceRequests,
+    this.chatOnly = false,
     super.key,
   });
 
@@ -24,6 +25,9 @@ class AssistantPage extends StatelessWidget {
 
   /// Opens live voice (Android assistant gesture or «يا لبيب»).
   final Stream<void>? voiceRequests;
+
+  /// `/c/:id`: always the chat page, whatever the launch mode.
+  final bool chatOnly;
 
   bool get _connected => switch (auth) {
     final DevTokenAuthProvider dev => dev.hasToken && !dev.isExpired,
@@ -69,40 +73,12 @@ class AssistantPage extends StatelessWidget {
   }
 
   Widget _assistant(BuildContext context) {
-    return client.assistantView(
-      brand: Labeeb.brand,
-      launchMode: ExampleConfig.launchMode,
-      features: ExampleConfig.features,
-      suggestions: AppStrings.suggestionsFor,
-      onOpenSettings: () => context.push('/settings'),
-      onOpenMicrophoneSettings: HostPermissionHandler.openSettings,
-      headerBadge: ExampleConfig.devTools ? const _DevBadge() : null,
+    final view = labeebAssistantView(
+      context,
+      client,
       voiceRequests: voiceRequests,
     );
-  }
-}
-
-/// Marks development builds (design: the "DEMO" tag in the chat header).
-class _DevBadge extends StatelessWidget {
-  const _DevBadge();
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = NexaColors.of(context);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-      decoration: BoxDecoration(
-        color: colors.warningContainer,
-        borderRadius: BorderRadius.circular(5),
-      ),
-      child: Text(
-        'DEV',
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-          color: colors.warning,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-    );
+    return chatOnly ? view.chatPage() : view;
   }
 }
 

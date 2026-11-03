@@ -8,7 +8,7 @@ Order is the execution order of `MOBILE_MASTER_IMPLEMENTATION_PLAN.md`. Do not s
 |---|---|---|---|---|---|---|
 | 0 | F-01 Commit wake-word benchmark (uncommitted files) | M-10 | — | DONE | 9156df7 | Q1 clean; nexa_assistant 6 + app 28 Dart tests; Kotlin testDebugUnitTest green (2026-11-03) |
 | 1 | A-01 ConversationCoordinator | M-01, M-02, M-04 | F-01 | DONE (device pending) | 3bc1a0e | unit: conversation_coordinator_test (8) + conversation_session_test (5, incl. cold-start guard mutation-checked); `tool/check.sh` green on rerun; device T-M01-01 (offline → online → one conversation) pending |
-| 2 | A-02 Route graph owned by the app | M-02 | A-01 | NOT STARTED | | T-M02-01..03 |
+| 2 | A-02 Route graph owned by the app | M-02 | A-01 | DONE (device pending) | @@HASH@@ | SDK `assistant_navigation_test` (4; guard + home-flow mutation-checked), app `router_test` (3); `tool/check.sh` green (sdk 265, app 31). Device T-M02-01..04 pending. Scope notes: `/` stays the chat root until B-01; history/settings pushes are still SDK/app-internal; call route uses `MaterialPage(fullscreenDialog)`, not the custom fade transition |
 | 3 | A-03 In-call foreground service | M-12.2, M-03.5 | A-02 | NOT STARTED | | T-M12-02, T-M02-05, T-M03-06 |
 | 4 | A-04 App lifecycle hooks for calls | M-02.5, M-12 | A-03 | NOT STARTED | | T-M02-05..07 |
 | 5 | B-01 Conversation list root | M-01.1 | A-01, A-02 | NOT STARTED | | T-M01-03, T-M01-05 |
@@ -62,3 +62,4 @@ Live «غيّرلي شكل التطبيق» (T-M05-05) · six noise scenarios (T
 |---|---|---|---|
 | 2026-11-03 | `reference_gateway_integration_test` "server-side expiry ends the chat with reason expired" is timing-flaky under full-suite load (`waitFor` timeout) | baseline `flutter test` in `packages/nexa_sdk`: 1 failure in 3 runs; passes alone; same on A-01 | OPEN (test-only; raise the wait or poll the gateway clock) |
 | 2026-11-03 | `chat_bloc.dart:81` and `dio_factory.dart:39` use a non-injectable `static const Uuid()` | source | OPEN (convention; fix when those files are touched) |
+| 2026-11-03 | go_router `GoRouter.routerDelegate.currentConfiguration.uri` ignores imperatively pushed routes; use `router.state.uri` to know the top route | go_router 18.1 `match.dart:532` | NOTE (applied in `labeeb_router.dart`) |

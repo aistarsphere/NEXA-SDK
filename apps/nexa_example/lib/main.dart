@@ -15,6 +15,7 @@ import 'package:nexa_example/assistant/assistant_page.dart';
 import 'package:nexa_example/assistant/assistant_settings_page.dart';
 import 'package:nexa_example/assistant/device_assistant.dart';
 import 'package:nexa_example/assistant/device_assistant_page.dart';
+import 'package:nexa_example/assistant/labeeb_router.dart';
 import 'package:nexa_example/brand/labeeb_brand.dart';
 import 'package:nexa_example/brand/labeeb_theme_controller.dart';
 import 'package:nexa_example/dev/dynamic_ui_gallery_page.dart';
@@ -211,9 +212,48 @@ class ExampleApp extends StatelessWidget {
   /// Integration tests start in the playground (`/dev`).
   final String initialLocation;
 
+  /// The app router (exposed for navigation tests).
+  @visibleForTesting
+  GoRouter get router => _router;
+
   late final GoRouter _router = GoRouter(
     initialLocation: initialLocation,
     routes: [
+      GoRoute(
+        path: '/c/:id',
+        builder: (context, state) => RouteConversation(
+          client: client,
+          conversationId: state.pathParameters['id']!,
+          builder: (context) => AssistantPage(
+            client: client,
+            auth: auth,
+            voiceRequests: device?.voiceRequests,
+            chatOnly: true,
+          ),
+        ),
+        routes: [
+          GoRoute(
+            path: 'call',
+            pageBuilder: (context, state) {
+              final id = state.pathParameters['id']!;
+              return MaterialPage<void>(
+                key: state.pageKey,
+                fullscreenDialog: true,
+                child: RouteConversation(
+                  client: client,
+                  conversationId: id,
+                  builder: (context) =>
+                      labeebAssistantView(context, client).callPage(
+                        onClose: () => context.canPop()
+                            ? context.pop()
+                            : context.go('/c/$id'),
+                      ),
+                ),
+              );
+            },
+          ),
+        ],
+      ),
       GoRoute(
         path: '/',
         builder: (context, state) => AssistantPage(

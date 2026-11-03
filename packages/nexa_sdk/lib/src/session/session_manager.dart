@@ -33,9 +33,9 @@ final class SessionManager {
   /// (labeeb.sdk/1; set by `NexaClient`).
   Future<List<String>> Function()? clientToolsProvider;
 
-  /// Owner of the conversation id (set by `NexaClient`). When present it
-  /// creates the conversation (stable `client_ref`) and takes precedence
-  /// over [conversationProvider].
+  /// Owner of the conversation id (set by `NexaClient`). When it can create
+  /// conversations (real gateway) it does so with a stable `client_ref` and
+  /// takes precedence over [conversationProvider].
   ConversationCoordinator? coordinator;
 
   /// Legacy hook for hosts and tests without a coordinator: returns the
@@ -45,7 +45,7 @@ final class SessionManager {
 
   /// Whether a call or chat can ask for a conversation to be created.
   bool get canCreateConversation =>
-      coordinator != null || conversationProvider != null;
+      (coordinator?.canCreate ?? false) || conversationProvider != null;
 
   String? _localConversationId;
   bool _localResumePending = false;
@@ -70,7 +70,7 @@ final class SessionManager {
 
   Future<String?> _ensureConversation() async {
     final c = coordinator;
-    if (c == null) {
+    if (c == null || !c.canCreate) {
       final provider = conversationProvider;
       return provider == null ? null : await provider();
     }

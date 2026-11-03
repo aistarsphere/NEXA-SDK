@@ -111,11 +111,10 @@ abstract final class Nexa {
     // labeeb.sdk/1: declare the device tools this client can run, and join
     // a server-owned conversation (tools, attachments and voice need one).
     client._sessions.clientToolsProvider = client.toolCalls.declaredTools;
-    if (contract) {
-      client._sessions
-        ..coordinator = client.conversations
-        ..historyLoader = client._earlierMessages;
-    }
+    client
+      .._serverConversations = contract
+      .._sessions.coordinator = client.conversations;
+    if (contract) client._sessions.historyLoader = client._earlierMessages;
     if (injector.isRegistered<NexaVoiceController>()) {
       // Tools in a call: same lifecycle, answered in `tools.session_id`.
       final voice = injector<NexaVoiceController>()
@@ -199,13 +198,22 @@ final class NexaClient {
   StreamSubscription<NexaVoiceToolEvent>? _voiceTools;
   StreamSubscription<NexaToolCall>? _voiceActivation;
 
+  /// Whether this client keeps server conversations (a real gateway, not a
+  /// mock transport): only then does [conversations] create over the network.
+  bool get hasServerConversations => _serverConversations;
+  bool _serverConversations = false;
+
   /// Single owner of the current conversation id (create with a stable
   /// `client_ref`, resume, new).
   late final ConversationCoordinator conversations = ConversationCoordinator(
     installationId: installation.id,
     diagnostics: _injector<NexaDiagnostics>(),
-    create: ({required clientRef}) async =>
-        (await api.createConversation(kind: 'chat', clientRef: clientRef)).id,
+    create: _serverConversations
+        ? ({required clientRef}) async => (await api.createConversation(
+            kind: 'chat',
+            clientRef: clientRef,
+          )).id
+        : null,
   );
 
   /// Continues server conversation [conversationId] (history resume): the
@@ -425,7 +433,9 @@ final class NexaClient {
   ///   [onOpenMicrophoneSettings] opens the OS settings after a denial.
   /// * [voiceRequests]: each event opens live voice (an assistant button or
   ///   wake phrase handled by the host); ignored while a call is open.
-  Widget assistantView({
+  /// * [onOpenCall]: the host's router owns the call route (show
+  ///   [NexaAssistantView.callPage]); the SDK pushes nothing itself.
+  NexaAssistantView assistantView({
     required NexaBrand brand,
     Key? key,
     NexaLaunchMode launchMode = NexaLaunchMode.chat,
@@ -435,6 +445,7 @@ final class NexaClient {
     VoidCallback? onOpenMicrophoneSettings,
     Widget? headerBadge,
     Stream<void>? voiceRequests,
+    void Function(BuildContext context, {required bool fromHome})? onOpenCall,
   }) {
     _checkAlive();
     return NexaAssistantView(
@@ -448,6 +459,7 @@ final class NexaClient {
       onOpenMicrophoneSettings: onOpenMicrophoneSettings,
       headerBadge: headerBadge,
       voiceRequests: voiceRequests,
+      onOpenCall: onOpenCall,
     );
   }
 
