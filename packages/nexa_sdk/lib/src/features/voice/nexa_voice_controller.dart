@@ -99,6 +99,8 @@ final class NexaVoiceController {
   bool _ending = false;
   bool _recovering = false;
   bool _tearingDown = false;
+  Timer? _backgroundTimer;
+  String _endReason = 'user';
 
   /// Current snapshot; listen for UI binding.
   ValueListenable<NexaVoiceState> get state => _state;
@@ -118,6 +120,42 @@ final class NexaVoiceController {
 
   /// Whether the microphone track is currently published and enabled.
   bool get microphoneEnabled => _transport.isMicrophoneEnabled;
+
+  /// Set by the host: true while something keeps the call alive in the
+  /// background (an Android foreground service, or the system assistant
+  /// panel). Without it a backgrounded call is ended after
+  /// `NexaVoiceOptions.backgroundGrace`.
+  bool Function()? keepAliveInBackground;
+
+  /// The app left the foreground. With a call running and nothing holding
+  /// it, the call ends after the grace period (`endReason: background`).
+  void notePaused() {
+    if (_disposed || !_state.value.isActive) return;
+    final held = keepAliveInBackground?.call() ?? false;
+    _diagnostics.record('voice.app_paused', {
+      'phase': _state.value.phase.name,
+      'held': held,
+    });
+    _backgroundTimer?.cancel();
+    if (held) return;
+    _backgroundTimer = Timer(_options.backgroundGrace, () {
+      if (_disposed || !_state.value.isActive) return;
+      if (keepAliveInBackground?.call() ?? false) return;
+      _diagnostics.record('voice.background_end');
+      unawaited(end(reason: 'background'));
+    });
+  }
+
+  /// The app is back. A stalled reconnect is retried at once (the OS may
+  /// have frozen the sockets while backgrounded).
+  void noteResumed() {
+    _backgroundTimer?.cancel();
+    if (_disposed || !_state.value.isActive) return;
+    _diagnostics.record('voice.app_resumed', {
+      'phase': _state.value.phase.name,
+    });
+    if (_state.value.phase == VoiceState.reconnecting) unawaited(_recover());
+  }
 
   /// Language sent as `language_tag` when a call is created (`en`/`ar`).
   set languageTag(String tag) => _languageTag = tag;
@@ -159,8 +197,12 @@ final class NexaVoiceController {
 
   /// Ends the call (`DELETE`, then leave the room). Safe when no call is
   /// active.
-  Future<void> end() async {
+  ///
+  /// [reason] becomes `endReason` of the state and the `NexaVoiceEnded`
+  /// event (`user` by default; `background` when the app was left).
+  Future<void> end({String reason = 'user'}) async {
     if (_disposed) return;
+    _endReason = reason;
     _ending = true;
     _dispatch(const VoiceEndRequested());
     _ending = false;
@@ -221,6 +263,7 @@ final class NexaVoiceController {
     if (_disposed) return;
     if (_voiceSessionId != null) await _teardown();
     _disposed = true;
+    _backgroundTimer?.cancel();
     _capTimer?.cancel();
     await _subscription?.cancel();
     await _events.close();
@@ -248,7 +291,7 @@ final class NexaVoiceController {
       if (transition.state == VoiceState.quotaExceeded) {
         _finish('quota_exceeded');
       } else if (transition.state == VoiceState.ended) {
-        _finish(_state.value.endReason ?? (_ending ? 'user' : 'server'));
+        _finish(_state.value.endReason ?? (_ending ? _endReason : 'server'));
       } else if (transition.state == VoiceState.microphoneDenied) {
         _set(
           _state.value.copyWith(

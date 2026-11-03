@@ -111,6 +111,33 @@ void main() {
     expect(device.callServiceHeld.value, isFalse);
   });
 
+  testWidgets(
+    'the call is held in the background by the service or the panel',
+    (tester) async {
+      final (client, device) = await setUpApp(tester);
+      replies['callStarted'] = {'ok': false, 'reason': 'fgs_blocked'};
+      await tester.pumpWidget(app(client, device));
+      await device.start();
+      await tester.pumpAndSettle();
+      final held = client.voice.keepAliveInBackground!;
+      expect(held(), isFalse);
+
+      // The system panel over another app keeps the process alive.
+      push({'type': 'surface', 'surface': 'panel', 'reason': 'assist'});
+      await frames(tester);
+      expect(held(), isTrue);
+      push({'type': 'surface', 'surface': 'hidden', 'reason': 'closed'});
+      await frames(tester);
+      expect(held(), isFalse);
+
+      // The call service does too.
+      device.callServiceHeld.value = true;
+      expect(held(), isTrue);
+      await client.voice.end();
+      await frames(tester);
+    },
+  );
+
   testWidgets('a blocked call service leaves the call running unheld', (
     tester,
   ) async {

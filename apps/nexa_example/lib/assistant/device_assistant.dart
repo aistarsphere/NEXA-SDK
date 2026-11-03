@@ -73,6 +73,10 @@ class DeviceAssistant extends ChangeNotifier {
     if (!supported) return;
     await plugin.configure(phraseLabel: wakePhrase);
     client.voice.state.addListener(_syncVoice);
+    // A backgrounded call survives only with the call service or the panel;
+    // otherwise the SDK ends it deliberately (A-04).
+    client.voice.keepAliveInBackground = () =>
+        callServiceHeld.value || _surface.panel;
     _syncVoice();
     _unfollow = plugin.followMicrophoneUse(_voiceBusy);
     _events = plugin.events.listen((e) {
@@ -199,6 +203,7 @@ class DeviceAssistant extends ChangeNotifier {
   @override
   void dispose() {
     client.voice.state.removeListener(_syncVoice);
+    client.voice.keepAliveInBackground = null;
     _unfollow?.call();
     unawaited(_events?.cancel());
     unawaited(_voice.close());

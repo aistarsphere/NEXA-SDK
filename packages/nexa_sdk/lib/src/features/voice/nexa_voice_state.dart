@@ -168,11 +168,18 @@ final class NexaVoiceOptions {
     this.maxTranscriptEntries = 50,
     this.allowLegacyHmac = false,
     this.restartOnVoiceActivation = true,
+    this.backgroundGrace = const Duration(seconds: 25),
   });
 
   /// After `voice.profile.activate` succeeds during a call, end it and
   /// start a new one in the same conversation so the new voice applies.
   final bool restartOnVoiceActivation;
+
+  /// How long a call may stay in the background when nothing holds it alive
+  /// (see `NexaVoiceController.keepAliveInBackground`) before it is ended
+  /// deliberately. Shorter than the server's reconnect grace (30 s) so the
+  /// server is not left to its idle timeout.
+  final Duration backgroundGrace;
 
   /// Join with the microphone muted.
   final bool startMuted;

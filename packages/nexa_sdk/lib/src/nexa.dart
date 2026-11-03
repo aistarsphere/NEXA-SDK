@@ -25,6 +25,7 @@ import 'package:nexa_sdk/src/features/media/nexa_device_actions.dart';
 import 'package:nexa_sdk/src/features/tools/labeeb_device_tools.dart';
 import 'package:nexa_sdk/src/features/tools/labeeb_tool_calls.dart';
 import 'package:nexa_sdk/src/features/voice/nexa_voice_controller.dart';
+import 'package:nexa_sdk/src/features/voice/nexa_voice_lifecycle.dart';
 import 'package:nexa_sdk/src/features/voice/nexa_voice_state.dart';
 import 'package:nexa_sdk/src/features/voice/presentation/nexa_voice_view.dart';
 import 'package:nexa_sdk/src/identity/nexa_installation.dart';
@@ -129,6 +130,7 @@ abstract final class Nexa {
               ],
             );
       }
+      client._voiceLifecycle = NexaVoiceLifecycle(voice)..attach();
       client._voiceTools = voice.toolEvents.listen(
         (e) => client.toolCalls.ingestVoice(
           e.type,
@@ -195,6 +197,7 @@ final class NexaClient {
   /// session, or without server conversations).
   String? get conversationId => _sessions.conversationId;
 
+  NexaVoiceLifecycle? _voiceLifecycle;
   StreamSubscription<NexaVoiceToolEvent>? _voiceTools;
   StreamSubscription<NexaToolCall>? _voiceActivation;
 
@@ -489,6 +492,7 @@ final class NexaClient {
     final sessions = _sessions;
     final transport = _injector<ChatTransport>();
     sessions.emit(NexaDisposed(clock.now()));
+    _voiceLifecycle?.detach();
     unawaited(_voiceTools?.cancel());
     unawaited(_voiceActivation?.cancel());
     if (_injector.isRegistered<NexaVoiceController>()) {

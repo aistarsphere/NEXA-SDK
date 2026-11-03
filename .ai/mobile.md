@@ -55,6 +55,18 @@ Routes (app, `labeeb_router.dart`): `/` chat root (list from B-01), `/c/:id` cha
 
 Create → join (mic only, `wss`) → `resume` handshake → states from verified events only → `DELETE` on every exit. Reconnect: `GET` → `POST …/token` → rejoin same identity → `resume(last_seq)`. Mute = `setMicrophoneEnabled(false)` (capture stops; `TrackMuted` to the server); plan E-01 adds a bounded grace (≤ 1.2 s) while the user's last utterance is being finalised. Voice turns persist server-side (`server_recorded` when tools are on, else client `voice-turns`).
 
+Background behaviour of a call (A-03/A-04, `NexaVoiceController.notePaused/noteResumed`, `NexaVoiceLifecycle`):
+
+| App state | Held by | Result |
+|---|---|---|
+| foreground | — | normal |
+| `paused`, call service running (`callServiceHeld`) | foreground service | call continues |
+| `paused`, system panel showing | panel surface (`DeviceAssistant`) | call continues |
+| `paused`, nothing holds it (service refused: Android 14+ `not_foreground`/`fgs_blocked`) | — | after `NexaVoiceOptions.backgroundGrace` (25 s) the call ends: `DELETE`, `endReason: background` |
+| `resumed` before the grace | — | timer cancelled, call continues |
+| `resumed` while `reconnecting` | — | `_recover()` runs at once |
+| notification "End call" / swipe-away | service | `end_requested` → host ends the call |
+
 ## 9. Tool UI schema
 
 `nexa.ui/1` only: 18 components, 4 actions (`send_ui_event`, `open_url`, `client_tool`, `dismiss`), 6 events, limits 200 nodes / depth 6 / 48 kB, https-only links, host `extensionTypes` for extra renderers. Selections go as `ui_event` on `POST /sessions/{id}/messages`; answers to device tools go once to `POST …/tool-calls/{id}/result`. Orchestration stays on AWS.
