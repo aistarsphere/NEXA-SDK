@@ -128,6 +128,7 @@ void main() {
     expect(calls.firstWhere((c) => c.method == 'wakeTest').arguments, {
       'id': 'abbas',
       'seconds': 10,
+      'checkOwner': false,
     });
     expect(
       tester
