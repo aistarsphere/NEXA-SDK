@@ -234,6 +234,18 @@ class NexaAssistantPlugin :
             "openAppSettings" -> result.success(openAppDetails())
             "setWakeEnabled" -> setWakeEnabled(call.argument<Boolean>("enabled") == true, result)
             "setRequireOwnerVoice" -> setRequireOwner(call.argument<Boolean>("enabled") == true, result)
+            "setWakePhrase" -> {
+                val id = call.argument<String>("id").orEmpty()
+                val entry = WakePhraseCatalog.find(context, id)
+                if (entry == null) {
+                    result.success("not_installed")
+                } else {
+                    prefs.wakePhraseId = entry.id
+                    prefs.phraseLabel = entry.label
+                    WakeListenerService.reload(context)
+                    result.success("ok")
+                }
+            }
             "setSensitivity" -> {
                 prefs.sensitivity = runCatching { Sensitivity.valueOf(call.argument<String>("value")!!.uppercase()) }
                     .getOrDefault(Sensitivity.NORMAL)
@@ -356,6 +368,11 @@ class NexaAssistantPlugin :
             "speakerModel" to OnnxSpeakerEmbedder.MODEL_ID,
             "requireOwnerVoice" to prefs.requireOwner,
             "sensitivity" to prefs.sensitivity.name.lowercase(),
+            "wakeDetector" to if (WakePhraseCatalog.find(context, prefs.wakePhraseId) != null) "neural" else "template",
+            "wakePhraseId" to prefs.wakePhraseId,
+            "wakePhrases" to WakePhraseCatalog.entries(context).map {
+                mapOf("id" to it.id, "label" to it.label, "installed" to it.installed)
+            },
             "locked" to Activation.locked(context),
         )
     }
@@ -435,7 +452,7 @@ class NexaAssistantPlugin :
         }
         when {
             !micGranted() -> result.success("permission_denied")
-            !store.exists -> result.success("not_enrolled")
+            !store.exists && !WakePhraseCatalog.available(context) -> result.success("not_enrolled")
             !resumed -> result.success("not_in_foreground")
             else -> {
                 prefs.wakeEnabled = true

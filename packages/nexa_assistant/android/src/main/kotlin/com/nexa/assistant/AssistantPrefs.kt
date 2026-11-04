@@ -39,6 +39,11 @@ internal class AssistantPrefs(context: Context) {
         get() = p.getString("last_end", null)
         set(v) = p.edit().putString("last_end", v).apply()
 
+    /** The installed wake phrase in use (see [WakePhraseCatalog]). */
+    var wakePhraseId: String
+        get() = p.getString("wake_phrase_id", null) ?: WakePhraseCatalog.DEFAULT_ID
+        set(v) = p.edit().putString("wake_phrase_id", v).apply()
+
     /** How the host names the wake phrase in notifications (e.g. «يا لبيب»). */
     var phraseLabel: String?
         get() = p.getString("phrase_label", null)

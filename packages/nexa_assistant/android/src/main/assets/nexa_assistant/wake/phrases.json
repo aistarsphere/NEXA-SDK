@@ -1,0 +1,5 @@
+{
+  "phrases": [
+    {"id": "yaameer", "label": "يا أمير", "head": "yaameer.bin", "threshold": 0.9, "hits": 2}
+  ]
+}

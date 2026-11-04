@@ -35,7 +35,7 @@ class DeviceAssistant extends ChangeNotifier {
   final NexaAssistant plugin;
 
   /// The Arabic wake phrase (shown in settings and the notification).
-  static const wakePhrase = 'يا لبيب';
+  static const wakePhrase = 'يا أمير';
 
   bool get supported => plugin.supported;
 

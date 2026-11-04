@@ -21,7 +21,9 @@ import android.os.Looper
 import android.util.Log
 import com.nexa.assistant.engine.FilterBank
 import com.nexa.assistant.engine.WakeDecision
+import com.nexa.assistant.engine.NeuralWakeEngine
 import com.nexa.assistant.engine.WakeEngine
+import com.nexa.assistant.engine.WakeFrontEnd
 
 /**
  * Listens for the wake phrase on the device while the user has it on.
@@ -87,6 +89,7 @@ class WakeListenerService : Service() {
     @Volatile private var pausedBy: String? = null
     @Volatile private var engineStale = true
     private var embedder: OnnxSpeakerEmbedder? = null
+    private var features: OnnxWakeFeatures? = null
 
     private val autoResume = Runnable { if (pausedBy == "activation") doResume() }
 
@@ -162,6 +165,8 @@ class WakeListenerService : Service() {
         worker = null
         embedder?.close()
         embedder = null
+        features?.close()
+        features = null
         if (Build.VERSION.SDK_INT >= 24) stopForeground(STOP_FOREGROUND_REMOVE)
         publish("stopped", reason)
     }
@@ -171,7 +176,8 @@ class WakeListenerService : Service() {
         super.onDestroy()
     }
 
-    private fun buildEngine(): WakeEngine? {
+    private fun buildEngine(): WakeFrontEnd? {
+        buildNeural()?.let { return it }
         val profile = VoiceProfileStore(this).load() ?: return null
         val requireOwner = prefs.requireOwner && profile.speaker != null
         if (requireOwner && embedder == null) embedder = OnnxSpeakerEmbedder.load(this)
@@ -185,18 +191,50 @@ class WakeListenerService : Service() {
         )
     }
 
+    /** The trained acoustic detector for the chosen phrase, if installed. */
+    private fun buildNeural(): NeuralWakeEngine? {
+        val entry = WakePhraseCatalog.find(this, prefs.wakePhraseId) ?: return null
+        val head = WakePhraseCatalog.loadHead(this, entry) ?: return null
+        val f = features ?: OnnxWakeFeatures.load(this)?.also { features = it } ?: return null
+        val profile = VoiceProfileStore(this).load()
+        if (prefs.requireOwner && profile?.speaker != null && embedder == null) {
+            embedder = OnnxSpeakerEmbedder.load(this)
+        }
+        Log.i("NexaWake", "detector=neural phrase=${entry.id} threshold=${entry.threshold} hits=${entry.hits}")
+        return NeuralWakeEngine(
+            features = f,
+            head = head,
+            baseThreshold = entry.threshold,
+            hits = entry.hits,
+            speaker = profile?.speaker,
+            embedder = embedder,
+            requireOwner = prefs.requireOwner,
+            sensitivity = prefs.sensitivity,
+            onDecision = ::onDecided,
+        )
+    }
+
+    /** A marker file in the app's external files dir (adb-created) turns activation off for benchmarks. */
+    private fun dryRun(): Boolean =
+        java.io.File(getExternalFilesDir(null), "wake_dry_run").exists()
+
     private fun onDecided(d: WakeDecision) {
         // Scores only (never audio): needed to tune thresholds on real voices.
         Log.i(
             "NexaWake",
             "decision=${d.reason} ms=${d.durationMs} phrase=%.3f/%.3f voice=%s/%s".format(
-                d.keywordDistance, d.keywordThreshold,
-                d.speakerScore?.let { "%.2f".format(it) } ?: "-",
-                d.speakerThreshold?.let { "%.2f".format(it) } ?: "-",
+                java.util.Locale.ROOT, d.keywordDistance, d.keywordThreshold,
+                d.speakerScore?.let { "%.2f".format(java.util.Locale.ROOT, it) } ?: "-",
+                d.speakerThreshold?.let { "%.2f".format(java.util.Locale.ROOT, it) } ?: "-",
             ),
         )
         main.post { onDecision?.invoke(d) }
         if (!d.accepted) return
+        if (dryRun()) {
+            // Measurement mode: the decision is logged above; no call opens.
+            Log.i("NexaWake", "dry-run: activation suppressed")
+            return
+        }
         // Free the microphone before the assistant UI opens.
         pausedBy = "activation"
         main.post {
@@ -215,7 +253,8 @@ class WakeListenerService : Service() {
         val buf = ShortArray(FilterBank.SAMPLE_RATE / 10)
         val floats = FloatArray(buf.size)
         var recorder: AudioRecord? = null
-        var engine: WakeEngine? = null
+        var engine: WakeFrontEnd? = null
+        var lastLogged = 0L
         fun releaseMic() {
             recorder?.let { r ->
                 runCatching { r.stop() }
@@ -259,6 +298,14 @@ class WakeListenerService : Service() {
             }
             for (i in 0 until n) floats[i] = buf[i] / 32768f
             engine!!.accept(floats, n)
+            (engine as? NeuralWakeEngine)?.let { e ->
+                // Scores only (never audio): to measure near misses on the phone.
+                val now = System.currentTimeMillis()
+                if (e.lastScore >= 0.4f && now - lastLogged > 400) {
+                    lastLogged = now
+                    Log.i("NexaWake", "score=%.3f".format(java.util.Locale.ROOT, e.lastScore))
+                }
+            }
         }
         releaseMic()
     }

@@ -300,12 +300,12 @@ void main() {
     test(
       'the wake phrase is a detector setting, not renamed with the brand',
       () {
-        // The on-device detector is enrolled on this phrase; a visible rename
+        // The default phrase of the bundled acoustic model; a visible rename
         // alone would not make it recognise another one (see AMEER_BRANDING.md).
         final src = File(
           'lib/assistant/device_assistant.dart',
         ).readAsStringSync();
-        expect(src, contains("wakePhrase = 'يا لبيب'"));
+        expect(src, contains("wakePhrase = 'يا أمير'"));
       },
     );
   });

@@ -110,17 +110,17 @@ class WakeEngine(
     private val refractoryMs: Long = 3000,
     private val clock: () -> Long = System::currentTimeMillis,
     private val onDecision: (WakeDecision) -> Unit,
-) {
+) : WakeFrontEnd {
     private val bank = FilterBank()
     private var lastAcceptedAt = Long.MIN_VALUE / 2
     private var lastAccepted: Array<FloatArray>? = null
 
     private val segmenter = SpeechSegmenter(onSegment = ::evaluate)
 
-    fun accept(samples: FloatArray, count: Int = samples.size) =
+    override fun accept(samples: FloatArray, count: Int) =
         segmenter.accept(samples, count)
 
-    fun reset() = segmenter.reset()
+    override fun reset() = segmenter.reset()
 
     /** Runs the full decision on one utterance (also used by "Test"). */
     fun evaluate(segment: FloatArray) {

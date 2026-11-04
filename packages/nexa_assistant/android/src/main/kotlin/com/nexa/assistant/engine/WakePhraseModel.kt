@@ -108,8 +108,13 @@ class WakePhraseModel(
 }
 
 /** How strict activation is; both checks scale together. */
-enum class Sensitivity(val keywordScale: Float, val speakerOffset: Float) {
-    STRICT(0.8f, 0.05f),
-    NORMAL(1.0f, 0f),
-    RELAXED(1.25f, -0.05f),
+enum class Sensitivity(
+    val keywordScale: Float,
+    val speakerOffset: Float,
+    /** Added to the neural detector's score threshold. */
+    val neuralOffset: Float = 0f,
+) {
+    STRICT(0.8f, 0.05f, 0.05f),
+    NORMAL(1.0f, 0f, 0f),
+    RELAXED(1.25f, -0.05f, -0.15f),
 }

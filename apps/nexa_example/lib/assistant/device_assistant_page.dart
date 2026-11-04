@@ -453,10 +453,18 @@ class _DeviceAssistantPageState extends State<DeviceAssistantPage>
           children: [
             SwitchListTile(
               key: const Key('device_assistant_wake'),
-              title: Text(s.wakeSwitch(DeviceAssistant.wakePhrase)),
-              subtitle: Text(st.enrolled ? state : s.wakeNeedsEnrollment),
+              title: Text(
+                s.wakeSwitch(st.wakePhraseLabel ?? DeviceAssistant.wakePhrase),
+              ),
+              subtitle: Text(
+                st.enrolled || st.wakeDetector == 'neural'
+                    ? state
+                    : s.wakeNeedsEnrollment,
+              ),
               value: st.wakeEnabled,
-              onChanged: st.enrolled ? _setWake : null,
+              onChanged: st.enrolled || st.wakeDetector == 'neural'
+                  ? _setWake
+                  : null,
               secondary: Icon(
                 st.listening
                     ? Icons.hearing_rounded

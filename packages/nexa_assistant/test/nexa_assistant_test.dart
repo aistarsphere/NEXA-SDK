@@ -28,6 +28,34 @@ void main() {
 
   NexaAssistant android() => NexaAssistant(supported: true);
 
+  test(
+    'wake phrases: only installed acoustic models can be selected',
+    () async {
+      replies['status'] = {
+        'platformSupported': true,
+        'wakeDetector': 'neural',
+        'wakePhraseId': 'yaameer',
+        'wakePhrases': [
+          {'id': 'yaameer', 'label': 'يا أمير', 'installed': true},
+          {'id': 'custom', 'label': 'عبارة', 'installed': false},
+        ],
+      };
+      final st = await android().status();
+      expect(st.wakeDetector, 'neural');
+      expect(st.wakePhraseLabel, 'يا أمير');
+      expect(st.wakePhrases.map((p) => p.installed), [true, false]);
+
+      replies['setWakePhrase'] = 'ok';
+      expect(await android().setWakePhrase('yaameer'), 'ok');
+      expect(calls.last.method, 'setWakePhrase');
+      expect(calls.last.arguments, {'id': 'yaameer'});
+
+      // A phrase without a model is refused by the plugin, never faked.
+      replies['setWakePhrase'] = 'not_installed';
+      expect(await android().setWakePhrase('custom'), 'not_installed');
+    },
+  );
+
   test('status is parsed from the device', () async {
     replies['status'] = {
       'platformSupported': true,

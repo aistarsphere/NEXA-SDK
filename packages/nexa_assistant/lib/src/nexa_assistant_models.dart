@@ -29,6 +29,9 @@ final class NexaAssistantStatus {
     this.speakerModel,
     this.requireOwnerVoice = false,
     this.sensitivity = NexaWakeSensitivity.normal,
+    this.wakeDetector = 'template',
+    this.wakePhraseId = 'yaameer',
+    this.wakePhrases = const [],
     this.locked = false,
     this.assistantRoleHeld,
     this.assistantSetting,
@@ -65,6 +68,16 @@ final class NexaAssistantStatus {
         speakerModelAvailable: m['speakerModelAvailable'] == true,
         speakerModel: m['speakerModel'] as String?,
         requireOwnerVoice: m['requireOwnerVoice'] == true,
+        wakeDetector: m['wakeDetector'] as String? ?? 'template',
+        wakePhraseId: m['wakePhraseId'] as String? ?? 'yaameer',
+        wakePhrases: [
+          for (final p in (m['wakePhrases'] as List? ?? const []))
+            NexaWakePhrase(
+              id: (p as Map)['id'] as String,
+              label: p['label'] as String,
+              installed: p['installed'] == true,
+            ),
+        ],
         sensitivity: NexaWakeSensitivity.values.firstWhere(
           (s) => s.name == m['sensitivity'],
           orElse: () => NexaWakeSensitivity.normal,
@@ -110,6 +123,19 @@ final class NexaAssistantStatus {
   final bool speakerModelAvailable;
   final String? speakerModel;
   final bool requireOwnerVoice;
+
+  /// `neural` (a trained acoustic model for the phrase) or `template` (the
+  /// older personal enrolment).
+  final String wakeDetector;
+  final String wakePhraseId;
+
+  /// Phrases the plugin knows; only [NexaWakePhrase.installed] ones have an
+  /// acoustic model and can be selected.
+  final List<NexaWakePhrase> wakePhrases;
+
+  /// Label of the selected phrase, or null when none is listed.
+  String? get wakePhraseLabel =>
+      wakePhrases.where((p) => p.id == wakePhraseId).firstOrNull?.label;
   final NexaWakeSensitivity sensitivity;
   final bool locked;
 
@@ -377,4 +403,19 @@ enum NexaUnlockResult {
     'error' => error,
     _ => unsupported,
   };
+}
+
+/// A wake phrase the plugin can listen for.
+final class NexaWakePhrase {
+  const NexaWakePhrase({
+    required this.id,
+    required this.label,
+    required this.installed,
+  });
+
+  final String id;
+  final String label;
+
+  /// True when its trained acoustic model ships with the app.
+  final bool installed;
 }

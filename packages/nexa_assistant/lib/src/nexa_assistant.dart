@@ -121,6 +121,12 @@ class NexaAssistant {
         await _call<String>('setRequireOwnerVoice', {'enabled': enabled}),
       );
 
+  /// Switches the active acoustic detector to the installed phrase [id].
+  /// `ok`, or `not_installed` when no trained model exists for it (a phrase
+  /// cannot be made up from text).
+  Future<String> setWakePhrase(String id) async =>
+      (await _call<String>('setWakePhrase', {'id': id})) ?? 'not_installed';
+
   Future<void> setSensitivity(NexaWakeSensitivity value) =>
       _call<void>('setSensitivity', {'value': value.name});
 
