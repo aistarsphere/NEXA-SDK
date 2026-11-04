@@ -16,7 +16,8 @@ device.file.pick, browser.open_url, app.theme.apply, device.microphone.record_sa
 | app.theme.apply | WORKS (palette picker → preview → Apply → preferences saved → result 200). | `tools_theme_*.png` |
 | app.theme.list_palettes (server) | WORKS (list + choice surface). | screenshot |
 | web / places search (server tools) | WORKS (result cards). | screenshots |
-| device.camera.capture, device.microphone.record_sample | Not run in this pass. | |
+| device.camera.capture | WORKS to the review step. In-app camera with "camera on" badge and "nothing is shared until Use photo", OS permission, shutter, Retake / Use photo; cancel answered `cancelled` (result 200). Upload not run (403 above) and no room photo sent. | log |
+| device.microphone.record_sample | Consent sheet renders ("only what you record now is captured... used to create your voice print", 5-10 s), cancel answered (result 200). **Not recorded**: it is a biometric voice print, so I did not enrol one on the production backend without the owner. | log |
 
 ## Defects found
 1. **Choice sheet hid the Apply card** (fixed). After choosing a palette the bottom sheet stayed open over the conversation; the Apply card (approval deadline ~60 s) sat behind it and expired ("request expired"). Fix: an overlay now closes when a device tool call starts waiting for approval (`_CloseOnApproval`, test first). Re-verified on the phone: sheet closed itself, Apply card visible, applied.
