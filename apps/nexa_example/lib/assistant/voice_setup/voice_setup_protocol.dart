@@ -16,6 +16,8 @@ final class SetupPrompt {
     required this.textAr,
     required this.textEn,
     this.maxMs = 6000,
+    this.noteAr,
+    this.noteEn,
   });
 
   final String id;
@@ -28,6 +30,10 @@ final class SetupPrompt {
   final String textAr;
   final String textEn;
   final int maxMs;
+
+  /// How to say it ("quietly", "loudly"), shown under the text.
+  final String? noteAr;
+  final String? noteEn;
 }
 
 /// A group of prompts sharing one condition, with its own instruction.
@@ -140,7 +146,88 @@ SetupStage _identity(
   ],
 );
 
-/// The owner's protocol (about 15 minutes).
+/// The quick setup for everyone (about 2 minutes, 15 takes): the wake phrase
+/// in a normal, a quiet and a loud voice, and a few different sentences for
+/// identity. The longer [ownerProtocol] is for calibration and testing.
+final List<SetupStage> quickProtocol = [
+  SetupStage(
+    id: 'quick_wake',
+    titleAr: 'قل «يا أمير»',
+    titleEn: 'Say «يا أمير»',
+    hintAr: 'قلها كما تقولها عادة. ثم مرتين بهدوء ومرتين بصوت أعلى.',
+    hintEn: 'Say it as you normally do, then twice quietly and twice loudly.',
+    prompts: [
+      for (var i = 1; i <= 5; i++)
+        SetupPrompt(
+          id: 'quick_wake_$i',
+          kind: 'wake',
+          tags: const ['normal', 'near'],
+          textAr: _wake,
+          textEn: _wake,
+        ),
+      for (var i = 1; i <= 2; i++)
+        SetupPrompt(
+          id: 'quick_wake_q$i',
+          kind: 'wake',
+          tags: const ['quiet'],
+          textAr: _wake,
+          textEn: _wake,
+          noteAr: 'بهدوء',
+          noteEn: 'quietly',
+        ),
+      for (var i = 1; i <= 2; i++)
+        SetupPrompt(
+          id: 'quick_wake_l$i',
+          kind: 'wake',
+          tags: const ['loud'],
+          textAr: _wake,
+          textEn: _wake,
+          noteAr: 'بصوت أعلى',
+          noteEn: 'loudly',
+        ),
+    ],
+  ),
+  SetupStage(
+    id: 'quick_sentences',
+    titleAr: 'اقرأ هذه الجمل',
+    titleEn: 'Read these sentences',
+    hintAr: 'هذه الجمل تعرّف أمير على صوتك. اقرأها بطبيعتك.',
+    hintEn: 'These teach AMEER your voice. Read them naturally.',
+    prompts: [
+      for (var i = 0; i < 4; i++)
+        SetupPrompt(
+          id: 'quick_id_$i',
+          kind: 'identity',
+          tags: const ['normal'],
+          textAr: _identitySentences[i],
+          textEn: _identitySentences[i],
+          maxMs: 8000,
+        ),
+      SetupPrompt(
+        id: 'quick_id_q',
+        kind: 'identity',
+        tags: const ['quiet'],
+        textAr: _identitySentences[8],
+        textEn: _identitySentences[8],
+        maxMs: 8000,
+        noteAr: 'بهدوء',
+        noteEn: 'quietly',
+      ),
+      SetupPrompt(
+        id: 'quick_id_l',
+        kind: 'identity',
+        tags: const ['loud'],
+        textAr: _identitySentences[9],
+        textEn: _identitySentences[9],
+        maxMs: 8000,
+        noteAr: 'بصوت أعلى',
+        noteEn: 'loudly',
+      ),
+    ],
+  ),
+];
+
+/// The owner's full protocol (about 15 minutes): calibration and testing.
 final List<SetupStage> ownerProtocol = [
   SetupStage(
     id: 'wake_normal',

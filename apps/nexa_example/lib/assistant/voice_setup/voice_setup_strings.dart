@@ -21,6 +21,33 @@ final class VoiceSetupStrings {
     'علّم أمير صوتك وعبارة التنبيه (حوالي 15 دقيقة)',
   );
 
+  // Quick vs advanced.
+  String get quickTitle =>
+      _t('Quick setup (about 2 minutes)', 'إعداد سريع (حوالي دقيقتين)');
+  String get advancedTitle => _t('Advanced calibration', 'معايرة متقدمة');
+  String get advancedSubtitle => _t(
+    'For testing: about 15 minutes, many conditions, optional guests',
+    'للاختبار: حوالي 15 دقيقة، ظروف كثيرة، وضيوف اختيارياً',
+  );
+  String get backToQuick => _t('Back to quick setup', 'العودة للإعداد السريع');
+  String get quickFinishHint => _t(
+    'Needs the 15 short takes above.',
+    'يحتاج إلى التسجيلات الخمسة عشر القصيرة أعلاه.',
+  );
+  String get consentLine1 => _t(
+    'We record you saying «يا أمير» and a few sentences, about 2 minutes.',
+    'نسجّل صوتك وأنت تقول «يا أمير» وبضع جمل، حوالي دقيقتين.',
+  );
+  String get consentLine2 => _t(
+    'Your voice profile stays encrypted on this phone. Nothing is uploaded.',
+    'يبقى ملفك الصوتي مشفّراً على هاتفك. لا يُرفع أي شيء.',
+  );
+  String get consentLine3 => _t(
+    'You can delete it any time. It is not a password.',
+    'تحذفه متى شئت. وهو ليس كلمة مرور.',
+  );
+  String get consentDetails => _t('Details', 'التفاصيل');
+
   // Consent.
   String get consentTitle =>
       _t('Before we record your voice', 'قبل أن نسجّل صوتك');
@@ -73,8 +100,8 @@ final class VoiceSetupStrings {
     'احتفظ بتسجيلاتي على هذا الهاتف لتدريب نموذج التنبيه',
   );
   String get consentKeepHint => _t(
-    'Off: only measurements and the profile are kept.',
-    'إذا أُطفئ: يُحفظ القياس والملف الصوتي فقط.',
+    'Off (recommended): only measurements and the profile are kept.',
+    'مُطفأ (الأفضل): يُحفظ القياس والملف الصوتي فقط.',
   );
   String get agree => _t('Agree and start', 'أوافق وأبدأ');
   String get notNow => _t('Not now', 'ليس الآن');

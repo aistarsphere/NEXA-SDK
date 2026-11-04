@@ -43,6 +43,7 @@ final class NexaSpeakerCalibration {
     this.impostorSamples = 0,
     this.identitySamples = 0,
     this.conditions = 0,
+    this.quick = false,
   });
 
   factory NexaSpeakerCalibration.fromMap(Map<Object?, Object?> m) =>
@@ -57,6 +58,7 @@ final class NexaSpeakerCalibration {
         impostorSamples: (m['impostorSamples'] as num?)?.toInt() ?? 0,
         identitySamples: (m['identitySamples'] as num?)?.toInt() ?? 0,
         conditions: (m['conditions'] as num?)?.toInt() ?? 0,
+        quick: m['quick'] == true,
       );
 
   final String mode;
@@ -72,6 +74,9 @@ final class NexaSpeakerCalibration {
   final int impostorSamples;
   final int identitySamples;
   final int conditions;
+
+  /// Built by the two-minute setup (fewer takes).
+  final bool quick;
 
   bool get measuredStrangers => mode == 'with_guests';
 }

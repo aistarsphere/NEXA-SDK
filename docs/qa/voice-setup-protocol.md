@@ -1,5 +1,7 @@
 # Voice setup on the phone — owner protocol, privacy and measurement
 
+> **Two modes.** The default for every user is the **quick setup**: 15 short takes, about 2 minutes (the wake phrase in a normal, a quiet and a loud voice + 6 sentences for identity), a three-line consent with the details one tap away, and "keep my recordings" **off**. The long protocol below (about 15 minutes, many conditions, negatives, background, guests) is **advanced calibration for testing**, opt-in from the same screen. A quick profile is a lighter, less calibrated profile; it needs 12 takes, 4 sentences and 3 conditions.
+
 Applies to: Settings -> AMEER as assistant -> **Guided voice setup** (build with the guided setup, 2026-11-04).
 
 ## Consent (nothing records before this)

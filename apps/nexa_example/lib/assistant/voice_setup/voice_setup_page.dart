@@ -24,9 +24,11 @@ class _VoiceSetupPageState extends State<VoiceSetupPage> {
   NexaVoiceSetupStatus _status = const NexaVoiceSetupStatus();
 
   bool _understood = false;
-  bool _keep = true;
+  bool _keep = false;
 
-  List<SetupStage> _stages = ownerProtocol;
+  /// The two-minute setup is the default; the long protocol is opt-in.
+  bool _quick = true;
+  List<SetupStage> _stages = quickProtocol;
   String _speaker = 'owner';
   int _guests = 0;
 
@@ -103,7 +105,8 @@ class _VoiceSetupPageState extends State<VoiceSetupPage> {
     _done.clear();
     setState(() {
       _status = st;
-      _stages = ownerProtocol;
+      _quick = true;
+      _stages = quickProtocol;
       _speaker = 'owner';
       _guests = 0;
       _understood = false;
@@ -211,7 +214,7 @@ class _VoiceSetupPageState extends State<VoiceSetupPage> {
 
   Future<void> _finish() async {
     setState(() => _finishing = true);
-    final r = await widget.plugin.voiceSetupFinish();
+    final r = await widget.plugin.voiceSetupFinish(quick: _quick);
     if (!mounted) return;
     setState(() {
       _finishing = false;
@@ -251,12 +254,23 @@ class _VoiceSetupPageState extends State<VoiceSetupPage> {
   // -------------------------------------------------------------- consent
 
   Widget _consent(VoiceSetupStrings s) {
+    Widget line(IconData icon, String text) => Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: Theme.of(context).colorScheme.primary),
+          const SizedBox(width: 12),
+          Expanded(child: Text(text)),
+        ],
+      ),
+    );
     Widget block(String h, String b) => Padding(
-      padding: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.only(bottom: 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(h, style: Theme.of(context).textTheme.titleMedium),
+          Text(h, style: Theme.of(context).textTheme.titleSmall),
           const SizedBox(height: 4),
           Text(b),
         ],
@@ -268,10 +282,20 @@ class _VoiceSetupPageState extends State<VoiceSetupPage> {
       children: [
         Text(s.consentTitle, style: Theme.of(context).textTheme.headlineSmall),
         const SizedBox(height: 16),
-        block(s.consentWhat, s.consentWhatBody),
-        block(s.consentStored, s.consentStoredBody),
-        block(s.consentLimits, s.consentLimitsBody),
-        block(s.consentDelete, s.consentDeleteBody),
+        line(Icons.mic_none_rounded, s.consentLine1),
+        line(Icons.lock_outline_rounded, s.consentLine2),
+        line(Icons.delete_outline_rounded, s.consentLine3),
+        ExpansionTile(
+          key: const Key('voice_setup_consent_details'),
+          tilePadding: EdgeInsets.zero,
+          title: Text(s.consentDetails),
+          children: [
+            block(s.consentWhat, s.consentWhatBody),
+            block(s.consentStored, s.consentStoredBody),
+            block(s.consentLimits, s.consentLimitsBody),
+            block(s.consentDelete, s.consentDeleteBody),
+          ],
+        ),
         CheckboxListTile(
           key: const Key('voice_setup_consent_check'),
           contentPadding: EdgeInsets.zero,
@@ -311,7 +335,9 @@ class _VoiceSetupPageState extends State<VoiceSetupPage> {
       padding: const EdgeInsets.all(16),
       children: [
         Text(
-          isGuest ? '${s.overviewTitle} · $_speaker' : s.overviewTitle,
+          isGuest
+              ? '${s.overviewTitle} · $_speaker'
+              : (_quick ? s.quickTitle : s.advancedTitle),
           style: Theme.of(context).textTheme.titleLarge,
         ),
         if (_status.keepClips)
@@ -343,25 +369,50 @@ class _VoiceSetupPageState extends State<VoiceSetupPage> {
             child: Text(
               _result != null && !_result!.ok
                   ? s.missing(_result!.reason, _result!.have)
-                  : s.finishHint,
+                  : (_quick ? s.quickFinishHint : s.finishHint),
               key: const Key('voice_setup_finish_hint'),
               style: Theme.of(context).textTheme.bodySmall,
             ),
           ),
           const Divider(height: 32),
-          ListTile(
-            key: const Key('voice_setup_add_guest'),
-            contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.person_add_alt_1_outlined),
-            title: Text(s.addGuest),
-            subtitle: Text(s.addGuestHint),
-            onTap: () => _addGuest(s),
-          ),
+          if (_quick)
+            ListTile(
+              key: const Key('voice_setup_advanced'),
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.tune_rounded),
+              title: Text(s.advancedTitle),
+              subtitle: Text(s.advancedSubtitle),
+              onTap: () => setState(() {
+                _quick = false;
+                _stages = ownerProtocol;
+              }),
+            )
+          else ...[
+            ListTile(
+              key: const Key('voice_setup_back_quick'),
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.arrow_back_rounded),
+              title: Text(s.backToQuick),
+              onTap: () => setState(() {
+                _quick = true;
+                _stages = quickProtocol;
+              }),
+            ),
+          ],
+          if (!_quick)
+            ListTile(
+              key: const Key('voice_setup_add_guest'),
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.person_add_alt_1_outlined),
+              title: Text(s.addGuest),
+              subtitle: Text(s.addGuestHint),
+              onTap: () => _addGuest(s),
+            ),
         ] else
           OutlinedButton(
             onPressed: () => setState(() {
               _speaker = 'owner';
-              _stages = ownerProtocol;
+              _stages = _quick ? quickProtocol : ownerProtocol;
             }),
             child: Text(s.backToSteps),
           ),
@@ -419,6 +470,16 @@ class _VoiceSetupPageState extends State<VoiceSetupPage> {
               style: Theme.of(context).textTheme.displaySmall,
             ),
           ),
+          if ((ar ? p.noteAr : p.noteEn) != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(
+                (ar ? p.noteAr : p.noteEn)!,
+                key: const Key('voice_setup_prompt_note'),
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+            ),
           if (background)
             Padding(
               padding: const EdgeInsets.only(top: 8),

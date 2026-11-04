@@ -216,25 +216,30 @@ internal class VoiceSetup(
      * threshold (with guests when present). Needs enough variety: refuses a
      * profile built from the wake phrase alone or from few conditions.
      */
-    fun finish(result: MethodChannel.Result) {
+    fun finish(quick: Boolean, result: MethodChannel.Result) {
         if (!consented) return result.success(mapOf("ok" to false, "reason" to "consent_required"))
         if (busy) return result.success(mapOf("ok" to false, "reason" to "busy"))
         busy = true
         thread(name = "nexa-voice-setup-finish") {
-            val out = try { build() } catch (e: Exception) { mapOf("ok" to false, "reason" to "save_failed") }
+            val out = try { build(quick) } catch (e: Exception) { mapOf("ok" to false, "reason" to "save_failed") }
             busy = false
             main.post { WakeListenerService.reload(context); result.success(out) }
         }
     }
 
-    private fun build(): Map<String, Any?> {
+    private fun build(quick: Boolean): Map<String, Any?> {
         if (staged.isEmpty() && keepClips) rebuildFromClips()
         val owner = staged.filter { it.speaker == "owner" }
         val identity = owner.count { it.kind == "identity" }
         val conditions = owner.flatMap { it.tags }.toSet().size
-        if (owner.size < MIN_OWNER_TAKES) return reasonMap("too_few_samples", owner.size)
-        if (identity < MIN_IDENTITY) return reasonMap("too_few_identity_sentences", identity)
-        if (conditions < MIN_CONDITIONS) return reasonMap("too_few_conditions", conditions)
+        // Quick setup (about 2 minutes) asks for less; its profile is labelled
+        // by how few takes backed it, and the full protocol remains for testing.
+        val minTakes = if (quick) QUICK_TAKES else MIN_OWNER_TAKES
+        val minIdentity = if (quick) QUICK_IDENTITY else MIN_IDENTITY
+        val minConditions = if (quick) QUICK_CONDITIONS else MIN_CONDITIONS
+        if (owner.size < minTakes) return reasonMap("too_few_samples", owner.size)
+        if (identity < minIdentity) return reasonMap("too_few_identity_sentences", identity)
+        if (conditions < minConditions) return reasonMap("too_few_conditions", conditions)
         val guests = staged.filter { it.speaker.startsWith("guest") }
         val cal = SpeakerCalibration.calibrate(owner.map { it.embedding }, guests.map { it.embedding })
         val embeddings = owner.map { it.embedding }.takeLast(MAX_STORED)
@@ -249,7 +254,7 @@ internal class VoiceSetup(
             .put("impostorMax", cal.impostorMax?.toDouble() ?: JSONObject.NULL)
             .put("separable", cal.separable)
             .put("ownerSamples", cal.ownerSamples).put("impostorSamples", cal.impostorSamples)
-            .put("identitySamples", identity).put("conditions", conditions)
+            .put("identitySamples", identity).put("conditions", conditions).put("quick", quick)
             .put("at", System.currentTimeMillis())
         sp.edit().putString("calibration", summary.toString()).apply()
         android.util.Log.i(
@@ -344,6 +349,9 @@ internal class VoiceSetup(
         const val MIN_OWNER_TAKES = 24
         const val MIN_IDENTITY = 8
         const val MIN_CONDITIONS = 4
+        const val QUICK_TAKES = 12
+        const val QUICK_IDENTITY = 4
+        const val QUICK_CONDITIONS = 3
         const val MAX_STORED = 64
     }
 }

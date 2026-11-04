@@ -165,8 +165,10 @@ class NexaAssistant {
     }),
   );
 
-  Future<NexaSetupFinish> voiceSetupFinish() async =>
-      NexaSetupFinish.fromMap(await _map('voiceSetupFinish'));
+  /// Builds the owner profile. [quick] asks for fewer takes (the two-minute
+  /// setup); the full protocol is for calibration and testing.
+  Future<NexaSetupFinish> voiceSetupFinish({bool quick = false}) async =>
+      NexaSetupFinish.fromMap(await _map('voiceSetupFinish', {'quick': quick}));
 
   /// Deletes recordings, the voice profile and its key, the calibration and
   /// the consent.

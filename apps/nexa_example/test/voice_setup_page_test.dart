@@ -81,11 +81,11 @@ void main() {
     expect(accept().onPressed, isNotNull);
     await tap(tester, 'voice_setup_consent_accept');
     final consent = calls.firstWhere((c) => c.method == 'voiceSetupConsent');
-    expect(consent.arguments, {'accepted': true, 'keepClips': true});
+    expect(consent.arguments, {'accepted': true, 'keepClips': false});
     expect(find.byKey(const Key('voice_setup_overview')), findsOneWidget);
   });
 
-  testWidgets('keeping recordings is a separate, optional choice', (
+  testWidgets('keeping recordings is a separate choice, off by default', (
     tester,
   ) async {
     await open(tester);
@@ -93,11 +93,39 @@ void main() {
     await tap(tester, 'voice_setup_consent_check');
     await tap(tester, 'voice_setup_consent_accept');
     final consent = calls.firstWhere((c) => c.method == 'voiceSetupConsent');
-    expect(consent.arguments, {'accepted': true, 'keepClips': false});
+    expect(consent.arguments, {'accepted': true, 'keepClips': true});
   });
 
   group('after consent', () {
     setUp(() => replies['voiceSetupStatus'] = {'consented': true});
+
+    testWidgets('the default setup is short: 15 takes, a few conditions', (
+      tester,
+    ) async {
+      final prompts = quickProtocol.expand((s) => s.prompts).toList();
+      expect(prompts.length, 15);
+      expect(prompts.where((p) => p.kind == 'wake').length, 9);
+      expect(prompts.where((p) => p.kind == 'identity').length, 6);
+      expect(
+        prompts.expand((p) => p.tags).toSet(),
+        containsAll(['normal', 'quiet', 'loud']),
+      );
+      expect(
+        prompts
+            .where((p) => p.kind == 'identity')
+            .any((p) => p.textAr.contains('يا أمير')),
+        isFalse,
+      );
+      await open(tester);
+      expect(
+        find.byKey(const Key('voice_setup_stage_quick_wake')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const Key('voice_setup_stage_wake_noise')),
+        findsNothing,
+      );
+    });
 
     testWidgets('the protocol covers the required conditions and separate '
         'identity sentences', (tester) async {
@@ -142,14 +170,14 @@ void main() {
         'level; a problem asks for a retry', (tester) async {
       await open(tester);
       expect(called(), contains('voiceSetupBegin'));
-      await tester.tap(find.byKey(const Key('voice_setup_stage_wake_quiet')));
+      await tester.tap(find.byKey(const Key('voice_setup_stage_quick_wake')));
       await tester.pumpAndSettle();
       replies['voiceSetupRecord'] = {'ok': false, 'reason': 'too_noisy'};
       await tester.tap(find.byKey(const Key('voice_setup_record')));
       await tester.pumpAndSettle();
       final rec = calls.lastWhere((c) => c.method == 'voiceSetupRecord');
       expect(rec.arguments, containsPair('kind', 'wake'));
-      expect(rec.arguments, containsPair('tags', ['quiet']));
+      expect(rec.arguments, containsPair('tags', ['normal', 'near']));
       expect(rec.arguments, containsPair('speaker', 'owner'));
       expect(find.byKey(const Key('voice_setup_take_problem')), findsOneWidget);
       expect(find.byKey(const Key('voice_setup_next')), findsNothing);
@@ -169,7 +197,7 @@ void main() {
       expect(find.textContaining('-31'), findsOneWidget);
       await tester.tap(find.byKey(const Key('voice_setup_next')));
       await tester.pumpAndSettle();
-      expect(find.textContaining('2 of 6'), findsOneWidget);
+      expect(find.textContaining('2 of 9'), findsOneWidget);
     });
 
     testWidgets('finish reports what is still missing', (tester) async {
@@ -180,6 +208,9 @@ void main() {
         'have': 3,
       };
       await tap(tester, 'voice_setup_finish');
+      expect(calls.lastWhere((c) => c.method == 'voiceSetupFinish').arguments, {
+        'quick': true,
+      });
       expect(
         tester
             .widget<Text>(find.byKey(const Key('voice_setup_finish_hint')))
@@ -217,6 +248,12 @@ void main() {
       tester,
     ) async {
       await open(tester);
+      expect(
+        find.byKey(const Key('voice_setup_add_guest')),
+        findsNothing,
+        reason: 'guests are part of the advanced calibration only',
+      );
+      await tap(tester, 'voice_setup_advanced');
       await tap(tester, 'voice_setup_add_guest');
       await tester.tap(find.text('Cancel'));
       await tester.pumpAndSettle();
