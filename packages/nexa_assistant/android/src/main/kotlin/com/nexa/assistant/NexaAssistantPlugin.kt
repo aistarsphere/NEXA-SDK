@@ -235,7 +235,7 @@ class NexaAssistantPlugin :
                 result.success(pending?.toMap())
                 pending = null
             }
-            "wakeTest" -> wakeTest(call.argument<String>("id"), call.argument<Int>("seconds") ?: 10, result)
+            "wakeTest" -> wakeTest(call.argument<String>("id"), call.argument<Int>("seconds") ?: 10, call.argument<Boolean>("checkOwner") == true, result)
             "capabilities" -> result.success(AssistantCapabilities.collect(context, prefs))
             "requestAssistantRole" -> requestAssistantRole(result)
             "openSetting" -> result.success(openSetting(call.argument<String>("id") ?: ""))
@@ -308,6 +308,9 @@ class NexaAssistantPlugin :
                 result = result,
             )
             "voiceSetupCancel" -> { setup.cancel(); result.success(null) }
+            "enrollStatus" -> result.success(setup.enrollStatus())
+            "enrollRecord" -> setup.enrollRecord(call.argument<String>("role") ?: "enroll", result)
+            "voiceTest" -> setup.voiceTest(result)
             "voiceSetupFinish" -> setup.finish(call.argument<Boolean>("quick") == true, result)
             "voiceSetupDelete" -> result.success(setup.deleteAll())
             "testListen" -> testListen(call.argument<Int>("timeoutMs") ?: 6000, result)
@@ -451,7 +454,7 @@ class NexaAssistantPlugin :
      * the highest score. The person tries the phrase before turning it on.
      */
     @SuppressLint("MissingPermission")
-    private fun wakeTest(id: String?, seconds: Int, result: MethodChannel.Result) {
+    private fun wakeTest(id: String?, seconds: Int, checkOwner: Boolean, result: MethodChannel.Result) {
         if (!micGranted()) return result.success(mapOf("ok" to false, "reason" to "permission_denied"))
         if (busyRecording) return result.success(mapOf("ok" to false, "reason" to "busy"))
         val entry = WakePhraseCatalog.find(context, id ?: prefs.wakePhraseId)
@@ -463,6 +466,9 @@ class NexaAssistantPlugin :
         thread(name = "nexa-wake-test") {
             var detections = 0
             var best = 0f
+            var ownerResult: String? = null
+            val profile = if (checkOwner) store.load()?.speaker else null
+            val embedderForTest = if (profile != null) OnnxSpeakerEmbedder.load(context) else null
             var reason: String? = null
             val features = OnnxWakeFeatures.load(context)
             var rec: AudioRecord? = null
@@ -470,9 +476,23 @@ class NexaAssistantPlugin :
                 if (features == null) {
                     reason = "model_unavailable"
                 } else {
+                    // The phrase detector and the owner check are two separate stages:
+                    // the detection counts whether or not the voice matched.
                     val engine = NeuralWakeEngine(
-                        features, head, entry.threshold, entry.hits, null, null, false, prefs.sensitivity,
-                        onDecision = { if (it.accepted) { detections++; emit(mapOf("type" to "wakeTest", "stage" to "detected")) } },
+                        features, head, entry.threshold, entry.hits, profile, embedderForTest,
+                        profile != null && embedderForTest != null, prefs.sensitivity,
+                        onDecision = {
+                            val heard = it.accepted || it.reason.startsWith("speaker_")
+                            if (heard) { detections++; emit(mapOf("type" to "wakeTest", "stage" to "detected")) }
+                            if (profile != null) {
+                                ownerResult = when (it.reason) {
+                                    "accepted" -> "match"
+                                    "speaker_uncertain" -> "uncertain"
+                                    "speaker_mismatch" -> "different"
+                                    else -> ownerResult
+                                }
+                            }
+                        },
                     )
                     val min = AudioRecord.getMinBufferSize(16000, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT)
                     rec = AudioRecord(
@@ -507,6 +527,7 @@ class NexaAssistantPlugin :
             } finally {
                 rec?.let { r -> runCatching { r.stop() }; r.release() }
                 features?.close()
+                embedderForTest?.close()
                 emit(mapOf("type" to "recording", "active" to false))
             }
             busyRecording = false
@@ -514,7 +535,7 @@ class NexaAssistantPlugin :
                 WakeListenerService.resume(context)
                 result.success(
                     if (reason != null) mapOf("ok" to false, "reason" to reason)
-                    else mapOf("ok" to true, "id" to entry.id, "detections" to detections, "maxScore" to best.toDouble(), "threshold" to entry.threshold.toDouble()),
+                    else mapOf("ok" to true, "id" to entry.id, "detections" to detections, "maxScore" to best.toDouble(), "threshold" to entry.threshold.toDouble(), "owner" to ownerResult),
                 )
             }
         }

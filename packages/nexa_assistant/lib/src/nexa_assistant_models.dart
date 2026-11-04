@@ -344,6 +344,7 @@ final class NexaWakeTest {
     this.detections = 0,
     this.maxScore = 0,
     this.threshold = 0,
+    this.owner,
   });
 
   factory NexaWakeTest.fromMap(Map<Object?, Object?> m) => NexaWakeTest(
@@ -352,11 +353,16 @@ final class NexaWakeTest {
     detections: (m['detections'] as num?)?.toInt() ?? 0,
     maxScore: (m['maxScore'] as num?)?.toDouble() ?? 0,
     threshold: (m['threshold'] as num?)?.toDouble() ?? 0,
+    owner: m['owner'] as String?,
   );
 
   final bool ok;
   final String? reason;
   final int detections;
+
+  /// Whether the voice matched the owner (`match`, `uncertain`, `different`),
+  /// or null when no owner check ran. Independent of [detections].
+  final String? owner;
   final double maxScore;
   final double threshold;
 }

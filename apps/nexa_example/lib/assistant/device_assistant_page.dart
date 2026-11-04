@@ -6,10 +6,12 @@ import 'package:nexa_example/assistant/device_assistant.dart';
 import 'package:nexa_example/assistant/device_assistant_strings.dart';
 import 'package:nexa_example/assistant/setup/assistant_setup_page.dart';
 import 'package:nexa_example/assistant/setup/assistant_setup_strings.dart';
+import 'package:nexa_example/assistant/voice/voice_status_card.dart';
 import 'package:nexa_example/assistant/voice_setup/voice_setup_page.dart';
 import 'package:nexa_example/assistant/voice_setup/voice_setup_strings.dart';
 import 'package:nexa_example/assistant/wake/wake_phrase_page.dart';
 import 'package:nexa_example/assistant/wake/wake_phrase_strings.dart';
+import 'package:nexa_example/example_config.dart';
 import 'package:permission_handler/permission_handler.dart' as ph;
 
 /// "AMEER as assistant": default-assistant role, «يا أمير», the owner's
@@ -88,19 +90,6 @@ class _DeviceAssistantPageState extends State<DeviceAssistantPage>
         NexaAssistantToggle.permissionDenied => s.micNeeded,
         NexaAssistantToggle.notEnrolled => s.wakeNeedsEnrollment,
         NexaAssistantToggle.notInForeground => s.wakeNeedsForeground,
-        _ => null,
-      },
-    );
-    await _refresh();
-  }
-
-  Future<void> _setRequireVoice(bool on) async {
-    final s = DeviceAssistantStrings.of(context);
-    final r = await _plugin.setRequireOwnerVoice(on);
-    setState(
-      () => _note = switch (r) {
-        NexaAssistantToggle.modelUnavailable => s.modelMissing,
-        NexaAssistantToggle.notEnrolled => s.noVoiceProfile,
         _ => null,
       },
     );
@@ -187,7 +176,7 @@ class _DeviceAssistantPageState extends State<DeviceAssistantPage>
                   ..._panel(context, s, st),
                   ..._wake(context, s, st),
                   ..._voice(context, s, st),
-                  ..._testSection(context, s, st),
+                  if (ExampleConfig.devTools) ..._testSection(context, s, st),
                   ..._background(context, s, st),
                   ..._diagnostics(context, s, st),
                   _Label(s.privacy),
@@ -498,30 +487,6 @@ class _DeviceAssistantPageState extends State<DeviceAssistantPage>
       ),
       const SizedBox(height: 8),
       _Card(icon: Icons.memory_rounded, child: Text(s.hardwareHotword)),
-      _Label(s.sensitivity),
-      SegmentedButton<NexaWakeSensitivity>(
-        key: const Key('device_assistant_sensitivity'),
-        showSelectedIcon: false,
-        segments: [
-          ButtonSegment(
-            value: NexaWakeSensitivity.strict,
-            label: Text(s.strict),
-          ),
-          ButtonSegment(
-            value: NexaWakeSensitivity.normal,
-            label: Text(s.normal),
-          ),
-          ButtonSegment(
-            value: NexaWakeSensitivity.relaxed,
-            label: Text(s.relaxed),
-          ),
-        ],
-        selected: {st.sensitivity},
-        onSelectionChanged: (v) async {
-          await _plugin.setSensitivity(v.first);
-          await _refresh();
-        },
-      ),
     ];
   }
 
@@ -533,6 +498,11 @@ class _DeviceAssistantPageState extends State<DeviceAssistantPage>
     final scheme = Theme.of(context).colorScheme;
     return [
       _Label(s.voiceTitle),
+      VoiceStatusCard(
+        key: const Key('device_assistant_voice_card'),
+        plugin: _plugin,
+      ),
+      const SizedBox(height: 8),
       Card(
         child: Column(
           children: [
@@ -566,64 +536,80 @@ class _DeviceAssistantPageState extends State<DeviceAssistantPage>
                 await _refresh();
               },
             ),
-            ListTile(
-              key: const Key('device_assistant_voice_setup'),
-              leading: const Icon(Icons.graphic_eq_rounded),
-              title: Text(VoiceSetupStrings.of(context).entry),
-              subtitle: Text(VoiceSetupStrings.of(context).entrySubtitle),
-              trailing: const Icon(Icons.chevron_right_rounded),
-              onTap: () async {
-                await Navigator.of(context).push<void>(
-                  MaterialPageRoute(
-                    builder: (_) => VoiceSetupPage(plugin: _plugin),
-                  ),
-                );
-                await _refresh();
-              },
-            ),
-            ListTile(
-              key: const Key('device_assistant_enroll'),
-              leading: const Icon(Icons.record_voice_over_outlined),
-              title: Text(st.enrolled ? s.reEnroll : s.enroll),
-              subtitle: st.enrolled
-                  ? Text(s.enrolledSamples(st.enrolledSamples))
-                  : null,
-              trailing: const Icon(Icons.chevron_right_rounded),
-              onTap: _enroll,
-            ),
-            SwitchListTile(
-              key: const Key('device_assistant_require_voice'),
-              title: Text(s.requireMyVoice),
-              subtitle: Text(
-                !st.speakerModelAvailable
-                    ? s.modelMissing
-                    : st.enrolled && !st.speakerEnrolled
-                    ? s.noVoiceProfile
-                    : s.requireMyVoiceBody,
-              ),
-              value: st.requireOwnerVoice,
-              onChanged: st.speakerEnrolled && st.speakerModelAvailable
-                  ? _setRequireVoice
-                  : null,
-            ),
-            if (st.enrolled)
-              ListTile(
-                key: const Key('device_assistant_delete'),
-                leading: Icon(
-                  Icons.delete_outline_rounded,
-                  color: scheme.error,
-                ),
-                title: Text(
-                  s.deleteVoice,
-                  style: TextStyle(color: scheme.error),
-                ),
-                onTap: _delete,
-              ),
           ],
         ),
       ),
+      // Engineering tools: guided protocol, older template enrolment and its
+      // controls, sensitivity. Not part of the normal journey.
+      if (ExampleConfig.devTools) ...[
+        const _Label('Developer: voice tools'),
+        Card(
+          child: Column(
+            children: [
+              ListTile(
+                key: const Key('device_assistant_voice_setup'),
+                leading: const Icon(Icons.graphic_eq_rounded),
+                title: Text(VoiceSetupStrings.of(context).entry),
+                subtitle: Text(VoiceSetupStrings.of(context).entrySubtitle),
+                trailing: const Icon(Icons.chevron_right_rounded),
+                onTap: () async {
+                  await Navigator.of(context).push<void>(
+                    MaterialPageRoute(
+                      builder: (_) => VoiceSetupPage(plugin: _plugin),
+                    ),
+                  );
+                  await _refresh();
+                },
+              ),
+              ListTile(
+                key: const Key('device_assistant_enroll'),
+                leading: const Icon(Icons.record_voice_over_outlined),
+                title: Text(st.enrolled ? s.reEnroll : s.enroll),
+                subtitle: st.enrolled
+                    ? Text(s.enrolledSamples(st.enrolledSamples))
+                    : null,
+                trailing: const Icon(Icons.chevron_right_rounded),
+                onTap: _enroll,
+              ),
+              if (st.enrolled)
+                ListTile(
+                  key: const Key('device_assistant_delete'),
+                  leading: Icon(
+                    Icons.delete_outline_rounded,
+                    color: scheme.error,
+                  ),
+                  title: Text(
+                    s.deleteVoice,
+                    style: TextStyle(color: scheme.error),
+                  ),
+                  onTap: _delete,
+                ),
+            ],
+          ),
+        ),
+        _Label(s.sensitivity),
+        _sensitivity(s, st),
+      ],
     ];
   }
+
+  Widget _sensitivity(
+    DeviceAssistantStrings s,
+    NexaAssistantStatus st,
+  ) => SegmentedButton<NexaWakeSensitivity>(
+    key: const Key('device_assistant_sensitivity'),
+    showSelectedIcon: false,
+    segments: [
+      ButtonSegment(value: NexaWakeSensitivity.strict, label: Text(s.strict)),
+      ButtonSegment(value: NexaWakeSensitivity.normal, label: Text(s.normal)),
+      ButtonSegment(value: NexaWakeSensitivity.relaxed, label: Text(s.relaxed)),
+    ],
+    selected: {st.sensitivity},
+    onSelectionChanged: (v) async {
+      await _plugin.setSensitivity(v.first);
+      await _refresh();
+    },
+  );
 
   List<Widget> _testSection(
     BuildContext context,

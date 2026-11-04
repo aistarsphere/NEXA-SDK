@@ -13,6 +13,8 @@ import com.nexa.assistant.engine.FilterBank
 import com.nexa.assistant.engine.SpeakerCalibration
 import com.nexa.assistant.engine.SpeakerProfile
 import com.nexa.assistant.engine.EnergyVad
+import com.nexa.assistant.engine.EnrollmentPolicy
+import com.nexa.assistant.engine.LengthAwareThreshold
 import com.nexa.assistant.engine.RecorderConfig
 import com.nexa.assistant.engine.RecorderEvent
 import com.nexa.assistant.engine.SpeechProbability
@@ -151,70 +153,13 @@ internal class VoiceSetup(
     private fun capture(kind: String, promptId: String, tags: List<String>, speaker: String, maxMs: Int): Map<String, Any?> {
         if (kind == "background") return captureFixed(kind, promptId, tags, speaker, maxMs)
         cancelFlag.set(false)
-        val rate = FilterBank.SAMPLE_RATE
         val cfg = when (kind) {
             "identity" -> RecorderConfig.SENTENCE
             "negative" -> RecorderConfig.NEGATIVE
             else -> RecorderConfig.WAKE
         }
-        val neural = SileroVad.load(context)
-        val vad: SpeechProbability = neural ?: EnergyVad()
-        var outcome: RecorderEvent? = null
-        val t0 = System.currentTimeMillis()
-        var frameNo = 0
-        val probs = StringBuilder()
-        val recorder = UtteranceRecorder(vad, cfg) { e ->
-            when (e) {
-                is RecorderEvent.Ready -> status("ready")
-                is RecorderEvent.Level -> if (frameNo % 3 == 0) status("level", mapOf("db" to e.db.toDouble(), "speaking" to e.speaking))
-                is RecorderEvent.SpeechStarted -> {
-                    android.util.Log.i("NexaSetupTrace", "speech_start t=${System.currentTimeMillis() - t0}")
-                    status("speech")
-                }
-                is RecorderEvent.SpeechEnded -> {
-                    android.util.Log.i("NexaSetupTrace", "speech_end t=${System.currentTimeMillis() - t0} speech_ms=${e.speechMs}")
-                    status("processing")
-                }
-                is RecorderEvent.Captured, is RecorderEvent.Rejected -> outcome = e
-            }
-        }
-        val min = AudioRecord.getMinBufferSize(rate, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT)
-        val rec = AudioRecord(
-            MediaRecorder.AudioSource.VOICE_RECOGNITION, rate,
-            AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT, maxOf(min, rate),
-        )
-        if (rec.state != AudioRecord.STATE_INITIALIZED) {
-            rec.release(); neural?.close()
-            return mapOf("ok" to false, "reason" to "microphone_unavailable")
-        }
-        val shorts = ShortArray(UtteranceRecorder.FRAME)
-        val frame = FloatArray(UtteranceRecorder.FRAME)
-        try {
-            rec.startRecording()
-            android.util.Log.i("NexaSetupTrace", "mic_open kind=$kind vad=${if (neural != null) "silero" else "energy"}")
-            emit(mapOf("type" to "recording", "active" to true))
-            status("opening")
-            outer@ while (!recorder.done) {
-                var got = 0
-                while (got < shorts.size) {
-                    if (cancelFlag.get()) { recorder.cancel("interrupted"); break@outer }
-                    val n = rec.read(shorts, got, shorts.size - got)
-                    if (n <= 0) { recorder.cancel("interrupted"); break@outer }
-                    got += n
-                }
-                for (i in shorts.indices) frame[i] = shorts[i] / 32768f
-                frameNo++
-                recorder.feed(frame)
-                if (frameNo <= 60) probs.append("%.2f ".format(java.util.Locale.ROOT, recorder.lastProbability))
-            }
-        } finally {
-            runCatching { rec.stop() }
-            rec.release()
-            neural?.close()
-            emit(mapOf("type" to "recording", "active" to false))
-            android.util.Log.i("NexaSetupTrace", "vad_probabilities_first_60_frames: $probs")
-        }
-        val openMs = (System.currentTimeMillis() - t0).toInt()
+        val (outcome, openMs) = recordUtterance(cfg, kind)
+            ?: return mapOf("ok" to false, "reason" to "microphone_unavailable")
         return when (val o = outcome) {
             is RecorderEvent.Rejected -> {
                 android.util.Log.i("NexaSetupTrace", "rejected reason=${o.reason} open_ms=$openMs speech_ms=${o.speechMs}")
@@ -260,6 +205,207 @@ internal class VoiceSetup(
             "speechMs" to take.speechMs, "openMs" to openMs,
             "metrics" to metricsMap(metrics), "status" to status(),
         )
+    }
+
+    /**
+     * One utterance with the VAD-driven recorder. Returns the outcome and how
+     * long the microphone was open, or null when the microphone cannot be opened.
+     */
+    @SuppressLint("MissingPermission")
+    private fun recordUtterance(cfg: RecorderConfig, label: String): Pair<RecorderEvent?, Int>? {
+        cancelFlag.set(false)
+        val rate = FilterBank.SAMPLE_RATE
+        val neural = SileroVad.load(context)
+        val vad: SpeechProbability = neural ?: EnergyVad()
+        var outcome: RecorderEvent? = null
+        val t0 = System.currentTimeMillis()
+        var frameNo = 0
+        val probs = StringBuilder()
+        val recorder = UtteranceRecorder(vad, cfg) { e ->
+            when (e) {
+                is RecorderEvent.Ready -> status("ready")
+                is RecorderEvent.Level -> if (frameNo % 3 == 0) status("level", mapOf("db" to e.db.toDouble(), "speaking" to e.speaking))
+                is RecorderEvent.SpeechStarted -> {
+                    android.util.Log.i("NexaSetupTrace", "speech_start t=${System.currentTimeMillis() - t0}")
+                    status("speech")
+                }
+                is RecorderEvent.SpeechEnded -> {
+                    android.util.Log.i("NexaSetupTrace", "speech_end t=${System.currentTimeMillis() - t0} speech_ms=${e.speechMs}")
+                    status("processing")
+                }
+                is RecorderEvent.Captured, is RecorderEvent.Rejected -> outcome = e
+            }
+        }
+        val min = AudioRecord.getMinBufferSize(rate, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT)
+        val rec = AudioRecord(
+            MediaRecorder.AudioSource.VOICE_RECOGNITION, rate,
+            AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT, maxOf(min, rate),
+        )
+        if (rec.state != AudioRecord.STATE_INITIALIZED) {
+            rec.release(); neural?.close()
+            return null
+        }
+        val shorts = ShortArray(UtteranceRecorder.FRAME)
+        val frame = FloatArray(UtteranceRecorder.FRAME)
+        try {
+            rec.startRecording()
+            android.util.Log.i("NexaSetupTrace", "mic_open kind=$label vad=${if (neural != null) "silero" else "energy"}")
+            emit(mapOf("type" to "recording", "active" to true))
+            status("opening")
+            outer@ while (!recorder.done) {
+                var got = 0
+                while (got < shorts.size) {
+                    if (cancelFlag.get()) { recorder.cancel("interrupted"); break@outer }
+                    val n = rec.read(shorts, got, shorts.size - got)
+                    if (n <= 0) { recorder.cancel("interrupted"); break@outer }
+                    got += n
+                }
+                for (i in shorts.indices) frame[i] = shorts[i] / 32768f
+                frameNo++
+                recorder.feed(frame)
+                if (frameNo <= 60) probs.append("%.2f ".format(java.util.Locale.ROOT, recorder.lastProbability))
+            }
+        } finally {
+            runCatching { rec.stop() }
+            rec.release()
+            neural?.close()
+            emit(mapOf("type" to "recording", "active" to false))
+            android.util.Log.i("NexaSetupTrace", "vad_probabilities_first_60_frames: $probs")
+        }
+        val openMs = (System.currentTimeMillis() - t0).toInt()
+        return outcome to openMs
+    }
+
+    // ===================================================== quick setup (default)
+
+    /**
+     * The state of the quick setup, restored after a restart from the encrypted
+     * profile (the embeddings) and a small record of where the person was.
+     * `none`, `enrolled` (one sentence recorded), `more` (needs another
+     * sample), `ready` (provisionally ready), `improve` (could not be made
+     * consistent: manual tap-to-talk stays).
+     */
+    private fun simpleState(): String = sp.getString("simple_state", "none") ?: "none"
+
+    private fun simplePool(): List<FloatArray> = store.load()?.speaker?.samples ?: emptyList()
+
+    private fun saveSimple(state: String, takes: Int, reason: String?, pool: List<FloatArray>, threshold: Float) {
+        if (pool.isNotEmpty()) {
+            val prof = SpeakerProfile.fromEmbeddings(pool)
+            val speaker = SpeakerProfile(prof.embedding, threshold, pool)
+            store.save(VoiceProfile(store.load()?.phrase, speaker, System.currentTimeMillis()))
+        }
+        sp.edit().putString("simple_state", state).putInt("simple_takes", takes).putString("simple_reason", reason).apply()
+    }
+
+    fun enrollStatus(): Map<String, Any?> = mapOf(
+        "consented" to consented,
+        "state" to simpleState(),
+        "takes" to sp.getInt("simple_takes", 0),
+        "reason" to sp.getString("simple_reason", null),
+        "hasProfile" to (simplePool().isNotEmpty()),
+        // Always provisional: nothing here was measured on the owner's own voice.
+        "quality" to if (simpleState() == "ready") "provisional" else "none",
+        "modelAvailable" to OnnxSpeakerEmbedder.available(context),
+    )
+
+    /**
+     * Records ONE natural sentence for the quick setup. [role] is `enroll`,
+     * `verify` (a different sentence, checked against what was enrolled) or
+     * `extra` (only when the check was not conclusive).
+     */
+    fun enrollRecord(role: String, result: MethodChannel.Result) {
+        if (!consented) return result.success(mapOf("ok" to false, "reason" to "consent_required"))
+        if (!micGranted()) return result.success(mapOf("ok" to false, "reason" to "permission_denied"))
+        if (busy) return result.success(mapOf("ok" to false, "reason" to "busy"))
+        busy = true
+        thread(name = "nexa-enroll") {
+            val out = try { recordSimple(role) } catch (e: Exception) {
+                android.util.Log.w("NexaSetupTrace", "enroll failed: ${e.javaClass.simpleName} at ${e.stackTrace.firstOrNull()}")
+                mapOf("ok" to false, "reason" to "save_failed")
+            }
+            busy = false
+            main.post { if (out["state"] == "ready") WakeListenerService.reload(context); result.success(out) }
+        }
+    }
+
+    private fun recordSimple(role: String): Map<String, Any?> {
+        val pool = if (role == "enroll") emptyList() else simplePool()
+        if (role != "enroll" && pool.isEmpty()) return mapOf("ok" to false, "reason" to "not_enrolled")
+        val (outcome, openMs) = recordUtterance(RecorderConfig.SENTENCE, "simple_$role")
+            ?: return mapOf("ok" to false, "reason" to "microphone_unavailable")
+        val take = when (outcome) {
+            is RecorderEvent.Captured -> outcome.take
+            is RecorderEvent.Rejected -> {
+                android.util.Log.i("NexaSetupTrace", "rejected reason=${outcome.reason} open_ms=$openMs speech_ms=${outcome.speechMs}")
+                return mapOf("ok" to false, "reason" to outcome.reason, "speechMs" to outcome.speechMs, "state" to simpleState())
+            }
+            else -> return mapOf("ok" to false, "reason" to "interrupted", "state" to simpleState())
+        }
+        val metrics = TakeMetrics.of(take)
+        android.util.Log.i(
+            "NexaSetupTrace",
+            "simple_$role open_ms=$openMs speech_ms=${take.speechMs} peak_db=%.1f snr_db=%.1f".format(java.util.Locale.ROOT, metrics.peakDb, metrics.snrDb),
+        )
+        EnrollmentPolicy.takeProblem(metrics)?.let {
+            android.util.Log.i("NexaSetupTrace", "rejected reason=$it")
+            return mapOf("ok" to false, "reason" to it, "state" to simpleState())
+        }
+        val t = System.nanoTime()
+        val e = embedder()?.embed(ClipQuality.normalizeLevel(take.samples))
+            ?: return mapOf("ok" to false, "reason" to "model_unavailable", "state" to simpleState())
+        android.util.Log.i("NexaSetupTrace", "embed_ms=${(System.nanoTime() - t) / 1_000_000}")
+        val takes = if (role == "enroll") 1 else sp.getInt("simple_takes", 1) + 1
+        val next = pool + listOf(e)
+        if (role == "enroll") {
+            // A new enrolment replaces any earlier quick profile.
+            saveSimple("enrolled", 1, null, next, EnrollmentPolicy.ACCEPT)
+            return mapOf("ok" to true, "state" to "enrolled", "takes" to 1)
+        }
+        val d = EnrollmentPolicy.decide(next, takes)
+        val (state, reason) = when (d.verdict) {
+            EnrollmentPolicy.Verdict.READY -> "ready" to null
+            EnrollmentPolicy.Verdict.NEED_MORE -> "more" to d.reason
+            EnrollmentPolicy.Verdict.NEEDS_IMPROVEMENT -> "improve" to d.reason
+        }
+        // Keep every accepted take while more are needed; only a decided profile drops outliers.
+        saveSimple(state, takes, reason, if (state == "ready") d.profile else next, d.threshold)
+        if (state == "improve") prefs.requireOwner = false
+        android.util.Log.i("NexaSetupTrace", "decision state=$state reason=$reason takes=$takes")
+        return mapOf("ok" to true, "state" to state, "reason" to reason, "takes" to takes)
+    }
+
+    /** One sentence checked against the profile: a word, never a score. */
+    fun voiceTest(result: MethodChannel.Result) {
+        if (!consented) return result.success(mapOf("ok" to false, "reason" to "consent_required"))
+        if (!micGranted()) return result.success(mapOf("ok" to false, "reason" to "permission_denied"))
+        if (busy) return result.success(mapOf("ok" to false, "reason" to "busy"))
+        val pool = simplePool()
+        if (pool.isEmpty()) return result.success(mapOf("ok" to false, "reason" to "not_enrolled"))
+        busy = true
+        thread(name = "nexa-voice-test") {
+            val out = try {
+                val (outcome, _) = recordUtterance(RecorderConfig.SENTENCE.copy(minSpeechMs = 1200), "simple_test")
+                    ?: return@thread run { busy = false; main.post { result.success(mapOf("ok" to false, "reason" to "microphone_unavailable")) } }
+                when (outcome) {
+                    is RecorderEvent.Captured -> {
+                        val e = embedder()?.embed(ClipQuality.normalizeLevel(outcome.take.samples))
+                        if (e == null) mapOf("ok" to false, "reason" to "model_unavailable")
+                        else {
+                            val prof = store.load()?.speaker ?: SpeakerProfile.fromEmbeddings(pool)
+                            val t = LengthAwareThreshold.forSpeech(prof.threshold, outcome.take.speechMs)
+                            mapOf("ok" to true, "result" to EnrollmentPolicy.describeTest(prof.score(e), t))
+                        }
+                    }
+                    is RecorderEvent.Rejected -> mapOf("ok" to false, "reason" to outcome.reason)
+                    else -> mapOf("ok" to false, "reason" to "interrupted")
+                }
+            } catch (e: Exception) {
+                mapOf("ok" to false, "reason" to "save_failed")
+            }
+            busy = false
+            main.post { result.success(out) }
+        }
     }
 
     /** Background sound: a fixed length, no speech needed. */

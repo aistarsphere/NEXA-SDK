@@ -199,3 +199,88 @@ final class NexaSetupFinish {
   final int have;
   final NexaSpeakerCalibration? calibration;
 }
+
+/// Where the quick voice setup stands.
+enum NexaEnrollState {
+  /// Nothing recorded.
+  none,
+
+  /// One sentence recorded; a different one must verify it.
+  enrolled,
+
+  /// The check was not conclusive: one more sample is needed (see reason).
+  more,
+
+  /// Provisionally ready: matches an independent sentence. Not calibrated on
+  /// the owner's own voice and not an authentication.
+  ready,
+
+  /// Could not be made consistent: manual tap-to-talk stays.
+  improve,
+}
+
+final class NexaEnrollStatus {
+  const NexaEnrollStatus({
+    this.consented = false,
+    this.state = NexaEnrollState.none,
+    this.takes = 0,
+    this.reason,
+    this.hasProfile = false,
+    this.modelAvailable = false,
+  });
+
+  factory NexaEnrollStatus.fromMap(Map<Object?, Object?> m) => NexaEnrollStatus(
+    consented: m['consented'] == true,
+    state: NexaEnrollState.values.firstWhere(
+      (s) => s.name == m['state'],
+      orElse: () => NexaEnrollState.none,
+    ),
+    takes: (m['takes'] as num?)?.toInt() ?? 0,
+    reason: m['reason'] as String?,
+    hasProfile: m['hasProfile'] == true,
+    modelAvailable: m['modelAvailable'] == true,
+  );
+
+  final bool consented;
+  final NexaEnrollState state;
+  final int takes;
+
+  /// `not_sure`, `different_voice` or `not_consistent`.
+  final String? reason;
+  final bool hasProfile;
+  final bool modelAvailable;
+}
+
+/// One sentence of the quick setup, or of "test my voice".
+final class NexaEnrollTake {
+  const NexaEnrollTake({
+    required this.ok,
+    this.reason,
+    this.state = NexaEnrollState.none,
+    this.takes = 0,
+    this.testResult,
+  });
+
+  factory NexaEnrollTake.fromMap(Map<Object?, Object?> m) => NexaEnrollTake(
+    ok: m['ok'] == true,
+    reason: m['reason'] as String?,
+    state: NexaEnrollState.values.firstWhere(
+      (s) => s.name == m['state'],
+      orElse: () => NexaEnrollState.none,
+    ),
+    takes: (m['takes'] as num?)?.toInt() ?? 0,
+    testResult: m['result'] as String?,
+  );
+
+  /// The take was usable (it may still say more is needed: see [state]).
+  final bool ok;
+
+  /// Why not (`no_speech`, `too_short`, `too_noisy`...) or, when [ok], why
+  /// more is needed (`not_sure`, `different_voice`).
+  final String? reason;
+  final NexaEnrollState state;
+  final int takes;
+
+  /// For `voiceTest`: `match`, `uncertain` or `different`.
+  final String? testResult;
+}

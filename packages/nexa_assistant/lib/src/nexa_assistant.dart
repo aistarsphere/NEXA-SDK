@@ -190,6 +190,21 @@ class NexaAssistant {
 
   /// Builds the owner profile. [quick] asks for fewer takes (the two-minute
   /// setup); the full protocol is for calibration and testing.
+  // ---------------------------------------------------------- quick setup
+
+  Future<NexaEnrollStatus> enrollStatus() async =>
+      NexaEnrollStatus.fromMap(await _map('enrollStatus'));
+
+  /// Records ONE natural sentence. [role]: `enroll`, `verify` (a different
+  /// sentence, checked against the first) or `extra` (only when asked).
+  Future<NexaEnrollTake> enrollRecord(String role) async =>
+      NexaEnrollTake.fromMap(await _map('enrollRecord', {'role': role}));
+
+  /// One sentence checked against the profile: `match`, `uncertain` or
+  /// `different` in [NexaEnrollTake.testResult] (never a score).
+  Future<NexaEnrollTake> voiceTest() async =>
+      NexaEnrollTake.fromMap(await _map('voiceTest'));
+
   /// Live recorder status while [voiceSetupRecord] runs.
   Stream<NexaSetupEvent> get setupEvents =>
       events.where((e) => e is NexaSetupEvent).cast();
@@ -207,10 +222,17 @@ class NexaAssistant {
 
   /// Listens for [seconds] with the acoustic model of phrase [id] and reports
   /// detections and the best score; nothing opens and nothing is stored.
-  Future<NexaWakeTest> wakeTest({String? id, int seconds = 10}) async =>
-      NexaWakeTest.fromMap(
-        await _map('wakeTest', {'id': id, 'seconds': seconds}),
-      );
+  Future<NexaWakeTest> wakeTest({
+    String? id,
+    int seconds = 10,
+    bool checkOwner = false,
+  }) async => NexaWakeTest.fromMap(
+    await _map('wakeTest', {
+      'id': id,
+      'seconds': seconds,
+      'checkOwner': checkOwner,
+    }),
+  );
 
   Stream<NexaWakeTestEvent> get wakeTestEvents =>
       events.where((e) => e is NexaWakeTestEvent).cast();
