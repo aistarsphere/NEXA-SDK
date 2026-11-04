@@ -84,3 +84,21 @@ Live «غيّرلي شكل التطبيق» (T-M05-05) · six noise scenarios (T
 - `openLabeebCall` waits at most 1.5 s for `ensureConversation`, then opens the call anyway (voice start creates it via the same coordinator).
 - `resume RPC failed` now logs `RpcError <code> <message>`.
 - Device (Nubia): list shows 4 non-empty rows, call screen opens at once. Evidence: `docs/qa/evidence/2026-11-04/v06_*.png`. The resume RPC failure did not occur in this run, so its cause is still open.
+
+## 2026-11-04 — session summary (all local commits, nothing pushed)
+
+| Item | State | Evidence |
+|---|---|---|
+| V-06 empty conversations / call button / resume log | DONE, verified on Nubia | `6d225a8`, evidence `v06_*.png` |
+| Tool calling, every declared type | Tested on Nubia (location, directions, URL, theme, file/photo/camera up to the picker; microphone sample consent sheet only) | `docs/qa/evidence/2026-11-04/tool_calling_all_types.md` |
+| Choice sheet hid the Apply card (approval expired) | FIXED + device re-verified | `3d432c0` |
+| Photo/file/camera tools silently did nothing | FIXED (stale presenter restored by the call page), device re-verified | `6d3c1db` |
+| Upload (photo/file) | BLOCKED: dev token has no `assets:write` (403). Needs a scoped Beta credential from the owner/AWS; do not widen production tokens | tool_calling_all_types.md |
+| E-01 mute finalisation | DONE, verified on Nubia (grace 1.2 s keeps capture until the reply starts) | `mute_T-M07-01.md` |
+| E-02 rapid toggles | DONE (unit test); not separately device-tested | `voice_controller_test.dart` |
+| G-02 (server: commit turn on `TrackMuted`) | NOT RAISED — would let `muteGrace` be 0; send after owner approval | mute_T-M07-01.md |
+| F-02 «يا أمير» acoustic detector | IMPLEMENTED + unit tests + running on Nubia; **recall not usable** (5/12 live on an unseen TTS voice; synthetic-only training). Needs owner clips | `docs/qa/wake-word-yaameer.md` |
+| F-03 configurable phrase | Catalog + `setWakePhrase` API implemented (only installed acoustic models selectable). No picker UI yet; only one phrase ships | wake-word-yaameer.md |
+| F-04 owner verification calibration | NOT DONE (needs owner recordings and consent). Pipeline (wake -> CAM++ check -> decision) is wired in `NeuralWakeEngine`, fail-closed | NeuralWakeTest |
+| G-03 barge-in evidence | NOT RUN (needs the six scenarios + server logs). Handoff template: `docs/qa/barge-in-evidence.md` | |
+| Server profile | Header now shows «أمير» (the dashboard profile changed) | screenshot-less; seen on Nubia |

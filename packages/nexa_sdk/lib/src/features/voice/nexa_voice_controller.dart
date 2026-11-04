@@ -259,8 +259,76 @@ final class NexaVoiceController {
   /// Convenience for the capsule's single button.
   Future<void> toggleMute() => setMuted(muted: !_state.value.muted);
 
+  // ------------------------------------------------- mute grace (E-01/E-02)
+
+  Timer? _muteGrace;
+  VoiceState? _muteFromPhase;
+  DateTime? _lastSpeechAt;
+  bool? _micWanted;
+  bool _micBusy = false;
+
+  /// A sentence may still be in flight: the user is speaking or the server
+  /// is transcribing, or speech was heard in the last 1.5 s.
+  bool _utterancePending() {
+    final from = _muteFromPhase;
+    if (from == VoiceState.userSpeaking || from == VoiceState.transcribing) {
+      return true;
+    }
+    final at = _lastSpeechAt;
+    return at != null &&
+        clock.now().difference(at) < const Duration(milliseconds: 1500);
+  }
+
+  void _startMuteGrace() {
+    _muteGrace?.cancel();
+    _set(_state.value.copyWith(mutePending: true));
+    _diagnostics.record('voice.mute_deferred', {
+      'grace_ms': _options.muteGrace.inMilliseconds,
+    });
+    _muteGrace = Timer(_options.muteGrace, () => _applyMute('grace'));
+  }
+
+  void _cancelMuteGrace() {
+    if (_muteGrace == null) return;
+    _muteGrace!.cancel();
+    _muteGrace = null;
+    if (!_disposed && _state.value.mutePending) {
+      _set(_state.value.copyWith(mutePending: false));
+    }
+  }
+
+  void _applyMute(String cause) {
+    if (_muteGrace == null || _disposed) return;
+    _muteGrace!.cancel();
+    _muteGrace = null;
+    _diagnostics.record('voice.mute_applied', {'cause': cause});
+    if (_state.value.mutePending) {
+      _set(_state.value.copyWith(mutePending: false));
+    }
+    if (_state.value.muted && _state.value.isActive) unawaited(_setMic(false));
+  }
+
+  /// Applies the newest wanted microphone state; rapid toggles collapse into
+  /// at most one call in flight plus one for the final intent.
+  Future<void> _setMic(bool enabled) async {
+    _micWanted = enabled;
+    if (_micBusy) return;
+    _micBusy = true;
+    try {
+      while (_micWanted != null) {
+        final want = _micWanted!;
+        _micWanted = null;
+        if (want == _transport.isMicrophoneEnabled) continue;
+        await _transport.setMicrophoneEnabled(enabled: want);
+      }
+    } finally {
+      _micBusy = false;
+    }
+  }
+
   Future<void> dispose() async {
     if (_disposed) return;
+    _muteGrace?.cancel();
     if (_voiceSessionId != null) await _teardown();
     _disposed = true;
     _backgroundTimer?.cancel();
@@ -277,6 +345,21 @@ final class NexaVoiceController {
   void _dispatch(VoiceEvent event) {
     if (_disposed) return;
     final before = _state.value.phase;
+    if (event is VoiceMuteToggled && event.muted) _muteFromPhase = before;
+    if (event is VoiceUserSpeechStarted || event is VoiceUserSpeechEnded) {
+      _lastSpeechAt = clock.now();
+    }
+    // The reply starting means the server closed that turn.
+    if (event is VoiceAssistantThinking ||
+        event is VoiceAssistantAudioStarted ||
+        event is VoiceAssistantTurnEnded) {
+      _lastSpeechAt = null;
+    }
+    if (_muteGrace != null &&
+        (event is VoiceAssistantThinking ||
+            event is VoiceAssistantAudioStarted)) {
+      _applyMute('reply_started');
+    }
     final transition = _machine.transition(before, event);
     if (transition.state != before) {
       _diagnostics.record('voice.phase', {
@@ -349,7 +432,14 @@ final class NexaVoiceController {
             await _transport.setMicrophoneEnabled(enabled: false);
           }
         case SetTransportMuted(:final muted):
-          await _transport.setMicrophoneEnabled(enabled: !muted);
+          if (muted &&
+              _options.muteGrace > Duration.zero &&
+              _utterancePending()) {
+            _startMuteGrace();
+          } else {
+            _cancelMuteGrace();
+            await _setMic(!muted);
+          }
         case StartPlayback():
         case StopPlayback():
           break; // the engine plays the agent's track; nothing to do locally

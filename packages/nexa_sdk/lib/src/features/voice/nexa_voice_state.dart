@@ -31,6 +31,7 @@ final class NexaVoiceState {
     this.voiceIdentity,
     this.switchingVoice = false,
     this.interruptConfirmed = false,
+    this.mutePending = false,
   });
 
   /// The voice of this call as the gateway reported it at start (null when
@@ -56,6 +57,11 @@ final class NexaVoiceState {
 
   final String? agentIdentity;
   final bool agentPresent;
+
+  /// The user asked to mute while a sentence was still being finished: the
+  /// microphone stays open for a short, bounded grace so the server can
+  /// close that turn, then closes. [muted] already reads true.
+  final bool mutePending;
 
   /// True while a remote audio track from the assistant is subscribed, i.e.
   /// agent audio is actually being received and played by the engine.
@@ -99,6 +105,7 @@ final class NexaVoiceState {
     bool clearVoiceIdentity = false,
     bool? switchingVoice,
     bool? interruptConfirmed,
+    bool? mutePending,
   }) => NexaVoiceState(
     phase: phase ?? this.phase,
     muted: muted ?? this.muted,
@@ -115,6 +122,7 @@ final class NexaVoiceState {
         : (voiceIdentity ?? this.voiceIdentity),
     switchingVoice: switchingVoice ?? this.switchingVoice,
     interruptConfirmed: interruptConfirmed ?? this.interruptConfirmed,
+    mutePending: mutePending ?? this.mutePending,
   );
 }
 
@@ -176,12 +184,20 @@ final class NexaVoiceOptions {
     this.maxTranscriptEntries = 50,
     this.allowLegacyHmac = false,
     this.restartOnVoiceActivation = true,
+    this.muteGrace = const Duration(milliseconds: 1200),
     this.backgroundGrace = const Duration(seconds: 25),
     this.postCallReconcileDelays = const [
       Duration(milliseconds: 500),
       Duration(milliseconds: 2500),
     ],
   });
+
+  /// How long the microphone stays open after Mute when the user was
+  /// speaking, so the server hears the trailing silence and commits the
+  /// turn (a muted track sends nothing, so the reply otherwise waits until
+  /// the user unmutes: device test T-M07-01). Ends early when the reply
+  /// starts. [Duration.zero] mutes at once.
+  final Duration muteGrace;
 
   /// After `voice.profile.activate` succeeds during a call, end it and
   /// start a new one in the same conversation so the new voice applies.

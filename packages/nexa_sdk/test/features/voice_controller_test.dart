@@ -1,3 +1,4 @@
+import 'dart:async';
 // Voice controller behaviour for contract nexa.voice.v1 (backend handoff
 // 1.0.0), with the labelled mocks (no LiveKit, no gateway). The pure
 // VoiceSessionMachine decides phases; these tests verify the lifecycle rules
@@ -458,6 +459,100 @@ void main() {
       await phase(v, VoiceState.disconnected);
       expect(provisioner.ended, ['vs_mock_1']);
     });
+  });
+
+  group('mute finalisation (E-01) and rapid toggles (E-02)', () {
+    const grace = Duration(milliseconds: 120);
+
+    Future<NexaVoiceController> speaking() async {
+      final v = await voice(options: const NexaVoiceOptions(muteGrace: grace));
+      await v.start();
+      await phase(v, VoiceState.listening);
+      transport.emit(const RealtimeUserSpeechStarted());
+      await phase(v, VoiceState.userSpeaking);
+      return v;
+    }
+
+    test('mute while the user is speaking keeps capture open for a bounded '
+        'grace, so the server can close the turn', () async {
+      final v = await speaking();
+      await v.toggleMute();
+      await phase(v, VoiceState.muted);
+      expect(v.state.value.muted, isTrue, reason: 'intent is shown at once');
+      expect(v.state.value.mutePending, isTrue);
+      expect(transport.isMicrophoneEnabled, isTrue, reason: 'still capturing');
+
+      await waitFor(() => !transport.isMicrophoneEnabled, reason: 'grace over');
+      expect(v.state.value.mutePending, isFalse);
+      expect(transport.microphoneCalls, [true, false]);
+    });
+
+    test('the reply starting ends the grace at once', () async {
+      final v = await voice(
+        options: const NexaVoiceOptions(muteGrace: Duration(seconds: 30)),
+      );
+      await v.start();
+      await phase(v, VoiceState.listening);
+      transport.emit(const RealtimeUserSpeechStarted());
+      await phase(v, VoiceState.userSpeaking);
+      await v.toggleMute();
+      expect(transport.isMicrophoneEnabled, isTrue);
+      transport.emit(const RealtimeAssistantThinking());
+      await waitFor(() => !transport.isMicrophoneEnabled, reason: 'muted');
+      expect(v.state.value.mutePending, isFalse);
+    });
+
+    test('unmuting during the grace keeps the microphone on', () async {
+      final v = await speaking();
+      await v.toggleMute();
+      await v.toggleMute();
+      await Future<void>.delayed(grace * 2);
+      expect(transport.isMicrophoneEnabled, isTrue);
+      expect(v.state.value.muted, isFalse);
+      expect(v.state.value.mutePending, isFalse);
+      expect(transport.microphoneCalls, isNot(contains(false)));
+    });
+
+    test('mute when nobody is speaking is immediate, as before', () async {
+      final v = await voice(options: const NexaVoiceOptions(muteGrace: grace));
+      await v.start();
+      await phase(v, VoiceState.listening);
+      await v.toggleMute();
+      await phase(v, VoiceState.muted);
+      await waitFor(() => !transport.isMicrophoneEnabled, reason: 'muted');
+      expect(v.state.value.mutePending, isFalse);
+    });
+
+    test('muteGrace zero restores the immediate mute', () async {
+      final v = await voice(
+        options: const NexaVoiceOptions(muteGrace: Duration.zero),
+      );
+      await v.start();
+      await phase(v, VoiceState.listening);
+      transport.emit(const RealtimeUserSpeechStarted());
+      await phase(v, VoiceState.userSpeaking);
+      await v.toggleMute();
+      await waitFor(() => !transport.isMicrophoneEnabled, reason: 'muted');
+    });
+
+    test(
+      'ten toggles in a burst: few transport calls, last intent wins',
+      () async {
+        final v = await voice(
+          options: const NexaVoiceOptions(muteGrace: Duration.zero),
+        );
+        await v.start();
+        await phase(v, VoiceState.listening);
+        final before = transport.microphoneCalls.length;
+        for (var i = 0; i < 10; i++) {
+          unawaited(v.toggleMute());
+        }
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+        expect(v.state.value.muted, isFalse, reason: 'ten toggles end unmuted');
+        expect(transport.isMicrophoneEnabled, isTrue);
+        expect(transport.microphoneCalls.length - before, lessThanOrEqualTo(3));
+      },
+    );
   });
 
   group('mute and network', () {
