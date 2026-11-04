@@ -116,6 +116,27 @@ def compose(clip, pool, positive):
     return sig, (pre + len(x) if positive else None)
 
 
+def compose_real(clip, pool, positive, rng_=None):
+    """Mild augmentation for REAL recordings: level and conditions are kept
+    (a real quiet or far take must stay quiet or far)."""
+    r = rng_ or rng
+    x = trim(clip)
+    if r.random() < 0.5:
+        f = Fraction(r.uniform(0.95, 1.05)).limit_denominator(50)
+        x = resample_poly(x, f.denominator, f.numerator).astype(np.float32)
+    x = np.clip(x * 10 ** (r.uniform(-3, 3) / 20), -1, 1).astype(np.float32)
+    pre = int(SR * r.uniform(1.4, 2.2))
+    post = int(SR * r.uniform(0.5, 1.0))
+    sig = np.concatenate([np.zeros(pre, np.float32), x, np.zeros(post, np.float32)])
+    floor = 10 ** (-60 / 20)
+    sig = sig + floor * r.standard_normal(len(sig)).astype(np.float32)
+    if r.random() < 0.4:
+        kind = r.choice(["pink", "babble"])
+        nz = babble(pool, len(sig)) if kind == "babble" else noise(kind, len(sig))
+        sig = mix_snr(sig, nz, r.uniform(12, 30))
+    return np.clip(sig, -1, 1).astype(np.float32), (pre + len(x) if positive else None)
+
+
 def labelled_windows(sig, phrase_end):
     w = wf.windows(wf.embeddings(sig))
     if not len(w):
@@ -148,6 +169,20 @@ def build(pos_files, neg_files, pool, n_pos_aug, n_neg_aug, n_noise):
         sig = (babble(pool, n) if k == "babble" else noise(k, n)) * 10 ** (rng.uniform(-45, -8) / 20)
         w, y = labelled_windows(sig.astype(np.float32), None)
         X.append(w); Y.append(y)
+    return np.concatenate(X), np.concatenate(Y)
+
+
+def build_real(pos, neg, pool, n_pos, n_neg):
+    """Windows from real clip arrays (already loaded), mildly augmented."""
+    X, Y = [], []
+    for c in pos:
+        for _ in range(n_pos):
+            w, y = labelled_windows(*compose_real(c, pool, True))
+            X.append(w); Y.append(y)
+    for c in neg:
+        for _ in range(n_neg):
+            w, y = labelled_windows(*compose_real(c, pool, False))
+            X.append(w); Y.append(y)
     return np.concatenate(X), np.concatenate(Y)
 
 
