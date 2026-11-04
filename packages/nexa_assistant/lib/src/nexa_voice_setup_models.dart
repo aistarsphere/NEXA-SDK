@@ -44,6 +44,8 @@ final class NexaSpeakerCalibration {
     this.identitySamples = 0,
     this.conditions = 0,
     this.quick = false,
+    this.dropped = 0,
+    this.quality = 'provisional',
   });
 
   factory NexaSpeakerCalibration.fromMap(Map<Object?, Object?> m) =>
@@ -59,6 +61,8 @@ final class NexaSpeakerCalibration {
         identitySamples: (m['identitySamples'] as num?)?.toInt() ?? 0,
         conditions: (m['conditions'] as num?)?.toInt() ?? 0,
         quick: m['quick'] == true,
+        dropped: (m['dropped'] as num?)?.toInt() ?? 0,
+        quality: m['quality'] as String? ?? 'provisional',
       );
 
   final String mode;
@@ -77,6 +81,13 @@ final class NexaSpeakerCalibration {
 
   /// Built by the two-minute setup (fewer takes).
   final bool quick;
+
+  /// Takes left out because they did not look like the owner's others.
+  final int dropped;
+
+  /// `provisional` until strangers were measured and separated from the owner
+  /// (`measured`). Enrolment quality is not verification accuracy.
+  final String quality;
 
   bool get measuredStrangers => mode == 'with_guests';
 }
@@ -166,7 +177,8 @@ final class NexaSetupTake {
 
 /// Result of building the owner profile. [reason]: `consent_required`,
 /// `too_few_samples`, `too_few_identity_sentences`, `too_few_conditions`,
-/// `busy`, `save_failed`; [have] is how many the plugin has of what is short.
+/// `low_consistency` (the takes disagree with each other: record more clean
+/// sentences), `busy`, `save_failed`; [have] is how many the plugin has of what is short.
 final class NexaSetupFinish {
   const NexaSetupFinish({
     required this.ok,

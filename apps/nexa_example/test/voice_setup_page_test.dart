@@ -259,6 +259,26 @@ void main() {
       expect(find.byKey(const Key('voice_setup_summary')), findsNothing);
     });
 
+    testWidgets('disagreeing takes ask for a few more sentences, only then', (
+      tester,
+    ) async {
+      await open(tester);
+      expect(find.byKey(const Key('voice_setup_stage_extra')), findsNothing);
+      replies['voiceSetupFinish'] = {
+        'ok': false,
+        'reason': 'low_consistency',
+        'have': 15,
+      };
+      await tap(tester, 'voice_setup_finish');
+      expect(find.byKey(const Key('voice_setup_stage_extra')), findsOneWidget);
+      expect(
+        tester
+            .widget<Text>(find.byKey(const Key('voice_setup_finish_hint')))
+            .data,
+        contains('do not agree'),
+      );
+    });
+
     testWidgets('a calibrated profile says what was and was not measured', (
       tester,
     ) async {
@@ -281,6 +301,7 @@ void main() {
         findsOneWidget,
       );
       expect(find.textContaining('0.52'), findsOneWidget);
+      expect(find.byKey(const Key('voice_setup_provisional')), findsOneWidget);
     });
 
     testWidgets('a guest is added only after the owner confirms they agree', (

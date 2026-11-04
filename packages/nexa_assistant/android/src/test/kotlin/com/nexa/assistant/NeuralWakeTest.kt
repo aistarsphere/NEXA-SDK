@@ -133,6 +133,23 @@ class NeuralWakeTest {
     }
 
     @Test
+    fun anUncertainVoiceIsNeitherAcceptedNorFlatlyRejected() {
+        // Threshold 0.8: a 0.74 voice is uncertain (manual path), a 0.2 voice is a mismatch.
+        val profile = SpeakerProfile(floatArrayOf(1f, 0f), 0.8f)
+        val cases = listOf(
+            floatArrayOf(0.74f, 0.67f) to "speaker_uncertain", // cos about 0.74
+            floatArrayOf(0.2f, 0.98f) to "speaker_mismatch",
+        )
+        for ((voice, expected) in cases) {
+            val f = Fake()
+            val out = mutableListOf<WakeDecision>()
+            feedWake(engine(true, profile, { voice }, f, out), f)
+            assertEquals(listOf(expected), out.map { it.reason })
+            assertFalse(out.single().accepted)
+        }
+    }
+
+    @Test
     fun ownerCheckFailsClosedWithoutAProfileOrModel() {
         val f = Fake()
         val out = mutableListOf<WakeDecision>()

@@ -90,6 +90,9 @@ internal object ActivationRouter {
     }
 
     /** Opens (or brings back) the host's launcher activity with [a]. */
+    /** Only offers "tap to talk" (never opens by itself): the manual path for an uncertain voice. */
+    fun offerTapToTalk(context: Context, a: Activation) = notifyTapToTalk(context, a)
+
     fun launchHost(context: Context, a: Activation) {
         val intent = hostIntent(context, a) ?: return
         context.startActivity(intent)

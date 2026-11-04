@@ -82,7 +82,7 @@ class VoiceSetupMathTest {
         val r = SpeakerCalibration.calibrate(cluster(centre(1), 12, 0.5f), emptyList())
         assertEquals("owner_only", r.mode)
         assertNull(r.impostorMax)
-        assertTrue(r.threshold in 0.40f..0.65f)
+        assertTrue(r.threshold in 0.49f..0.65f, "never under the stranger level: ${r.threshold}")
     }
 
     @Test
@@ -91,6 +91,49 @@ class VoiceSetupMathTest {
         val similar = cluster(centre(1), 12, 1.6f) // a "stranger" from the same cloud
         val r = SpeakerCalibration.calibrate(owner, similar)
         assertFalse(r.separable)
+    }
+
+    @Test
+    fun aTakeThatDoesNotLookLikeTheOwnerIsDropped() {
+        val owner = cluster(centre(1), 20, 0.4f) + listOf(centre(9)) // one foreign take
+        val (kept, dropped) = SpeakerCalibration.trimOutliers(owner)
+        assertEquals(1, dropped)
+        assertEquals(20, kept.size)
+    }
+
+    @Test
+    fun aGoodSetIsLeftAlone() {
+        val (kept, dropped) = SpeakerCalibration.trimOutliers(cluster(centre(1), 24, 0.4f))
+        assertEquals(0, dropped)
+        assertEquals(24, kept.size)
+    }
+
+    @Test
+    fun neverDropsMoreThanAFifthOrBelowTheMinimum() {
+        val owner = cluster(centre(1), 8, 0.4f) + cluster(centre(5), 4, 0.4f) // 12 takes, a third foreign
+        val (kept, _) = SpeakerCalibration.trimOutliers(owner)
+        assertTrue(kept.size >= 10 && kept.size >= SpeakerCalibration.MIN_OWNER)
+    }
+
+    @Test
+    fun takesThatDisagreeAreFlaggedAsLowConsistency() {
+        val wide = cluster(centre(1), 20, 2.5f)
+        val r = SpeakerCalibration.calibrate(wide, emptyList())
+        assertTrue(r.ownerMedian < 0.8f)
+        val tight = SpeakerCalibration.calibrate(cluster(centre(1), 20, 0.3f), emptyList())
+        assertTrue(tight.ownerMedian >= SpeakerCalibration.MIN_CONSISTENCY_MEDIAN)
+    }
+
+    @Test
+    fun theThresholdFollowsTheLengthOfTheSpeech() {
+        val base = 0.55f
+        val long = com.nexa.assistant.engine.LengthAwareThreshold.forSpeech(base, 4000)
+        val one = com.nexa.assistant.engine.LengthAwareThreshold.forSpeech(base, 1000)
+        val short = com.nexa.assistant.engine.LengthAwareThreshold.forSpeech(base, 700)
+        val tiny = com.nexa.assistant.engine.LengthAwareThreshold.forSpeech(base, 300)
+        assertEquals(base, long)
+        assertTrue(long > one && one > short && short >= tiny, "$long $one $short $tiny")
+        assertEquals(0.12f, base - tiny, 1e-6f)
     }
 
     @Test

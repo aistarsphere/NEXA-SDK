@@ -264,6 +264,11 @@ class _VoiceSetupPageState extends State<VoiceSetupPage> {
       _finishing = false;
       _result = r;
       if (r.ok) _phase = _Phase.summary;
+      // The takes disagree: ask for a few more sentences, only then.
+      if (r.reason == 'low_consistency' &&
+          !_stages.any((st) => st.id == 'extra')) {
+        _stages = [..._stages, extraStage()];
+      }
     });
   }
 
@@ -661,6 +666,19 @@ class _VoiceSetupPageState extends State<VoiceSetupPage> {
         Text(s.samples(c.ownerSamples, c.identitySamples, c.impostorSamples)),
         const SizedBox(height: 12),
         Text(c.measuredStrangers ? s.withGuestsNote : s.ownerOnlyNote),
+        if (c.quality == 'provisional')
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Text(
+              s.provisionalNote,
+              key: const Key('voice_setup_provisional'),
+            ),
+          ),
+        if (c.dropped > 0)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Text(s.dropped(c.dropped)),
+          ),
         if (c.measuredStrangers && !c.separable)
           Padding(
             padding: const EdgeInsets.only(top: 8),

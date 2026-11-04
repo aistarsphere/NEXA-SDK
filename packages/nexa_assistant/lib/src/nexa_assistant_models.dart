@@ -282,7 +282,8 @@ final class NexaWakeDecision extends NexaAssistantEvent {
   final bool ok;
   final bool accepted;
 
-  /// `accepted`, `phrase_mismatch`, `speaker_mismatch`, `replay_suspected`,
+  /// `accepted`, `phrase_mismatch`, `speaker_mismatch`, `speaker_uncertain` (not sure it is
+  /// the owner: only a "tap to talk" offer, nothing opens), `replay_suspected`,
   /// `speaker_unavailable`, `refractory`, `no_speech`, `not_enrolled`,
   /// `permission_denied`, `microphone_unavailable`.
   final String reason;

@@ -239,9 +239,11 @@ internal class VoiceSetup(
         // short wake phrase only when it was said long enough to be reliable.
         var embedded = false
         if ((kind == "identity" && take.speechMs >= 1000) || (kind == "wake" && take.speechMs >= 600)) {
+            val t = System.nanoTime()
             embedder()?.embed(ClipQuality.normalizeLevel(clip))?.let {
                 staged += Staged(id, speaker, kind, tags, it)
                 embedded = true
+                android.util.Log.i("NexaSetupTrace", "embed_ms=${(System.nanoTime() - t) / 1_000_000} speech_ms=${take.speechMs}")
             }
         }
         return mapOf(
@@ -339,8 +341,15 @@ internal class VoiceSetup(
         if (identity < minIdentity) return reasonMap("too_few_identity_sentences", identity)
         if (conditions < minConditions) return reasonMap("too_few_conditions", conditions)
         val guests = staged.filter { it.speaker.startsWith("guest") }
-        val cal = SpeakerCalibration.calibrate(owner.map { it.embedding }, guests.map { it.embedding })
-        val embeddings = owner.map { it.embedding }.takeLast(MAX_STORED)
+        val (kept, dropped) = SpeakerCalibration.trimOutliers(owner.map { it.embedding })
+        val cal = SpeakerCalibration.calibrate(kept, guests.map { it.embedding })
+        // Enrolment quality is separate from accuracy: if the takes do not
+        // agree with each other, ask for more (clean) sentences instead of
+        // building a profile that will reject the owner.
+        if (cal.ownerMedian < SpeakerCalibration.MIN_CONSISTENCY_MEDIAN) {
+            return reasonMap("low_consistency", owner.size) + mapOf("ownerMedian" to cal.ownerMedian.toDouble())
+        }
+        val embeddings = kept.takeLast(MAX_STORED)
         val profile = SpeakerProfile.fromEmbeddings(embeddings)
         val speaker = SpeakerProfile(profile.embedding, cal.threshold, embeddings)
         val phrase = store.load()?.phrase ?: WakePhraseModel(emptyList(), 0.3f)
@@ -353,6 +362,9 @@ internal class VoiceSetup(
             .put("separable", cal.separable)
             .put("ownerSamples", cal.ownerSamples).put("impostorSamples", cal.impostorSamples)
             .put("identitySamples", identity).put("conditions", conditions).put("quick", quick)
+            .put("dropped", dropped)
+            // Provisional until strangers were measured: a profile that only knows the owner has an unmeasured false-accept rate.
+            .put("quality", if (cal.mode == "with_guests" && cal.separable && cal.impostorSamples >= 20) "measured" else "provisional")
             .put("at", System.currentTimeMillis())
         sp.edit().putString("calibration", summary.toString()).apply()
         android.util.Log.i(

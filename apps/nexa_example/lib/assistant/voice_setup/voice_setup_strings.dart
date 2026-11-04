@@ -233,6 +233,14 @@ final class VoiceSetupStrings {
     'Measured against your voice and the guests’ voices.',
     'قيس بصوتك وبأصوات الضيوف.',
   );
+  String get provisionalNote => _t(
+    'Provisional profile: it will recognise you, but its false-accept rate is not measured yet.',
+    'ملف مبدئي: سيتعرّف عليك، لكن نسبة قبول الغرباء الخاطئ لم تُقَس بعد.',
+  );
+  String dropped(int n) => _t(
+    '$n take(s) that did not look like your others were left out.',
+    'استُبعد $n تسجيل لا يشبه بقية تسجيلاتك.',
+  );
   String get notSeparable => _t(
     'Warning: the guests’ scores overlap yours. These samples cannot separate you reliably.',
     'تحذير: درجات الضيوف تتداخل مع درجاتك. هذه العينات لا تفصل صوتك بموثوقية.',
@@ -257,6 +265,10 @@ final class VoiceSetupStrings {
     'too_few_identity_sentences' => _t(
       'Record more sentences ($have so far): identity must not depend on the wake phrase.',
       'سجّل جملاً أكثر ($have حتى الآن): لا يجوز أن يعتمد التعرّف على عبارة التنبيه.',
+    ),
+    'low_consistency' => _t(
+      'Your takes do not agree with each other enough yet. Record a few more sentences in a quieter place (new step below).',
+      'تسجيلاتك لا تتفق مع بعضها بما يكفي بعد. سجّل بضع جمل إضافية في مكان أهدأ (خطوة جديدة بالأسفل).',
     ),
     'too_few_conditions' => _t(
       'Record more conditions ($have so far): quiet, loud, far, noise.',

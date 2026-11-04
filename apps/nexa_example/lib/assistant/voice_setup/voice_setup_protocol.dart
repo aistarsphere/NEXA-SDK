@@ -227,6 +227,17 @@ final List<SetupStage> quickProtocol = [
   ),
 ];
 
+/// Asked for only when the takes disagree with each other.
+SetupStage extraStage() => _identity(
+  'extra',
+  'جمل إضافية',
+  'A few more sentences',
+  'سجّلها في مكان أهدأ وبصوتك الطبيعي.',
+  'Record them somewhere quieter, in your natural voice.',
+  const ['normal'],
+  const [4, 5, 6, 7],
+);
+
 /// The owner's full protocol (about 15 minutes): calibration and testing.
 final List<SetupStage> ownerProtocol = [
   SetupStage(

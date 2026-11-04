@@ -53,10 +53,16 @@ class NeuralWakeEngine(
             return
         }
         val s = speaker.score(e)
-        val t = speaker.threshold + sensitivity.speakerOffset
+        val speechMs = ClipQuality.analyze(segment).speechMs.takeIf { it > 0 } ?: ms
+        val t = LengthAwareThreshold.forSpeech(speaker.threshold + sensitivity.speakerOffset, speechMs)
         onDecision(
-            if (s >= t) WakeDecision(true, "accepted", distance, limit, s, t, ms)
-            else WakeDecision(false, "speaker_mismatch", distance, limit, s, t, ms),
+            when {
+                s >= t -> WakeDecision(true, "accepted", distance, limit, s, t, ms)
+                // Not sure it is the owner: do not open silently and do not
+                // insult the owner with a plain "no": offer the manual path.
+                s >= t - LengthAwareThreshold.UNCERTAIN_BAND -> WakeDecision(false, "speaker_uncertain", distance, limit, s, t, ms)
+                else -> WakeDecision(false, "speaker_mismatch", distance, limit, s, t, ms)
+            },
         )
     }
 
