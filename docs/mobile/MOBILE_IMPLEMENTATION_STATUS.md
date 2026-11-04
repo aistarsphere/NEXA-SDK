@@ -116,3 +116,6 @@ Live «غيّرلي شكل التطبيق» (T-M05-05) · six noise scenarios (T
 
 ## 2026-11-04 night — native assistant, wake phrases, lock screen
 Platform decisions and evidence: `docs/qa/assistant-platform-matrix.md`. Assistant role: not app-requestable on Android 13 (logged by the system) → wizard opens the assistant picker and re-reads the system on every resume; verification only from system state/evidence. Wake phrases «يا أمير», «أمير», «عباس» ship as **experimental** acoustic heads (synthetic data). Lock-screen activation by gesture and by wake phrase verified on the Nubia (lock gate, nothing private shown). Wake accuracy on real voices and non-Nubia devices: **not measured**.
+
+## 2026-11-04 late — quick voice setup replaces the multi-sample journey
+`docs/qa/quick-voice-setup.md`. Default journey: consent → one sentence → a different sentence to verify → one more only if inconclusive → wake try-out. Two recordings in the normal case; decision rule from `enroll_policy_benchmark.py` (real speech, English). Provisional status only. The 15-take protocol and other engineering tools are developer-only. Owner calibration (Iraqi Arabic) still required.
