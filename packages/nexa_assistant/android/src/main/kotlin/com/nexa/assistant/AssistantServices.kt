@@ -106,7 +106,7 @@ internal class NexaVoiceInteractionSession(context: Context) : VoiceInteractionS
         super.onShow(args, showFlags)
         current = this
         val a = Activation.fromBundle(context, args, "system")
-        AssistantPrefs(context).lastActivation = "${a.source}@${a.at}"
+        AssistantPrefs(context).note(a)
         if (a.locked || ActivationRouter.deliverToHost != null) {
             ActivationRouter.launchHost(context, a)
             finish()

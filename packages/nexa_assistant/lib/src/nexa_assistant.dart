@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:nexa_assistant/src/nexa_assistant_models.dart';
+import 'package:nexa_assistant/src/nexa_assistant_setup.dart';
 import 'package:nexa_assistant/src/nexa_voice_setup_models.dart';
 
 /// Android assistant integration for a NEXA host app.
@@ -122,6 +123,28 @@ class NexaAssistant {
         await _call<String>('setRequireOwnerVoice', {'enabled': enabled}),
       );
 
+  // ----------------------------------------------- assistant setup facts
+
+  /// What Android says about this device right now (never cached).
+  Future<NexaAssistantCapabilities> capabilities() async {
+    final m = await _call<Map<Object?, Object?>>('capabilities');
+    return m == null
+        ? const NexaAssistantCapabilities()
+        : NexaAssistantCapabilities.fromMap(m);
+  }
+
+  /// Asks Android for the assistant role (the official request). The map
+  /// carries `started`, `resultCode` and `held` as read from the system after
+  /// the screen closed; [reason] explains why nothing opened (`already_held`,
+  /// `role_unavailable`, `not_resolvable`, `api_too_old`...).
+  Future<NexaRoleRequest> requestAssistantRole() async =>
+      NexaRoleRequest.fromMap(await _map('requestAssistantRole'));
+
+  /// Opens a settings destination only if this device can resolve it:
+  /// `opened`, `not_resolvable`, `failed` or `unknown`.
+  Future<String> openSetting(String id) async =>
+      (await _call<String>('openSetting', {'id': id})) ?? 'unknown';
+
   // ------------------------------------------------------ guided voice setup
 
   /// Records the owner's explicit consent. Nothing records before this with
@@ -181,6 +204,16 @@ class NexaAssistant {
   /// the consent.
   Future<NexaVoiceSetupStatus> voiceSetupDelete() async =>
       NexaVoiceSetupStatus.fromMap(await _map('voiceSetupDelete'));
+
+  /// Listens for [seconds] with the acoustic model of phrase [id] and reports
+  /// detections and the best score; nothing opens and nothing is stored.
+  Future<NexaWakeTest> wakeTest({String? id, int seconds = 10}) async =>
+      NexaWakeTest.fromMap(
+        await _map('wakeTest', {'id': id, 'seconds': seconds}),
+      );
+
+  Stream<NexaWakeTestEvent> get wakeTestEvents =>
+      events.where((e) => e is NexaWakeTestEvent).cast();
 
   /// Switches the active acoustic detector to the installed phrase [id].
   /// `ok`, or `not_installed` when no trained model exists for it (a phrase

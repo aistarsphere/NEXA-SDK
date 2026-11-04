@@ -75,7 +75,8 @@ internal object ActivationRouter {
     private const val NOTIFICATION_ID = 0x4E41
 
     fun activate(context: Context, a: Activation) {
-        AssistantPrefs(context).lastActivation = "${a.source}@${a.at}"
+        val prefs = AssistantPrefs(context)
+        prefs.note(a)
         val host = deliverToHost
         if (host != null && !a.locked) {
             host(a)

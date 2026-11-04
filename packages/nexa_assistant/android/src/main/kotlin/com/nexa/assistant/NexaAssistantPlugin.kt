@@ -23,6 +23,7 @@ import android.util.Log
 import android.os.PowerManager
 import android.provider.Settings
 import com.nexa.assistant.engine.FilterBank
+import com.nexa.assistant.engine.NeuralWakeEngine
 import com.nexa.assistant.engine.SampleQuality
 import com.nexa.assistant.engine.Sensitivity
 import com.nexa.assistant.engine.SpeakerProfile
@@ -47,7 +48,12 @@ class NexaAssistantPlugin :
     MethodChannel.MethodCallHandler,
     EventChannel.StreamHandler,
     ActivityAware,
-    PluginRegistry.NewIntentListener {
+    PluginRegistry.NewIntentListener,
+    PluginRegistry.ActivityResultListener {
+    private companion object {
+        const val REQ_ROLE = 0x4E52
+    }
+
 
     private lateinit var context: Context
     private lateinit var methods: MethodChannel
@@ -131,6 +137,7 @@ class NexaAssistantPlugin :
     override fun onAttachedToActivity(b: ActivityPluginBinding) {
         binding = b
         b.addOnNewIntentListener(this)
+        b.addActivityResultListener(this)
         b.activity.application.registerActivityLifecycleCallbacks(lifecycle)
         PanelBridge.hostView = {
             binding?.activity?.findViewById<FlutterView>(FlutterActivity.FLUTTER_VIEW_ID)
@@ -145,6 +152,7 @@ class NexaAssistantPlugin :
 
     override fun onDetachedFromActivity() {
         binding?.removeOnNewIntentListener(this)
+        binding?.removeActivityResultListener(this)
         binding?.activity?.application?.unregisterActivityLifecycleCallbacks(lifecycle)
         binding = null
         resumed = false
@@ -172,7 +180,7 @@ class NexaAssistantPlugin :
     }
 
     private fun deliver(a: Activation) {
-        prefs.lastActivation = "${a.source}@${a.at}"
+        prefs.note(a)
         if (sink == null) pending = a else emit(a.toMap())
     }
 
@@ -227,6 +235,10 @@ class NexaAssistantPlugin :
                 result.success(pending?.toMap())
                 pending = null
             }
+            "wakeTest" -> wakeTest(call.argument<String>("id"), call.argument<Int>("seconds") ?: 10, result)
+            "capabilities" -> result.success(AssistantCapabilities.collect(context, prefs))
+            "requestAssistantRole" -> requestAssistantRole(result)
+            "openSetting" -> result.success(openSetting(call.argument<String>("id") ?: ""))
             "openAssistantSettings" -> result.success(openAssistantSettings())
             "openBatterySettings" -> result.success(
                 open(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)) || openAppDetails(),
@@ -389,7 +401,7 @@ class NexaAssistantPlugin :
             "wakeDetector" to if (WakePhraseCatalog.find(context, prefs.wakePhraseId) != null) "neural" else "template",
             "wakePhraseId" to prefs.wakePhraseId,
             "wakePhrases" to WakePhraseCatalog.entries(context).map {
-                mapOf("id" to it.id, "label" to it.label, "installed" to it.installed)
+                mapOf("id" to it.id, "label" to it.label, "installed" to it.installed, "status" to it.status, "syllables" to it.syllables)
             },
             "locked" to Activation.locked(context),
         )
@@ -431,6 +443,143 @@ class NexaAssistantPlugin :
      * to the general "Default apps" list (seen on Android 13 and 16). The
      * host should tell the user to pick the top item, not "Voice input".
      */
+    // --------------------------------------------- try a phrase locally
+
+    /**
+     * Listens for [seconds] with the acoustic model of [id] and reports what
+     * it heard. Nothing opens, nothing is recorded or sent: only a count and
+     * the highest score. The person tries the phrase before turning it on.
+     */
+    @SuppressLint("MissingPermission")
+    private fun wakeTest(id: String?, seconds: Int, result: MethodChannel.Result) {
+        if (!micGranted()) return result.success(mapOf("ok" to false, "reason" to "permission_denied"))
+        if (busyRecording) return result.success(mapOf("ok" to false, "reason" to "busy"))
+        val entry = WakePhraseCatalog.find(context, id ?: prefs.wakePhraseId)
+            ?: return result.success(mapOf("ok" to false, "reason" to "not_installed"))
+        val head = WakePhraseCatalog.loadHead(context, entry)
+            ?: return result.success(mapOf("ok" to false, "reason" to "not_installed"))
+        busyRecording = true
+        WakeListenerService.pause(context, "test")
+        thread(name = "nexa-wake-test") {
+            var detections = 0
+            var best = 0f
+            var reason: String? = null
+            val features = OnnxWakeFeatures.load(context)
+            var rec: AudioRecord? = null
+            try {
+                if (features == null) {
+                    reason = "model_unavailable"
+                } else {
+                    val engine = NeuralWakeEngine(
+                        features, head, entry.threshold, entry.hits, null, null, false, prefs.sensitivity,
+                        onDecision = { if (it.accepted) { detections++; emit(mapOf("type" to "wakeTest", "stage" to "detected")) } },
+                    )
+                    val min = AudioRecord.getMinBufferSize(16000, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT)
+                    rec = AudioRecord(
+                        MediaRecorder.AudioSource.VOICE_RECOGNITION, 16000,
+                        AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT, maxOf(min, 16000),
+                    )
+                    if (rec.state != AudioRecord.STATE_INITIALIZED) {
+                        reason = "microphone_unavailable"
+                    } else {
+                        rec.startRecording()
+                        emit(mapOf("type" to "recording", "active" to true))
+                        val buf = ShortArray(1600)
+                        val floats = FloatArray(1600)
+                        val end = System.currentTimeMillis() + seconds.coerceIn(3, 30) * 1000L
+                        var lastEmit = 0L
+                        while (System.currentTimeMillis() < end) {
+                            val n = rec.read(buf, 0, buf.size)
+                            if (n <= 0) { reason = "microphone_unavailable"; break }
+                            for (i in 0 until n) floats[i] = buf[i] / 32768f
+                            engine.accept(floats, n)
+                            best = maxOf(best, engine.lastScore)
+                            val now = System.currentTimeMillis()
+                            if (now - lastEmit > 200) {
+                                lastEmit = now
+                                emit(mapOf("type" to "wakeTest", "stage" to "score", "score" to engine.lastScore.toDouble()))
+                            }
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                reason = "microphone_unavailable"
+            } finally {
+                rec?.let { r -> runCatching { r.stop() }; r.release() }
+                features?.close()
+                emit(mapOf("type" to "recording", "active" to false))
+            }
+            busyRecording = false
+            main.post {
+                WakeListenerService.resume(context)
+                result.success(
+                    if (reason != null) mapOf("ok" to false, "reason" to reason)
+                    else mapOf("ok" to true, "id" to entry.id, "detections" to detections, "maxScore" to best.toDouble(), "threshold" to entry.threshold.toDouble()),
+                )
+            }
+        }
+    }
+
+    // ----------------------------------------------- assistant role request
+
+    private var pendingRole: MethodChannel.Result? = null
+
+    /**
+     * Asks Android for the assistant role with the official API and reports
+     * what Android then says. `held` is read from the system after the
+     * screen closes, never assumed from the result code.
+     */
+    private fun requestAssistantRole(result: MethodChannel.Result) {
+        val act = activity
+        if (Build.VERSION.SDK_INT < 29 || act == null) {
+            return result.success(mapOf("started" to false, "reason" to if (act == null) "no_activity" else "api_too_old"))
+        }
+        val rm = context.getSystemService(RoleManager::class.java)
+        if (!rm.isRoleAvailable(RoleManager.ROLE_ASSISTANT)) {
+            return result.success(mapOf("started" to false, "reason" to "role_unavailable"))
+        }
+        if (rm.isRoleHeld(RoleManager.ROLE_ASSISTANT)) {
+            return result.success(mapOf("started" to false, "reason" to "already_held", "held" to true))
+        }
+        if (pendingRole != null) return result.success(mapOf("started" to false, "reason" to "busy"))
+        val intent = rm.createRequestRoleIntent(RoleManager.ROLE_ASSISTANT)
+        if (intent.resolveActivity(context.packageManager) == null) {
+            return result.success(mapOf("started" to false, "reason" to "not_resolvable"))
+        }
+        pendingRole = result
+        try {
+            act.startActivityForResult(intent, REQ_ROLE)
+        } catch (e: Exception) {
+            pendingRole = null
+            result.success(mapOf("started" to false, "reason" to "start_failed"))
+        }
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?): Boolean {
+        if (requestCode != REQ_ROLE) return false
+        val r = pendingRole ?: return true
+        pendingRole = null
+        val held = roleHeld()
+        if (held == true) prefs.evidenceRoleSeenAt = System.currentTimeMillis()
+        r.success(mapOf("started" to true, "resultCode" to resultCode, "held" to held))
+        return true
+    }
+
+    /** Opens a settings destination only if Android can resolve it here. */
+    private fun openSetting(id: String): String {
+        val d = when {
+            id == "default_apps" -> AssistantCapabilities.defaultApps()
+            id == "voice_input" -> AssistantCapabilities.voiceInput()
+            id == "battery_list" -> AssistantCapabilities.batterySettings()
+            id == "notifications" -> AssistantCapabilities.notificationSettings(context)
+            id == "app_details" -> AssistantCapabilities.appDetails(context)
+            id.startsWith("oem_") -> AssistantCapabilities.oemBackground().firstOrNull { it.id == id }
+            else -> null
+        } ?: return "unknown"
+        if (!d.resolvable(context)) return "not_resolvable"
+        return if (open(d.intent)) "opened" else "failed"
+    }
+
     private fun openAssistantSettings(): Boolean =
         open(Intent(Settings.ACTION_VOICE_INPUT_SETTINGS)) ||
             (Build.VERSION.SDK_INT >= 24 && open(Intent(Settings.ACTION_MANAGE_DEFAULT_APPS_SETTINGS))) ||

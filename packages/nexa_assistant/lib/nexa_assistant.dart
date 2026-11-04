@@ -4,4 +4,6 @@ library;
 
 export 'src/nexa_assistant.dart';
 export 'src/nexa_assistant_models.dart';
+export 'src/nexa_assistant_setup.dart';
 export 'src/nexa_voice_setup_models.dart';
+export 'src/wake_phrase_validation.dart';

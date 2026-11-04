@@ -21,6 +21,9 @@ internal object WakePhraseCatalog {
         val threshold: Float,
         val hits: Int,
         val installed: Boolean,
+        /** `validated` only after consented real-device measurements; else `experimental`. */
+        val status: String,
+        val syllables: Int,
     )
 
     fun entries(context: Context): List<Entry> = try {
@@ -34,6 +37,8 @@ internal object WakePhraseCatalog {
                 o.getString("id"), o.getString("label"), head,
                 o.optDouble("threshold", 0.9).toFloat(), o.optInt("hits", 2),
                 head in files,
+                o.optString("status", "experimental"),
+                o.optInt("syllables", 0),
             )
         }
     } catch (e: Throwable) {

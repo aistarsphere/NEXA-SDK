@@ -4,8 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:nexa_assistant/nexa_assistant.dart';
 import 'package:nexa_example/assistant/device_assistant.dart';
 import 'package:nexa_example/assistant/device_assistant_strings.dart';
+import 'package:nexa_example/assistant/setup/assistant_setup_page.dart';
+import 'package:nexa_example/assistant/setup/assistant_setup_strings.dart';
 import 'package:nexa_example/assistant/voice_setup/voice_setup_page.dart';
 import 'package:nexa_example/assistant/voice_setup/voice_setup_strings.dart';
+import 'package:nexa_example/assistant/wake/wake_phrase_page.dart';
+import 'package:nexa_example/assistant/wake/wake_phrase_strings.dart';
 import 'package:permission_handler/permission_handler.dart' as ph;
 
 /// "AMEER as assistant": default-assistant role, «يا أمير», the owner's
@@ -532,6 +536,36 @@ class _DeviceAssistantPageState extends State<DeviceAssistantPage>
       Card(
         child: Column(
           children: [
+            ListTile(
+              key: const Key('device_assistant_setup_wizard'),
+              leading: const Icon(Icons.checklist_rtl_rounded),
+              title: Text(AssistantSetupStrings.of(context).title),
+              subtitle: Text(AssistantSetupStrings.of(context).entrySubtitle),
+              trailing: const Icon(Icons.chevron_right_rounded),
+              onTap: () async {
+                await Navigator.of(context).push<void>(
+                  MaterialPageRoute(
+                    builder: (_) => AssistantSetupPage(plugin: _plugin),
+                  ),
+                );
+                await _refresh();
+              },
+            ),
+            ListTile(
+              key: const Key('device_assistant_wake_phrase'),
+              leading: const Icon(Icons.record_voice_over_rounded),
+              title: Text(WakePhraseStrings.of(context).title),
+              subtitle: Text(WakePhraseStrings.of(context).entrySubtitle),
+              trailing: const Icon(Icons.chevron_right_rounded),
+              onTap: () async {
+                await Navigator.of(context).push<void>(
+                  MaterialPageRoute(
+                    builder: (_) => WakePhrasePage(plugin: _plugin),
+                  ),
+                );
+                await _refresh();
+              },
+            ),
             ListTile(
               key: const Key('device_assistant_voice_setup'),
               leading: const Icon(Icons.graphic_eq_rounded),

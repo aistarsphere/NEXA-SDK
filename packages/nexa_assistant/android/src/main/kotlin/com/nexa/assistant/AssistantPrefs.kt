@@ -39,6 +39,34 @@ internal class AssistantPrefs(context: Context) {
         get() = p.getString("last_end", null)
         set(v) = p.edit().putString("last_end", v).apply()
 
+    /**
+     * Evidence, not configuration: when something REALLY happened on this
+     * device. Used to mark a setup step "verified" instead of guessing.
+     */
+    var evidenceAssistAt: Long?
+        get() = p.getLong("ev_assist", 0L).takeIf { it > 0 }
+        set(v) = p.edit().putLong("ev_assist", v ?: 0L).apply()
+    var evidenceWakeAt: Long?
+        get() = p.getLong("ev_wake", 0L).takeIf { it > 0 }
+        set(v) = p.edit().putLong("ev_wake", v ?: 0L).apply()
+    var evidenceWakeLockedAt: Long?
+        get() = p.getLong("ev_wake_locked", 0L).takeIf { it > 0 }
+        set(v) = p.edit().putLong("ev_wake_locked", v ?: 0L).apply()
+    var evidenceRoleSeenAt: Long?
+        get() = p.getLong("ev_role", 0L).takeIf { it > 0 }
+        set(v) = p.edit().putLong("ev_role", v ?: 0L).apply()
+
+    /** Records an activation and what it proves (assist route, wake, wake while locked). */
+    internal fun note(a: Activation) {
+        lastActivation = "${a.source}@${a.at}"
+        if (a.source == "wake") {
+            evidenceWakeAt = a.at
+            if (a.locked) evidenceWakeLockedAt = a.at
+        } else {
+            evidenceAssistAt = a.at
+        }
+    }
+
     /** The installed wake phrase in use (see [WakePhraseCatalog]). */
     var wakePhraseId: String
         get() = p.getString("wake_phrase_id", null) ?: WakePhraseCatalog.DEFAULT_ID

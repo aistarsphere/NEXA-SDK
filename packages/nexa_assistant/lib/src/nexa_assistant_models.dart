@@ -76,6 +76,8 @@ final class NexaAssistantStatus {
               id: (p as Map)['id'] as String,
               label: p['label'] as String,
               installed: p['installed'] == true,
+              status: p['status'] as String? ?? 'experimental',
+              syllables: (p['syllables'] as num?)?.toInt() ?? 0,
             ),
         ],
         sensitivity: NexaWakeSensitivity.values.firstWhere(
@@ -171,6 +173,10 @@ sealed class NexaAssistantEvent {
         ),
         'decision' || 'test' => NexaWakeDecision.fromMap(m),
         'recording' => NexaRecordingChanged(active: m['active'] == true),
+        'wakeTest' => NexaWakeTestEvent(
+          stage: m['stage'] as String? ?? '',
+          score: (m['score'] as num?)?.toDouble(),
+        ),
         'setup' => NexaSetupEvent(
           stage: m['stage'] as String? ?? '',
           levelDb: (m['db'] as num?)?.toDouble(),
@@ -322,6 +328,39 @@ final class NexaRecordingChanged extends NexaAssistantEvent {
   final bool active;
 }
 
+/// Live progress of [NexaAssistant.wakeTest]: `score` (the detector's current
+/// confidence, 0..1) and `detected` (the phrase was recognised).
+final class NexaWakeTestEvent extends NexaAssistantEvent {
+  const NexaWakeTestEvent({required this.stage, this.score});
+  final String stage;
+  final double? score;
+}
+
+/// Result of listening for a phrase without opening anything.
+final class NexaWakeTest {
+  const NexaWakeTest({
+    required this.ok,
+    this.reason,
+    this.detections = 0,
+    this.maxScore = 0,
+    this.threshold = 0,
+  });
+
+  factory NexaWakeTest.fromMap(Map<Object?, Object?> m) => NexaWakeTest(
+    ok: m['ok'] == true,
+    reason: m['reason'] as String?,
+    detections: (m['detections'] as num?)?.toInt() ?? 0,
+    maxScore: (m['maxScore'] as num?)?.toDouble() ?? 0,
+    threshold: (m['threshold'] as num?)?.toDouble() ?? 0,
+  );
+
+  final bool ok;
+  final String? reason;
+  final int detections;
+  final double maxScore;
+  final double threshold;
+}
+
 /// Live status of the voice-setup recorder, in this order: `opening` (the
 /// microphone is starting), `ready` (speak now), `level` (meter; [speaking]
 /// is true while speech is detected), `speech` (speech detected), `processing`
@@ -432,10 +471,18 @@ final class NexaWakePhrase {
     required this.id,
     required this.label,
     required this.installed,
+    this.status = 'experimental',
+    this.syllables = 0,
   });
 
   final String id;
   final String label;
+
+  /// `experimental` (trained on synthetic speech only) or `validated`
+  /// (measured on real recordings on a device). Nothing ships `validated`
+  /// before that evidence exists.
+  final String status;
+  final int syllables;
 
   /// True when its trained acoustic model ships with the app.
   final bool installed;
