@@ -774,8 +774,10 @@ class NexaAssistantPlugin :
             if (seg == null) return@recordOne mapOf("ok" to false, "reason" to "no_speech")
             val embedder = if (profile.speaker != null) OnnxSpeakerEmbedder.load(context) else null
             embedder.use {
+                val template = profile.phrase
+                    ?: return@recordOne mapOf("ok" to false, "reason" to "not_enrolled")
                 val d = WakeEngine(
-                    model = profile.phrase,
+                    model = template,
                     speaker = profile.speaker,
                     embedder = embedder,
                     // The test always reports the voice score when it can.

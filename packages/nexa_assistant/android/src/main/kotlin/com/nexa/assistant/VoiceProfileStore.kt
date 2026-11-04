@@ -18,7 +18,8 @@ import javax.crypto.spec.GCMParameterSpec
 
 /** What enrolment keeps: features and a voice embedding, never audio. */
 internal class VoiceProfile(
-    val phrase: WakePhraseModel,
+    /** The older personal wake template; null when only the voice profile exists (neural wake phrases need none). */
+    val phrase: WakePhraseModel?,
     val speaker: SpeakerProfile?,
     val createdAt: Long,
 )
@@ -85,21 +86,21 @@ internal class VoiceProfileStore(context: Context) {
         return gen.generateKey()
     }
 
-    private companion object {
-        const val KEYSTORE = "AndroidKeyStore"
-        const val ALIAS = "nexa_assistant_voice_profile"
-        const val TRANSFORM = "AES/GCM/NoPadding"
-        const val IV = 12
-        const val VERSION = 2
+    internal companion object {
+        private const val KEYSTORE = "AndroidKeyStore"
+        private const val ALIAS = "nexa_assistant_voice_profile"
+        private const val TRANSFORM = "AES/GCM/NoPadding"
+        private const val IV = 12
+        private const val VERSION = 2
 
         fun encode(p: VoiceProfile): ByteArray {
             val bytes = ByteArrayOutputStream()
             DataOutputStream(bytes).use { out ->
                 out.writeInt(VERSION)
                 out.writeLong(p.createdAt)
-                out.writeFloat(p.phrase.threshold)
-                out.writeInt(p.phrase.templates.size)
-                for (t in p.phrase.templates) {
+                out.writeFloat(p.phrase?.threshold ?: 0f)
+                out.writeInt(p.phrase?.templates?.size ?: 0)
+                for (t in p.phrase?.templates.orEmpty()) {
                     out.writeInt(t.size)
                     out.writeInt(if (t.isEmpty()) 0 else t[0].size)
                     for (row in t) for (v in row) out.writeFloat(v)
@@ -140,7 +141,8 @@ internal class VoiceProfileStore(context: Context) {
                     } else emptyList()
                     SpeakerProfile(mean, t, samples)
                 } else null
-                return VoiceProfile(WakePhraseModel(templates, threshold), speaker, createdAt)
+                val phrase = if (templates.isEmpty()) null else WakePhraseModel(templates, threshold)
+                return VoiceProfile(phrase, speaker, createdAt)
             }
         }
     }

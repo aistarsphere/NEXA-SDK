@@ -97,7 +97,16 @@ internal class VoiceSetup(
         )
     }
 
-    fun begin() = WakeListenerService.pause(context, "enrollment")
+    fun begin() {
+        WakeListenerService.pause(context, "enrollment")
+        // Takes are held in memory only (nothing biometric is written unless
+        // the person chose to keep recordings). If the app restarted since,
+        // those takes are gone: start the counts again instead of showing
+        // progress that cannot be built into a profile.
+        if (staged.isEmpty() && !keepClips && manifest().length() > 0) {
+            manifestFile.delete()
+        }
+    }
     fun end() = WakeListenerService.resume(context)
 
     // ---------------------------------------------------------- recording
@@ -321,7 +330,13 @@ internal class VoiceSetup(
         if (busy) return result.success(mapOf("ok" to false, "reason" to "busy"))
         busy = true
         thread(name = "nexa-voice-setup-finish") {
-            val out = try { build(quick) } catch (e: Exception) { mapOf("ok" to false, "reason" to "save_failed") }
+            val out = try {
+                build(quick)
+            } catch (e: Exception) {
+                // The kind of failure only (never data): so "save_failed" can be diagnosed.
+                android.util.Log.w("NexaSetupTrace", "build failed: ${e.javaClass.simpleName} at ${e.stackTrace.firstOrNull()}")
+                mapOf("ok" to false, "reason" to "save_failed")
+            }
             busy = false
             main.post { WakeListenerService.reload(context); result.success(out) }
         }
@@ -329,6 +344,7 @@ internal class VoiceSetup(
 
     private fun build(quick: Boolean): Map<String, Any?> {
         if (staged.isEmpty() && keepClips) rebuildFromClips()
+        if (staged.isEmpty()) return reasonMap("recordings_lost", 0)
         val owner = staged.filter { it.speaker == "owner" }
         val identity = owner.count { it.kind == "identity" }
         val conditions = owner.flatMap { it.tags }.toSet().size
@@ -352,7 +368,7 @@ internal class VoiceSetup(
         val embeddings = kept.takeLast(MAX_STORED)
         val profile = SpeakerProfile.fromEmbeddings(embeddings)
         val speaker = SpeakerProfile(profile.embedding, cal.threshold, embeddings)
-        val phrase = store.load()?.phrase ?: WakePhraseModel(emptyList(), 0.3f)
+        val phrase = store.load()?.phrase // keeps an older template if one exists; neural phrases need none
         store.save(VoiceProfile(phrase, speaker, System.currentTimeMillis()))
         // Scores and counts only; never embeddings.
         val summary = JSONObject()

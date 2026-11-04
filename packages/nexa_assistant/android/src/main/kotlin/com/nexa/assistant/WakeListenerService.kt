@@ -179,10 +179,11 @@ class WakeListenerService : Service() {
     private fun buildEngine(): WakeFrontEnd? {
         buildNeural()?.let { return it }
         val profile = VoiceProfileStore(this).load() ?: return null
+        val template = profile.phrase ?: return null // the older detector needs its personal template
         val requireOwner = prefs.requireOwner && profile.speaker != null
         if (requireOwner && embedder == null) embedder = OnnxSpeakerEmbedder.load(this)
         return WakeEngine(
-            model = profile.phrase,
+            model = template,
             speaker = profile.speaker,
             embedder = embedder,
             requireOwner = prefs.requireOwner,

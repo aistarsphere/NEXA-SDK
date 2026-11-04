@@ -266,6 +266,14 @@ final class VoiceSetupStrings {
       'Record more sentences ($have so far): identity must not depend on the wake phrase.',
       'سجّل جملاً أكثر ($have حتى الآن): لا يجوز أن يعتمد التعرّف على عبارة التنبيه.',
     ),
+    'recordings_lost' => _t(
+      'The recordings were not kept (the app was closed). Nothing is stored unless you choose to: please record again.',
+      'لم تُحفظ التسجيلات (أُغلق التطبيق). لا يُحفظ شيء ما لم تختر ذلك: سجّل مجدداً من فضلك.',
+    ),
+    'save_failed' => _t(
+      'Could not save the voice profile on this phone. Try again; if it repeats, delete the voice data and start over.',
+      'تعذّر حفظ الملف الصوتي على هذا الهاتف. أعد المحاولة؛ وإن تكرر احذف بيانات الصوت وابدأ من جديد.',
+    ),
     'low_consistency' => _t(
       'Your takes do not agree with each other enough yet. Record a few more sentences in a quieter place (new step below).',
       'تسجيلاتك لا تتفق مع بعضها بما يكفي بعد. سجّل بضع جمل إضافية في مكان أهدأ (خطوة جديدة بالأسفل).',
