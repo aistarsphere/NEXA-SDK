@@ -16,16 +16,16 @@ class WakeBenchmarkPage extends StatefulWidget {
 typedef _Item = ({String label, String say, int seconds});
 
 const _positives = <_Item>[
-  (label: 'pos_normal', say: 'يا لبيب — normal', seconds: 3),
-  (label: 'pos_fast', say: 'يا لبيب — fast', seconds: 3),
-  (label: 'pos_slow', say: 'يا لبيب — slow', seconds: 3),
-  (label: 'pos_loud', say: 'يا لبيب — louder', seconds: 3),
-  (label: 'pos_soft', say: 'يا لبيب — quietly', seconds: 3),
-  (label: 'pos_pause', say: 'يا … لبيب — with a pause', seconds: 4),
-  (label: 'pos_far', say: 'يا لبيب — phone at arm\'s length', seconds: 3),
+  (label: 'pos_normal', say: 'يا أمير — normal', seconds: 3),
+  (label: 'pos_fast', say: 'يا أمير — fast', seconds: 3),
+  (label: 'pos_slow', say: 'يا أمير — slow', seconds: 3),
+  (label: 'pos_loud', say: 'يا أمير — louder', seconds: 3),
+  (label: 'pos_soft', say: 'يا أمير — quietly', seconds: 3),
+  (label: 'pos_pause', say: 'يا … أمير — with a pause', seconds: 4),
+  (label: 'pos_far', say: 'يا أمير — phone at arm\'s length', seconds: 3),
   (
     label: 'pos_sentence',
-    say: 'يا لبيب شلونك — phrase then more words',
+    say: 'يا أمير شلونك — phrase then more words',
     seconds: 4,
   ),
 ];
@@ -42,7 +42,7 @@ const _negatives = <_Item>[
 const _others = <_Item>[
   (
     label: 'other_pos',
-    say: 'ANOTHER person (consenting) says يا لبيب',
+    say: 'ANOTHER person (consenting) says يا أمير',
     seconds: 3,
   ),
   (label: 'other_neg', say: 'ANOTHER person says any sentence', seconds: 4),
@@ -163,7 +163,7 @@ class _WakeBenchmarkPageState extends State<WakeBenchmarkPage> {
                     '${_last == null ? '' : '   ·   $_last'}',
                   ),
                   _section(
-                    'Owner: «يا لبيب» (record each 3–5 times)',
+                    'Owner: «يا أمير» (record each 3–5 times)',
                     _positives,
                   ),
                   _section('Owner: other phrases (each 2–3 times)', _negatives),

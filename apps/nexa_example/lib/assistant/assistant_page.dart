@@ -25,7 +25,7 @@ class AssistantPage extends StatelessWidget {
   final NexaClient client;
   final NexaAuthProvider auth;
 
-  /// Opens live voice (Android assistant gesture or «يا لبيب»).
+  /// Opens live voice (Android assistant gesture or «يا أمير»).
   final Stream<void>? voiceRequests;
 
   /// `/c/:id`: always the chat page, whatever the launch mode.

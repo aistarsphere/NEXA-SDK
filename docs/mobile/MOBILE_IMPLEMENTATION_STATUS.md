@@ -102,3 +102,14 @@ Live «غيّرلي شكل التطبيق» (T-M05-05) · six noise scenarios (T
 | F-04 owner verification calibration | NOT DONE (needs owner recordings and consent). Pipeline (wake -> CAM++ check -> decision) is wired in `NeuralWakeEngine`, fail-closed | NeuralWakeTest |
 | G-03 barge-in evidence | NOT RUN (needs the six scenarios + server logs). Handoff template: `docs/qa/barge-in-evidence.md` | |
 | Server profile | Header now shows «أمير» (the dashboard profile changed) | screenshot-less; seen on Nubia |
+
+## 2026-11-04 evening — voice-assistant enrollment workflow
+| Item | State |
+|---|---|
+| Consent-gated guided voice setup (Android plugin + Flutter screen) | IMPLEMENTED, Kotlin + Dart + widget tests pass; not shown on the phone (device disconnected) |
+| Identity enrollment separate from the wake phrase; calibrated threshold (owner-only vs with guests) | IMPLEMENTED + tests; **no owner data yet** |
+| Secure deletion + re-enrollment (recordings, profile, Keystore key, calibration, consent) | IMPLEMENTED + tests |
+| Held-out evaluators (wake, speaker) and model comparison | IMPLEMENTED; run on synthetic stand-in only |
+| Detector re-evaluation with separate training/held-out owner clips | BLOCKED on the owner session |
+| G-02 mute and barge-in requests to AWS | WRITTEN (read-only investigations), **NOT SENT** (no channel from here): `docs/handoff/aws-technical-investigations-2026-11-04.md` |
+| Scoped Beta `assets:write` credential | REQUEST WRITTEN, **NOT SENT**: `docs/handoff/beta-assets-write-credential-request.md` |

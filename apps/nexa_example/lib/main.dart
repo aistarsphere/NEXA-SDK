@@ -155,7 +155,7 @@ Future<void> main() async {
 
   if (!ExampleConfig.useMock) unawaited(Labeeb.loadProfile(client));
 
-  // Android: default assistant + «يا لبيب» (on-device). No-op elsewhere.
+  // Android: default assistant + «يا أمير» (on-device). No-op elsewhere.
   final device = DeviceAssistant(client: client);
   await device.start();
 

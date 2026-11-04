@@ -8,7 +8,7 @@ import 'package:nexa_example/assistant/voice_setup/voice_setup_page.dart';
 import 'package:nexa_example/assistant/voice_setup/voice_setup_strings.dart';
 import 'package:permission_handler/permission_handler.dart' as ph;
 
-/// "LABEEB as assistant": default-assistant role, «يا لبيب», the owner's
+/// "AMEER as assistant": default-assistant role, «يا أمير», the owner's
 /// voice, sensitivity, a live test, background limits and privacy. Each
 /// item says whether it is set up, needs a permission, or is not
 /// available on this device.
@@ -707,7 +707,7 @@ class _DeviceAssistantPageState extends State<DeviceAssistantPage>
   }
 }
 
-/// Records «يا لبيب» five times (at least three kept), then saves the
+/// Records «يا أمير» five times (at least three kept), then saves the
 /// encrypted on-device profile. Audio never leaves memory.
 class VoiceEnrollmentPage extends StatefulWidget {
   const VoiceEnrollmentPage({required this.plugin, super.key});

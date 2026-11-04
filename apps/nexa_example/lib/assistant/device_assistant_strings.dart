@@ -62,10 +62,10 @@ final class DeviceAssistantStrings {
 
   String get panelTitle => _t('Assistant panel', 'لوحة المساعد');
   String get panelBody => _t(
-    'The assist gesture or «يا لبيب» opens a compact panel over the app you '
+    'The assist gesture or «يا أمير» opens a compact panel over the app you '
         'are using. It ends the conversation after the time below without '
         'speech, then goes back to listening for the phrase.',
-    'تفتح إيماءة المساعد أو «يا لبيب» لوحة صغيرة فوق التطبيق الذي تستخدمه. '
+    'تفتح إيماءة المساعد أو «يا أمير» لوحة صغيرة فوق التطبيق الذي تستخدمه. '
         'تنهي المحادثة بعد المدة أدناه دون كلام، ثم تعود للاستماع للعبارة.',
   );
   String get panelPosition => _t('Position', 'الموضع');

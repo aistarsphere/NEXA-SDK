@@ -7,7 +7,7 @@ import 'package:nexa_example/brand/labeeb_brand.dart';
 import 'package:nexa_sdk/nexa_sdk.dart';
 
 /// LABEEB as the Android assistant: turns device activations (assist
-/// gesture/button, «يا لبيب») into a live-voice conversation, either in the
+/// gesture/button, «يا أمير») into a live-voice conversation, either in the
 /// compact system panel (over another app) or the in-app voice screen.
 ///
 /// * The panel and the app share one engine and one voice controller: a
