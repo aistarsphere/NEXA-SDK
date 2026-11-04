@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:nexa_assistant/nexa_assistant.dart';
 import 'package:nexa_example/assistant/device_assistant.dart';
 import 'package:nexa_example/assistant/device_assistant_strings.dart';
+import 'package:nexa_example/assistant/voice_setup/voice_setup_page.dart';
+import 'package:nexa_example/assistant/voice_setup/voice_setup_strings.dart';
 import 'package:permission_handler/permission_handler.dart' as ph;
 
 /// "LABEEB as assistant": default-assistant role, «يا لبيب», the owner's
@@ -530,6 +532,21 @@ class _DeviceAssistantPageState extends State<DeviceAssistantPage>
       Card(
         child: Column(
           children: [
+            ListTile(
+              key: const Key('device_assistant_voice_setup'),
+              leading: const Icon(Icons.graphic_eq_rounded),
+              title: Text(VoiceSetupStrings.of(context).entry),
+              subtitle: Text(VoiceSetupStrings.of(context).entrySubtitle),
+              trailing: const Icon(Icons.chevron_right_rounded),
+              onTap: () async {
+                await Navigator.of(context).push<void>(
+                  MaterialPageRoute(
+                    builder: (_) => VoiceSetupPage(plugin: _plugin),
+                  ),
+                );
+                await _refresh();
+              },
+            ),
             ListTile(
               key: const Key('device_assistant_enroll'),
               leading: const Icon(Icons.record_voice_over_outlined),

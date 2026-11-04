@@ -64,6 +64,7 @@ class NexaAssistantPlugin :
 
     /** Enrolment audio is kept in memory only, until finish or cancel. */
     private val enrolment = ArrayList<FloatArray>()
+    private val setup by lazy { VoiceSetup(context, prefs, store, ::micGranted, ::emit, main) }
 
     @Volatile private var busyRecording = false
 
@@ -277,9 +278,25 @@ class NexaAssistantPlugin :
                 prefs.wakeEnabled = false
                 prefs.requireOwner = false
                 WakeListenerService.stop(context)
-                store.delete()
+                setup.deleteAll() // also the recordings, the consent and the profile key
                 result.success(null)
             }
+            "voiceSetupConsent" -> result.success(
+                setup.setConsent(call.argument<Boolean>("accepted") == true, call.argument<Boolean>("keepClips") == true),
+            )
+            "voiceSetupStatus" -> result.success(setup.status())
+            "voiceSetupBegin" -> { setup.begin(); result.success(null) }
+            "voiceSetupEnd" -> { setup.end(); result.success(null) }
+            "voiceSetupRecord" -> setup.record(
+                kind = call.argument<String>("kind") ?: "wake",
+                promptId = call.argument<String>("promptId") ?: "",
+                tags = call.argument<List<String>>("tags") ?: emptyList(),
+                speaker = call.argument<String>("speaker") ?: "owner",
+                maxMs = call.argument<Int>("maxMs") ?: 6000,
+                result = result,
+            )
+            "voiceSetupFinish" -> setup.finish(result)
+            "voiceSetupDelete" -> result.success(setup.deleteAll())
             "testListen" -> testListen(call.argument<Int>("timeoutMs") ?: 6000, result)
             "benchRecord" -> benchRecord(
                 call.argument<String>("label") ?: "clip",

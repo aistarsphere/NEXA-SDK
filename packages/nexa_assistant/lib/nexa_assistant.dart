@@ -4,3 +4,4 @@ library;
 
 export 'src/nexa_assistant.dart';
 export 'src/nexa_assistant_models.dart';
+export 'src/nexa_voice_setup_models.dart';

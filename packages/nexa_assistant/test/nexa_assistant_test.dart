@@ -56,6 +56,102 @@ void main() {
     },
   );
 
+  group('guided voice setup', () {
+    test('consent gates recording; the plugin refuses without it', () async {
+      replies['voiceSetupRecord'] = {'ok': false, 'reason': 'consent_required'};
+      final take = await android().voiceSetupRecord(
+        kind: 'wake',
+        promptId: 'wake_normal_1',
+        tags: ['normal'],
+      );
+      expect(take.ok, isFalse);
+      expect(take.reason, 'consent_required');
+      expect(calls.last.arguments, {
+        'kind': 'wake',
+        'promptId': 'wake_normal_1',
+        'tags': ['normal'],
+        'speaker': 'owner',
+        'maxMs': 6000,
+      });
+    });
+
+    test('consent, status and a measured take are parsed', () async {
+      replies['voiceSetupConsent'] = {
+        'consented': true,
+        'keepClips': true,
+        'clips': {'owner:wake': 3, 'owner:identity': 1},
+      };
+      final st = await android().voiceSetupConsent(
+        accepted: true,
+        keepClips: true,
+      );
+      expect(calls.last.arguments, {'accepted': true, 'keepClips': true});
+      expect(st.consented, isTrue);
+      expect(st.count('owner', 'wake'), 3);
+      expect(st.count('guest_1', 'wake'), 0);
+
+      replies['voiceSetupRecord'] = {
+        'ok': true,
+        'embedded': true,
+        'saved': true,
+        'metrics': {
+          'durationMs': 2100,
+          'speechMs': 800,
+          'peakDb': -12.5,
+          'speechRmsDb': -24.0,
+          'noiseDb': -58.0,
+          'snrDb': 34.0,
+        },
+      };
+      final take = await android().voiceSetupRecord(
+        kind: 'wake',
+        promptId: 'p',
+      );
+      expect(take.ok, isTrue);
+      expect(take.embedded, isTrue);
+      expect(take.metrics!.snrDb, 34.0);
+    });
+
+    test('finish reports what is missing, or the calibration', () async {
+      replies['voiceSetupFinish'] = {
+        'ok': false,
+        'reason': 'too_few_identity_sentences',
+        'have': 3,
+      };
+      var r = await android().voiceSetupFinish();
+      expect(r.ok, isFalse);
+      expect(r.reason, 'too_few_identity_sentences');
+      expect(r.have, 3);
+
+      replies['voiceSetupFinish'] = {
+        'ok': true,
+        'mode': 'owner_only',
+        'threshold': 0.52,
+        'ownerP05': 0.64,
+        'ownerMedian': 0.78,
+        'separable': true,
+        'ownerSamples': 40,
+        'impostorSamples': 0,
+      };
+      r = await android().voiceSetupFinish();
+      expect(r.ok, isTrue);
+      expect(r.calibration!.measuredStrangers, isFalse);
+      expect(r.calibration!.threshold, closeTo(0.52, 1e-9));
+    });
+
+    test('delete removes everything and reports the empty status', () async {
+      replies['voiceSetupDelete'] = {
+        'consented': false,
+        'clips': <String, int>{},
+        'profileExists': false,
+      };
+      final st = await android().voiceSetupDelete();
+      expect(calls.last.method, 'voiceSetupDelete');
+      expect(st.consented, isFalse);
+      expect(st.profileExists, isFalse);
+    });
+  });
+
   test('status is parsed from the device', () async {
     replies['status'] = {
       'platformSupported': true,

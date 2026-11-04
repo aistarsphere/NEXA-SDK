@@ -39,7 +39,7 @@ class NeuralWakeEngine(
     override fun reset() = detector.reset()
 
     private fun wake(score: Float, tail: FloatArray) {
-        val segment = speechTail(tail)
+        val segment = ClipQuality.normalizeLevel(speechTail(tail))
         val ms = segment.size / 16
         val distance = 1f - score
         val limit = 1f - threshold

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:nexa_assistant/src/nexa_assistant_models.dart';
+import 'package:nexa_assistant/src/nexa_voice_setup_models.dart';
 
 /// Android assistant integration for a NEXA host app.
 ///
@@ -120,6 +121,57 @@ class NexaAssistant {
       NexaAssistantToggle.parse(
         await _call<String>('setRequireOwnerVoice', {'enabled': enabled}),
       );
+
+  // ------------------------------------------------------ guided voice setup
+
+  /// Records the owner's explicit consent. Nothing records before this with
+  /// `accepted: true`; `accepted: false` deletes everything. [keepClips]
+  /// keeps the recordings on this phone (USB-readable, for training the
+  /// wake model) instead of only measuring them.
+  Future<NexaVoiceSetupStatus> voiceSetupConsent({
+    required bool accepted,
+    bool keepClips = false,
+  }) async => NexaVoiceSetupStatus.fromMap(
+    await _map('voiceSetupConsent', {
+      'accepted': accepted,
+      'keepClips': keepClips,
+    }),
+  );
+
+  Future<NexaVoiceSetupStatus> voiceSetupStatus() async =>
+      NexaVoiceSetupStatus.fromMap(await _map('voiceSetupStatus'));
+
+  /// Holds the wake listener off the microphone while the setup is open.
+  Future<void> voiceSetupBegin() => _call<void>('voiceSetupBegin');
+  Future<void> voiceSetupEnd() => _call<void>('voiceSetupEnd');
+
+  /// Records one prompt. [kind] `wake`, `identity`, `negative` or
+  /// `background`; [speaker] `owner` or `guest_N`; [tags] describe the
+  /// condition (`normal`, `quiet`, `loud`, `fast`, `slow`, `near`, `far`,
+  /// `noise`) and relax the quality checks accordingly.
+  Future<NexaSetupTake> voiceSetupRecord({
+    required String kind,
+    required String promptId,
+    List<String> tags = const [],
+    String speaker = 'owner',
+    int maxMs = 6000,
+  }) async => NexaSetupTake.fromMap(
+    await _map('voiceSetupRecord', {
+      'kind': kind,
+      'promptId': promptId,
+      'tags': tags,
+      'speaker': speaker,
+      'maxMs': maxMs,
+    }),
+  );
+
+  Future<NexaSetupFinish> voiceSetupFinish() async =>
+      NexaSetupFinish.fromMap(await _map('voiceSetupFinish'));
+
+  /// Deletes recordings, the voice profile and its key, the calibration and
+  /// the consent.
+  Future<NexaVoiceSetupStatus> voiceSetupDelete() async =>
+      NexaVoiceSetupStatus.fromMap(await _map('voiceSetupDelete'));
 
   /// Switches the active acoustic detector to the installed phrase [id].
   /// `ok`, or `not_installed` when no trained model exists for it (a phrase
