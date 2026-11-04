@@ -1,3 +1,5 @@
+import 'dart:async';
+
 // Guided voice setup: consent gate, protocol, quality feedback, guests,
 // deletion. The plugin channel is mocked (no device).
 import 'package:flutter/material.dart';
@@ -10,6 +12,8 @@ import 'package:nexa_example/assistant/voice_setup/voice_setup_protocol.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   const methods = MethodChannel('nexa_assistant/methods');
+  const events = EventChannel('nexa_assistant/events');
+  late void Function(Map<String, Object?>) push;
   final messenger =
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
   late List<MethodCall> calls;
@@ -27,8 +31,19 @@ void main() {
       calls.add(call);
       return replies[call.method];
     });
+    messenger.setMockStreamHandler(
+      events,
+      MockStreamHandler.inline(
+        onListen: (_, sink) {
+          push = sink.success;
+        },
+      ),
+    );
   });
-  tearDown(() => messenger.setMockMethodCallHandler(methods, null));
+  tearDown(() {
+    messenger.setMockMethodCallHandler(methods, null);
+    messenger.setMockStreamHandler(events, null);
+  });
 
   Future<void> open(WidgetTester tester) async {
     tester.view.physicalSize = const Size(1080, 2400);
@@ -38,6 +53,16 @@ void main() {
       MaterialApp(home: VoiceSetupPage(plugin: NexaAssistant(supported: true))),
     );
     await tester.pumpAndSettle();
+  }
+
+  /// Platform events arrive asynchronously: give them a few frames.
+  Future<void> frames(WidgetTester tester) async {
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 60)),
+    );
+    for (var i = 0; i < 3; i++) {
+      await tester.pump(const Duration(milliseconds: 50));
+    }
   }
 
   List<String> called() => calls.map((c) => c.method).toList();
@@ -192,12 +217,26 @@ void main() {
         },
       };
       await tester.tap(find.byKey(const Key('voice_setup_record')));
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump();
       expect(find.byKey(const Key('voice_setup_take_ok')), findsOneWidget);
       expect(find.textContaining('-31'), findsOneWidget);
-      await tester.tap(find.byKey(const Key('voice_setup_next')));
+      expect(find.text('We captured your voice successfully'), findsOneWidget);
+      // The next step starts by itself; make that one fail so the loop stops.
+      replies['voiceSetupRecord'] = {'ok': false, 'reason': 'no_speech'};
+      await tester.pump(const Duration(milliseconds: 1200));
       await tester.pumpAndSettle();
       expect(find.textContaining('2 of 9'), findsOneWidget);
+      expect(
+        calls.where((c) => c.method == 'voiceSetupRecord').length,
+        3,
+        reason: 'the failed take, the good one, then the automatic next',
+      );
+      expect(find.byKey(const Key('voice_setup_take_problem')), findsOneWidget);
+      expect(find.textContaining('No speech detected'), findsOneWidget);
+      // A rejected take never loops by itself.
+      await tester.pump(const Duration(seconds: 3));
+      expect(calls.where((c) => c.method == 'voiceSetupRecord').length, 3);
     });
 
     testWidgets('finish reports what is still missing', (tester) async {
@@ -289,6 +328,69 @@ void main() {
       await tester.pumpAndSettle();
       expect(called(), contains('voiceSetupDelete'));
       expect(find.byKey(const Key('voice_setup_consent')), findsOneWidget);
+    });
+  });
+
+  group('live recording status', () {
+    setUp(() => replies['voiceSetupStatus'] = {'consented': true});
+
+    testWidgets('the screen says when to speak, when it hears you, and when '
+        'it is finishing', (tester) async {
+      await open(tester);
+      await tap(tester, 'voice_setup_stage_quick_wake');
+      // The recording call stays open while the recorder reports its stages.
+      final gate = Completer<Object?>();
+      messenger.setMockMethodCallHandler(methods, (call) async {
+        calls.add(call);
+        if (call.method == 'voiceSetupRecord') return gate.future;
+        return replies[call.method];
+      });
+      await tester.tap(find.byKey(const Key('voice_setup_record')));
+      await tester.pump();
+      expect(find.text('Starting the microphone…'), findsOneWidget);
+      expect(find.byKey(const Key('voice_setup_stop')), findsOneWidget);
+
+      push({'type': 'setup', 'stage': 'ready'});
+      await frames(tester);
+      expect(find.text('Speak now'), findsOneWidget);
+
+      push({'type': 'setup', 'stage': 'speech'});
+      push({'type': 'setup', 'stage': 'level', 'db': -30.0, 'speaking': true});
+      await frames(tester);
+      expect(find.text('I hear you…'), findsOneWidget);
+      final meter = tester.widget<LinearProgressIndicator>(
+        find.byKey(const Key('voice_setup_meter')),
+      );
+      expect(meter.value, closeTo((-30 + 60) / 45, 1e-6));
+
+      push({'type': 'setup', 'stage': 'processing'});
+      await frames(tester);
+      expect(find.text('Finishing the take…'), findsOneWidget);
+
+      gate.complete({'ok': false, 'reason': 'too_short'});
+      await tester.pumpAndSettle();
+      expect(find.textContaining('speak a little longer'), findsOneWidget);
+      expect(find.byKey(const Key('voice_setup_record')), findsOneWidget);
+    });
+
+    testWidgets('stop cancels the recording', (tester) async {
+      await open(tester);
+      await tap(tester, 'voice_setup_stage_quick_wake');
+      final gate = Completer<Object?>();
+      messenger.setMockMethodCallHandler(methods, (call) async {
+        calls.add(call);
+        if (call.method == 'voiceSetupRecord') return gate.future;
+        if (call.method == 'voiceSetupCancel' && !gate.isCompleted) {
+          gate.complete({'ok': false, 'reason': 'interrupted'});
+        }
+        return replies[call.method];
+      });
+      await tester.tap(find.byKey(const Key('voice_setup_record')));
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('voice_setup_stop')));
+      await tester.pumpAndSettle();
+      expect(called(), contains('voiceSetupCancel'));
+      expect(find.textContaining('interrupted'), findsOneWidget);
     });
   });
 

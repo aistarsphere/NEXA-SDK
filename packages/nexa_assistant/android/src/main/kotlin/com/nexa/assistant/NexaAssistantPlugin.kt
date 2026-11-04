@@ -295,6 +295,7 @@ class NexaAssistantPlugin :
                 maxMs = call.argument<Int>("maxMs") ?: 6000,
                 result = result,
             )
+            "voiceSetupCancel" -> { setup.cancel(); result.success(null) }
             "voiceSetupFinish" -> setup.finish(call.argument<Boolean>("quick") == true, result)
             "voiceSetupDelete" -> result.success(setup.deleteAll())
             "testListen" -> testListen(call.argument<Int>("timeoutMs") ?: 6000, result)

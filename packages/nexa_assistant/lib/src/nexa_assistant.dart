@@ -167,6 +167,13 @@ class NexaAssistant {
 
   /// Builds the owner profile. [quick] asks for fewer takes (the two-minute
   /// setup); the full protocol is for calibration and testing.
+  /// Live recorder status while [voiceSetupRecord] runs.
+  Stream<NexaSetupEvent> get setupEvents =>
+      events.where((e) => e is NexaSetupEvent).cast();
+
+  /// Stops the recording in progress (it ends as `interrupted`).
+  Future<void> voiceSetupCancel() => _call<void>('voiceSetupCancel');
+
   Future<NexaSetupFinish> voiceSetupFinish({bool quick = false}) async =>
       NexaSetupFinish.fromMap(await _map('voiceSetupFinish', {'quick': quick}));
 

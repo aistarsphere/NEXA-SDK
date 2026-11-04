@@ -37,6 +37,13 @@ class _VoiceSetupPageState extends State<VoiceSetupPage> {
   int _stage = 0;
   int _prompt = 0;
   bool _recording = false;
+
+  /// What the recorder says it is doing: opening, ready, speech, processing.
+  String _live = '';
+  double _level = -90;
+  bool _speaking = false;
+  StreamSubscription<NexaSetupEvent>? _events;
+  Timer? _advance;
   NexaSetupTake? _take;
   NexaSetupFinish? _result;
   bool _finishing = false;
@@ -44,13 +51,31 @@ class _VoiceSetupPageState extends State<VoiceSetupPage> {
   @override
   void initState() {
     super.initState();
+    _events = widget.plugin.setupEvents.listen(_onLive, onError: (_) {});
     unawaited(_load());
   }
 
   @override
   void dispose() {
+    _advance?.cancel();
+    unawaited(_events?.cancel());
+    unawaited(widget.plugin.voiceSetupCancel());
     unawaited(widget.plugin.voiceSetupEnd());
     super.dispose();
+  }
+
+  void _onLive(NexaSetupEvent e) {
+    if (!mounted || !_recording) return;
+    setState(() {
+      switch (e.stage) {
+        case 'level':
+          _level = e.levelDb ?? _level;
+          _speaking = e.speaking;
+        case 'opening' || 'ready' || 'speech' || 'processing':
+          _live = e.stage;
+          if (e.stage == 'processing') _speaking = false;
+      }
+    });
   }
 
   Future<void> _load() async {
@@ -174,8 +199,12 @@ class _VoiceSetupPageState extends State<VoiceSetupPage> {
 
   Future<void> _record() async {
     final p = _current;
+    _advance?.cancel();
     setState(() {
       _recording = true;
+      _live = 'opening';
+      _level = -90;
+      _speaking = false;
       _take = null;
     });
     final take = await widget.plugin.voiceSetupRecord(
@@ -188,12 +217,27 @@ class _VoiceSetupPageState extends State<VoiceSetupPage> {
     if (!mounted) return;
     setState(() {
       _recording = false;
+      _live = '';
       _take = take;
       if (take.ok) {
         _done.add(_key(p));
         if (take.status != null) _status = take.status!;
       }
     });
+    // Hands-free: after a good take, move on and listen again by itself.
+    // A rejected take waits for the person (no recording loops).
+    if (take.ok) {
+      _advance = Timer(const Duration(milliseconds: 1100), () {
+        if (!mounted || _recording || _phase != _Phase.recording) return;
+        _next();
+        if (_phase == _Phase.recording) unawaited(_record());
+      });
+    }
+  }
+
+  Future<void> _stop() async {
+    _advance?.cancel();
+    await widget.plugin.voiceSetupCancel();
   }
 
   void _next() {
@@ -486,38 +530,47 @@ class _VoiceSetupPageState extends State<VoiceSetupPage> {
               child: Text(s.tapToRecordBackground, textAlign: TextAlign.center),
             ),
           const Spacer(),
-          if (take != null) _takeCard(s, take),
+          if (_recording)
+            _liveCard(s)
+          else if (take != null)
+            _takeCard(s, take),
           const SizedBox(height: 12),
           if (_recording)
-            Center(
-              child: Column(
-                children: [
-                  const CircularProgressIndicator(),
-                  const SizedBox(height: 8),
-                  Text(s.listening, key: const Key('voice_setup_listening')),
-                ],
-              ),
+            OutlinedButton.icon(
+              key: const Key('voice_setup_stop'),
+              onPressed: _stop,
+              icon: const Icon(Icons.stop_rounded),
+              label: Text(s.stop),
             )
           else if (take != null && take.ok)
             FilledButton(
               key: const Key('voice_setup_next'),
-              onPressed: _next,
+              onPressed: () {
+                _advance?.cancel();
+                _next();
+                if (_phase == _Phase.recording) unawaited(_record());
+              },
               child: Text(s.next),
             )
           else
             FilledButton.icon(
               key: const Key('voice_setup_record'),
               onPressed: _record,
-              icon: const Icon(Icons.mic_rounded),
-              label: Text(take == null ? s.record : s.redo),
+              icon: Icon(
+                take == null ? Icons.mic_rounded : Icons.refresh_rounded,
+              ),
+              label: Text(take == null ? s.start : s.tryAgain),
+            ),
+          if (take == null && !_recording)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Text(
+                s.autoNote,
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
             ),
           const SizedBox(height: 8),
-          if (take != null && take.ok)
-            TextButton(
-              key: const Key('voice_setup_redo'),
-              onPressed: _recording ? null : _record,
-              child: Text(s.redo),
-            ),
           TextButton(
             onPressed: _recording
                 ? null
@@ -525,6 +578,45 @@ class _VoiceSetupPageState extends State<VoiceSetupPage> {
             child: Text(s.backToSteps),
           ),
         ],
+      ),
+    );
+  }
+
+  /// What is happening right now: opening, speak now, hearing you, finishing.
+  Widget _liveCard(VoiceSetupStrings s) {
+    final scheme = Theme.of(context).colorScheme;
+    final (text, color) = switch (_live) {
+      'ready' => (s.speakNow, scheme.primary),
+      'speech' => (s.hearing, scheme.tertiary),
+      'processing' => (s.processing, scheme.outline),
+      _ => (s.opening, scheme.outline),
+    };
+    // -60 dB (room) .. -15 dB (loud speech) -> 0..1
+    final meter = ((_level + 60) / 45).clamp(0.0, 1.0);
+    return Card(
+      key: Key('voice_setup_live_${_live.isEmpty ? 'opening' : _live}'),
+      color: color.withValues(alpha: 0.12),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            Text(
+              text,
+              key: const Key('voice_setup_listening'),
+              style: Theme.of(
+                context,
+              ).textTheme.titleLarge?.copyWith(color: color),
+            ),
+            const SizedBox(height: 12),
+            LinearProgressIndicator(
+              key: const Key('voice_setup_meter'),
+              value: _live == 'opening' ? null : meter,
+              color: _speaking ? scheme.tertiary : color,
+              minHeight: 8,
+              borderRadius: BorderRadius.circular(4),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -540,7 +632,10 @@ class _VoiceSetupPageState extends State<VoiceSetupPage> {
             ? Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(s.taken, style: Theme.of(context).textTheme.titleSmall),
+                  Text(
+                    s.captured,
+                    style: Theme.of(context).textTheme.titleSmall,
+                  ),
                   if (t.metrics != null)
                     Text(s.level(t.metrics!.peakDb, t.metrics!.snrDb)),
                 ],

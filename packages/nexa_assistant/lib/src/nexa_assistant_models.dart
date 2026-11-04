@@ -171,6 +171,11 @@ sealed class NexaAssistantEvent {
         ),
         'decision' || 'test' => NexaWakeDecision.fromMap(m),
         'recording' => NexaRecordingChanged(active: m['active'] == true),
+        'setup' => NexaSetupEvent(
+          stage: m['stage'] as String? ?? '',
+          levelDb: (m['db'] as num?)?.toDouble(),
+          speaking: m['speaking'] == true,
+        ),
         'surface' => NexaAssistantSurface.fromMap(m),
         'call' when m['event'] == 'end_requested' => NexaCallEndRequested(
           reason: m['reason'] as String? ?? 'notification',
@@ -314,6 +319,21 @@ final class NexaCallServiceStart {
 final class NexaRecordingChanged extends NexaAssistantEvent {
   const NexaRecordingChanged({required this.active});
   final bool active;
+}
+
+/// Live status of the voice-setup recorder, in this order: `opening` (the
+/// microphone is starting), `ready` (speak now), `level` (meter; [speaking]
+/// is true while speech is detected), `speech` (speech detected), `processing`
+/// (speech ended, finishing the take).
+final class NexaSetupEvent extends NexaAssistantEvent {
+  const NexaSetupEvent({
+    required this.stage,
+    this.levelDb,
+    this.speaking = false,
+  });
+  final String stage;
+  final double? levelDb;
+  final bool speaking;
 }
 
 /// One enrolment recording.

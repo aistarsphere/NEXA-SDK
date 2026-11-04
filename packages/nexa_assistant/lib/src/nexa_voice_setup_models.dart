@@ -122,8 +122,9 @@ final class NexaVoiceSetupStatus {
 }
 
 /// One recorded prompt. [reason]: `consent_required`, `permission_denied`,
-/// `busy`, `microphone_unavailable`, `no_speech`, `too_short`, `too_long`,
-/// `too_quiet`, `too_noisy`, `clipped`.
+/// `busy`, `microphone_unavailable`, `no_speech` (nobody spoke), `too_short`,
+/// `too_long` (the speech itself was longer than the step allows),
+/// `interrupted`, `too_quiet`, `too_noisy`, `clipped`.
 final class NexaSetupTake {
   const NexaSetupTake({
     required this.ok,
@@ -132,6 +133,8 @@ final class NexaSetupTake {
     this.status,
     this.embedded = false,
     this.saved = false,
+    this.speechMs = 0,
+    this.openMs = 0,
   });
 
   factory NexaSetupTake.fromMap(Map<Object?, Object?> m) => NexaSetupTake(
@@ -145,6 +148,8 @@ final class NexaSetupTake {
         : null,
     embedded: m['embedded'] == true,
     saved: m['saved'] == true,
+    speechMs: (m['speechMs'] as num?)?.toInt() ?? 0,
+    openMs: (m['openMs'] as num?)?.toInt() ?? 0,
   );
 
   final bool ok;
@@ -153,6 +158,10 @@ final class NexaSetupTake {
   final NexaVoiceSetupStatus? status;
   final bool embedded;
   final bool saved;
+
+  /// Speech actually detected, and how long the microphone was open.
+  final int speechMs;
+  final int openMs;
 }
 
 /// Result of building the owner profile. [reason]: `consent_required`,

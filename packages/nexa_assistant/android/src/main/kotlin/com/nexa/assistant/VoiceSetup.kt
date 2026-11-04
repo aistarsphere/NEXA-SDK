@@ -12,7 +12,13 @@ import com.nexa.assistant.engine.ClipQuality
 import com.nexa.assistant.engine.FilterBank
 import com.nexa.assistant.engine.SpeakerCalibration
 import com.nexa.assistant.engine.SpeakerProfile
-import com.nexa.assistant.engine.SpeechSegmenter
+import com.nexa.assistant.engine.EnergyVad
+import com.nexa.assistant.engine.RecorderConfig
+import com.nexa.assistant.engine.RecorderEvent
+import com.nexa.assistant.engine.SpeechProbability
+import com.nexa.assistant.engine.Take
+import com.nexa.assistant.engine.TakeMetrics
+import com.nexa.assistant.engine.UtteranceRecorder
 import com.nexa.assistant.engine.WakePhraseModel
 import io.flutter.plugin.common.MethodChannel
 import org.json.JSONArray
@@ -124,15 +130,135 @@ internal class VoiceSetup(
         }
     }
 
+    private val cancelFlag = java.util.concurrent.atomic.AtomicBoolean(false)
+
+    /** Stops the recording in progress (the person pressed stop, or left the screen). */
+    fun cancel() = cancelFlag.set(true)
+
+    private fun status(stage: String, extra: Map<String, Any?> = emptyMap()) =
+        emit(mapOf("type" to "setup", "stage" to stage) + extra)
+
     @SuppressLint("MissingPermission")
     private fun capture(kind: String, promptId: String, tags: List<String>, speaker: String, maxMs: Int): Map<String, Any?> {
+        if (kind == "background") return captureFixed(kind, promptId, tags, speaker, maxMs)
+        cancelFlag.set(false)
         val rate = FilterBank.SAMPLE_RATE
-        val fixed = kind == "background"
-        val limit = rate * (maxMs.coerceIn(1000, 65_000)) / 1000
+        val cfg = when (kind) {
+            "identity" -> RecorderConfig.SENTENCE
+            "negative" -> RecorderConfig.NEGATIVE
+            else -> RecorderConfig.WAKE
+        }
+        val neural = SileroVad.load(context)
+        val vad: SpeechProbability = neural ?: EnergyVad()
+        var outcome: RecorderEvent? = null
+        val t0 = System.currentTimeMillis()
+        var frameNo = 0
+        val probs = StringBuilder()
+        val recorder = UtteranceRecorder(vad, cfg) { e ->
+            when (e) {
+                is RecorderEvent.Ready -> status("ready")
+                is RecorderEvent.Level -> if (frameNo % 3 == 0) status("level", mapOf("db" to e.db.toDouble(), "speaking" to e.speaking))
+                is RecorderEvent.SpeechStarted -> {
+                    android.util.Log.i("NexaSetupTrace", "speech_start t=${System.currentTimeMillis() - t0}")
+                    status("speech")
+                }
+                is RecorderEvent.SpeechEnded -> {
+                    android.util.Log.i("NexaSetupTrace", "speech_end t=${System.currentTimeMillis() - t0} speech_ms=${e.speechMs}")
+                    status("processing")
+                }
+                is RecorderEvent.Captured, is RecorderEvent.Rejected -> outcome = e
+            }
+        }
+        val min = AudioRecord.getMinBufferSize(rate, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT)
+        val rec = AudioRecord(
+            MediaRecorder.AudioSource.VOICE_RECOGNITION, rate,
+            AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT, maxOf(min, rate),
+        )
+        if (rec.state != AudioRecord.STATE_INITIALIZED) {
+            rec.release(); neural?.close()
+            return mapOf("ok" to false, "reason" to "microphone_unavailable")
+        }
+        val shorts = ShortArray(UtteranceRecorder.FRAME)
+        val frame = FloatArray(UtteranceRecorder.FRAME)
+        try {
+            rec.startRecording()
+            android.util.Log.i("NexaSetupTrace", "mic_open kind=$kind vad=${if (neural != null) "silero" else "energy"}")
+            emit(mapOf("type" to "recording", "active" to true))
+            status("opening")
+            outer@ while (!recorder.done) {
+                var got = 0
+                while (got < shorts.size) {
+                    if (cancelFlag.get()) { recorder.cancel("interrupted"); break@outer }
+                    val n = rec.read(shorts, got, shorts.size - got)
+                    if (n <= 0) { recorder.cancel("interrupted"); break@outer }
+                    got += n
+                }
+                for (i in shorts.indices) frame[i] = shorts[i] / 32768f
+                frameNo++
+                recorder.feed(frame)
+                if (frameNo <= 60) probs.append("%.2f ".format(java.util.Locale.ROOT, recorder.lastProbability))
+            }
+        } finally {
+            runCatching { rec.stop() }
+            rec.release()
+            neural?.close()
+            emit(mapOf("type" to "recording", "active" to false))
+            android.util.Log.i("NexaSetupTrace", "vad_probabilities_first_60_frames: $probs")
+        }
+        val openMs = (System.currentTimeMillis() - t0).toInt()
+        return when (val o = outcome) {
+            is RecorderEvent.Rejected -> {
+                android.util.Log.i("NexaSetupTrace", "rejected reason=${o.reason} open_ms=$openMs speech_ms=${o.speechMs}")
+                mapOf("ok" to false, "reason" to o.reason, "speechMs" to o.speechMs, "openMs" to openMs)
+            }
+            is RecorderEvent.Captured -> finishTake(kind, promptId, tags, speaker, o.take, openMs)
+            else -> mapOf("ok" to false, "reason" to "interrupted", "openMs" to openMs)
+        }
+    }
+
+    private fun finishTake(kind: String, promptId: String, tags: List<String>, speaker: String, take: Take, openMs: Int): Map<String, Any?> {
+        val metrics = TakeMetrics.of(take)
+        android.util.Log.i(
+            "NexaSetupTrace",
+            "closed open_ms=$openMs take_ms=${metrics.durationMs} speech_ms=${take.speechMs} peak_db=%.1f noise_db=%.1f snr_db=%.1f"
+                .format(java.util.Locale.ROOT, metrics.peakDb, metrics.noiseDb, metrics.snrDb),
+        )
+        TakeMetrics.problem(metrics, expectation(kind, tags))?.let {
+            android.util.Log.i("NexaSetupTrace", "rejected reason=$it")
+            return mapOf("ok" to false, "reason" to it, "metrics" to metricsMap(metrics), "speechMs" to take.speechMs, "openMs" to openMs)
+        }
+        val clip = take.samples
+        val id = "${speaker}_${kind}_${System.currentTimeMillis()}"
+        var saved = false
+        if (keepClips) {
+            writeWav(File(root, "clips/$kind/$id.wav"), clip)
+            saved = true
+        }
+        addManifest(id, kind, promptId, tags, speaker, metrics, file = saved)
+        // The speaker model needs enough speech: a sentence always has it; the
+        // short wake phrase only when it was said long enough to be reliable.
+        var embedded = false
+        if ((kind == "identity" && take.speechMs >= 1000) || (kind == "wake" && take.speechMs >= 600)) {
+            embedder()?.embed(ClipQuality.normalizeLevel(clip))?.let {
+                staged += Staged(id, speaker, kind, tags, it)
+                embedded = true
+            }
+        }
+        return mapOf(
+            "ok" to true, "id" to id, "saved" to saved, "embedded" to embedded,
+            "speechMs" to take.speechMs, "openMs" to openMs,
+            "metrics" to metricsMap(metrics), "status" to status(),
+        )
+    }
+
+    /** Background sound: a fixed length, no speech needed. */
+    @SuppressLint("MissingPermission")
+    private fun captureFixed(kind: String, promptId: String, tags: List<String>, speaker: String, maxMs: Int): Map<String, Any?> {
+        cancelFlag.set(false)
+        val rate = FilterBank.SAMPLE_RATE
+        val limit = rate * maxMs.coerceIn(1000, 65_000) / 1000
         val all = FloatArray(limit)
         var filled = 0
-        var endedAt = -1
-        val seg = SpeechSegmenter(onSegment = { if (endedAt < 0) endedAt = filled })
         val min = AudioRecord.getMinBufferSize(rate, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT)
         val rec = AudioRecord(
             MediaRecorder.AudioSource.VOICE_RECOGNITION, rate,
@@ -142,65 +268,37 @@ internal class VoiceSetup(
             rec.release(); return mapOf("ok" to false, "reason" to "microphone_unavailable")
         }
         val buf = ShortArray(rate / 10)
-        val chunk = FloatArray(buf.size)
         try {
             rec.startRecording()
             emit(mapOf("type" to "recording", "active" to true))
-            while (filled < limit) {
+            status("ready")
+            while (filled < limit && !cancelFlag.get()) {
                 val n = rec.read(buf, 0, minOf(buf.size, limit - filled))
-                if (n <= 0) return mapOf("ok" to false, "reason" to "microphone_unavailable")
-                for (i in 0 until n) { chunk[i] = buf[i] / 32768f; all[filled + i] = chunk[i] }
+                if (n <= 0) return mapOf("ok" to false, "reason" to "interrupted")
+                for (i in 0 until n) all[filled + i] = buf[i] / 32768f
                 filled += n
-                if (!fixed) {
-                    seg.accept(chunk, n)
-                    // 0.5 s of room after the utterance, then stop.
-                    if (endedAt >= 0 && filled - endedAt >= rate / 2) break
-                }
+                if ((filled / buf.size) % 3 == 0) status("level", mapOf("db" to ClipQuality.db(kotlin.math.abs(all[filled - 1])).toDouble(), "speaking" to false))
             }
         } finally {
             runCatching { rec.stop() }
             rec.release()
             emit(mapOf("type" to "recording", "active" to false))
         }
+        if (cancelFlag.get()) return mapOf("ok" to false, "reason" to "interrupted")
         val samples = all.copyOf(filled)
         val metrics = ClipQuality.analyze(samples)
-        if (!fixed) {
-            ClipQuality.problem(metrics, expectation(kind, tags))?.let {
-                return mapOf("ok" to false, "reason" to it, "metrics" to metricsMap(metrics))
-            }
-        }
-        val clip = if (fixed) samples else ClipQuality.trim(samples, metrics)
         val id = "${speaker}_${kind}_${System.currentTimeMillis()}"
         var saved = false
-        if (keepClips) {
-            writeWav(File(root, "clips/$kind/$id.wav"), clip)
-            addManifest(id, kind, promptId, tags, speaker, metrics)
-            saved = true
-        } else {
-            addManifest(id, kind, promptId, tags, speaker, metrics, file = false)
-        }
-        var embedded = false
-        if (kind == "wake" || kind == "identity") {
-            embedder().let { e ->
-                val v = e?.embed(ClipQuality.normalizeLevel(clip))
-                if (v != null) { staged += Staged(id, speaker, kind, tags, v); embedded = true }
-            }
-        }
-        return mapOf(
-            "ok" to true, "id" to id, "saved" to saved, "embedded" to embedded,
-            "metrics" to metricsMap(metrics), "status" to status(),
-        )
+        if (keepClips) { writeWav(File(root, "clips/$kind/$id.wav"), samples); saved = true }
+        addManifest(id, kind, promptId, tags, speaker, metrics, file = saved)
+        return mapOf("ok" to true, "id" to id, "saved" to saved, "embedded" to false, "metrics" to metricsMap(metrics), "status" to status())
     }
 
+    /** Level and noise limits only; speech length is decided by the recorder. */
     private fun expectation(kind: String, tags: List<String>): ClipExpectation {
-        var e = when (kind) {
-            "identity" -> ClipExpectation(minSpeechMs = 1200, maxSpeechMs = 7000)
-            "negative" -> ClipExpectation(minSpeechMs = 250, maxSpeechMs = 5000)
-            else -> ClipExpectation()
-        }
+        var e = ClipExpectation()
         if ("quiet" in tags || "far" in tags) e = e.copy(minPeakDb = -50f, minSnrDb = 6f)
         if ("noise" in tags) e = e.copy(minPeakDb = -45f, minSnrDb = 0f)
-        if ("slow" in tags) e = e.copy(maxSpeechMs = 7000)
         return e
     }
 

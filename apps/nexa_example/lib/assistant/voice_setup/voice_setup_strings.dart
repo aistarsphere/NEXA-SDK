@@ -110,7 +110,6 @@ final class VoiceSetupStrings {
   String get overviewTitle => _t('Steps', 'الخطوات');
   String progress(int done, int total) =>
       _t('$done of $total', '$done من $total');
-  String get start => _t('Start', 'ابدأ');
   String get continueLabel => _t('Continue', 'تابع');
   String get redo => _t('Record again', 'سجّل مجدداً');
   String get finish => _t('Build my voice profile', 'ابنِ ملفي الصوتي');
@@ -160,6 +159,22 @@ final class VoiceSetupStrings {
     'المستوى ${peak.toStringAsFixed(0)} dB · الفرق عن الضجيج ${snr.toStringAsFixed(0)} dB',
   );
 
+  // Live recording status.
+  String get opening =>
+      _t('Starting the microphone…', 'جارٍ تشغيل الميكروفون…');
+  String get speakNow => _t('Speak now', 'تكلّم الآن');
+  String get hearing => _t('I hear you…', 'أسمعك…');
+  String get processing => _t('Finishing the take…', 'جارٍ إنهاء التسجيل…');
+  String get captured =>
+      _t('We captured your voice successfully', 'تم التقاط صوتك بنجاح');
+  String get start => _t('Start', 'ابدأ');
+  String get stop => _t('Stop', 'إيقاف');
+  String get tryAgain => _t('Try again', 'حاول مجدداً');
+  String get autoNote => _t(
+    'After each good take the next step starts by itself.',
+    'بعد كل تسجيل جيد تبدأ الخطوة التالية تلقائياً.',
+  );
+
   String reason(String? r) => switch (r) {
     'consent_required' => _t(
       'Consent is needed first.',
@@ -178,24 +193,28 @@ final class VoiceSetupStrings {
       'الميكروفون مشغول. أغلق التطبيقات الأخرى وحاول.',
     ),
     'no_speech' => _t(
-      'I did not hear speech. Try again, a little closer.',
-      'لم أسمع كلاماً. أعد المحاولة بالاقتراب قليلاً.',
+      'No speech detected. Move a little closer and try again.',
+      'لم أسمع كلاماً. اقترب قليلاً وحاول مجدداً.',
     ),
     'too_short' => _t(
-      'Too short. Say the whole thing.',
-      'قصيرة جداً. قلها كاملة.',
+      'Please speak a little longer: say the whole phrase.',
+      'تكلّم لفترة أطول قليلاً: قل العبارة كاملة.',
     ),
     'too_long' => _t(
-      'Too long. Say only what is shown.',
-      'طويلة جداً. قل ما هو معروض فقط.',
+      'The speech was longer than this step allows. Say only what is shown.',
+      'كان الكلام أطول مما تسمح به هذه الخطوة. قل ما هو معروض فقط.',
+    ),
+    'interrupted' => _t(
+      'The recording was interrupted. Try again.',
+      'انقطع التسجيل. حاول مجدداً.',
     ),
     'too_quiet' => _t(
       'Too quiet for this step. A bit louder or closer.',
       'الصوت منخفض لهذه الخطوة. أعلى قليلاً أو أقرب.',
     ),
     'too_noisy' => _t(
-      'Too noisy. Move somewhere quieter (except in the noise steps).',
-      'ضجيج كثير. انتقل لمكان أهدأ (عدا خطوات الضجيج).',
+      'Too much background noise. Move somewhere quieter.',
+      'ضجيج الخلفية كثير. انتقل لمكان أهدأ.',
     ),
     'clipped' => _t(
       'Too loud: the sound distorts. Move back a little.',
