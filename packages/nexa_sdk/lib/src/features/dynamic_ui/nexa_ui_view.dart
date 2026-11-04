@@ -820,6 +820,60 @@ class _UiInputState extends State<_UiInput> {
   }
 }
 
+/// Closes the overlay it sits in when a device tool call starts waiting for
+/// the user's approval: that card lives in the conversation behind the sheet,
+/// and the approval window is short, so it must not stay hidden.
+class _CloseOnApproval extends StatefulWidget {
+  const _CloseOnApproval({
+    required this.controller,
+    required this.onClose,
+    required this.child,
+  });
+
+  final LabeebToolCallController controller;
+  final VoidCallback onClose;
+  final Widget child;
+
+  @override
+  State<_CloseOnApproval> createState() => _CloseOnApprovalState();
+}
+
+class _CloseOnApprovalState extends State<_CloseOnApproval> {
+  late Set<String> _seen;
+  bool _closed = false;
+
+  Set<String> _waiting() => {
+    for (final a in widget.controller.activities)
+      if (a.call.isClient &&
+          a.call.status == NexaToolCallStatus.awaitingApproval)
+        a.call.id,
+  };
+
+  void _check() {
+    if (_closed || !mounted) return;
+    if (_waiting().difference(_seen).isNotEmpty) {
+      _closed = true;
+      widget.onClose();
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _seen = _waiting();
+    widget.controller.addListener(_check);
+  }
+
+  @override
+  void dispose() {
+    widget.controller.removeListener(_check);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
+}
+
 /// A presented document in its container. Overlays open on the host
 /// navigator and never end a live call underneath.
 Future<void> showNexaUi(
@@ -832,11 +886,15 @@ Future<void> showNexaUi(
   final doc = controller.document(uiId);
   if (doc == null) return;
   final presentation = as ?? doc.presentation;
-  Widget body(BuildContext ctx) => NexaUiView(
-    uiId: uiId,
+  Widget body(BuildContext ctx) => _CloseOnApproval(
     controller: controller,
-    openExternal: openExternal,
-    onDismiss: () => Navigator.of(ctx).maybePop(),
+    onClose: () => Navigator.of(ctx).maybePop(),
+    child: NexaUiView(
+      uiId: uiId,
+      controller: controller,
+      openExternal: openExternal,
+      onDismiss: () => Navigator.of(ctx).maybePop(),
+    ),
   );
   switch (presentation) {
     case NexaUiPresentation.bottomSheet:

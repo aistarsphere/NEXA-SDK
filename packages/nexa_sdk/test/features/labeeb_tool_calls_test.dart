@@ -748,6 +748,53 @@ void main() {
     });
   });
 
+  testWidgets('a sheet closes when a tool call needs approval, so the '
+      'approval card is not hidden behind it', (tester) async {
+    c.uiEventSink = (e) async => null;
+    c.ingest(
+      _event('ui_presented', {
+        'tool_call_id': 'tc_20',
+        'ui': {
+          'schema': 'nexa.ui/1',
+          'id': 'ui_sheet_1',
+          'category': 'themes_appearance',
+          'presentation': 'bottom_sheet',
+          'root': {
+            'id': 'list',
+            'type': 'choice',
+            'options': [
+              {'id': 'pal_1', 'label': 'Green', 'ordinal': 1},
+            ],
+            'on_select': {'type': 'send_ui_event', 'event': 'select'},
+          },
+        },
+      }, 1),
+    );
+    await host(
+      tester,
+      Builder(
+        builder: (context) => TextButton(
+          key: const Key('open_sheet'),
+          onPressed: () => showNexaUi(context, c, 'ui_sheet_1'),
+          child: const Text('open'),
+        ),
+      ),
+    );
+    await tester.tap(find.byKey(const Key('open_sheet')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('nexa_ui_sheet')), findsOneWidget);
+
+    c.ingest(
+      _event(
+        'tool_call_requested',
+        _call('tc_21', 'app.theme.apply', 'awaiting_approval'),
+        2,
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('nexa_ui_sheet')), findsNothing);
+  });
+
   testWidgets('nexa.ui/1: a host renderer draws an extension type', (
     tester,
   ) async {
