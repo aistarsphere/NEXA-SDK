@@ -795,6 +795,54 @@ void main() {
     expect(find.byKey(const Key('nexa_ui_sheet')), findsNothing);
   });
 
+  testWidgets('a call page leaving never restores a stale presenter over '
+      'the chat view installed meanwhile (pickers silently failed)', (
+    tester,
+  ) async {
+    late BuildContext chatA, call, chatB;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Column(
+          children: [
+            Builder(
+              builder: (context) {
+                chatA = context;
+                return const SizedBox();
+              },
+            ),
+            Builder(
+              builder: (context) {
+                call = context;
+                return const SizedBox();
+              },
+            ),
+            Builder(
+              builder: (context) {
+                chatB = context;
+                return const SizedBox();
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+    final tools = LabeebToolCallController(
+      api: c.api,
+      media: media,
+      tools: const [],
+    );
+    tools.presenter = () => chatA;
+    final leave = tools.addPresenter(() => call);
+    expect(tools.presenter(), call, reason: 'the call page is on top');
+
+    // The chat of the new conversation installs itself while the call is up.
+    tools.presenter = () => chatB;
+    expect(tools.presenter(), call);
+
+    leave();
+    expect(tools.presenter(), chatB);
+  });
+
   testWidgets('nexa.ui/1: a host renderer draws an extension type', (
     tester,
   ) async {

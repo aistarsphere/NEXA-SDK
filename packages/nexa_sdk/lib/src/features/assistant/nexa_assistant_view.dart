@@ -609,7 +609,7 @@ class _LiveVoicePageState extends State<_LiveVoicePage> {
     _ => true,
   };
 
-  BuildContext? Function()? _previousPresenter;
+  void Function()? _removePresenter;
 
   @override
   void initState() {
@@ -617,8 +617,7 @@ class _LiveVoicePageState extends State<_LiveVoicePage> {
     _voice.state.addListener(_onState);
     // Device tools requested during the call open above this page.
     final tc = widget.assistant.client.toolCalls;
-    _previousPresenter = tc.presenter;
-    tc.presenter = () => mounted ? context : _previousPresenter?.call();
+    _removePresenter = tc.addPresenter(() => mounted ? context : null);
   }
 
   String? _voiceSessionId;
@@ -628,10 +627,7 @@ class _LiveVoicePageState extends State<_LiveVoicePage> {
 
   @override
   void dispose() {
-    final previous = _previousPresenter;
-    if (previous != null) {
-      widget.assistant.client.toolCalls.presenter = previous;
-    }
+    _removePresenter?.call();
     _voice.state.removeListener(_onState);
     _tick?.cancel();
     _recordVoice();

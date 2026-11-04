@@ -129,7 +129,29 @@ final class LabeebToolCallController extends ChangeNotifier {
   LabeebPendingStore? pendingStore;
 
   /// The view that can present device UI (camera, pickers, sheets).
-  BuildContext? Function() presenter = () => null;
+  BuildContext? Function() _presenter = () => null;
+  final List<BuildContext? Function()> _overlayPresenters = [];
+
+  /// Resolves the screen to show device UI on: the newest page that was added
+  /// with [addPresenter] and is still on screen, else the chat view's own.
+  BuildContext? Function() get presenter => () {
+    for (final overlay in _overlayPresenters.reversed) {
+      final c = overlay();
+      if (c != null && c.mounted) return c;
+    }
+    return _presenter();
+  };
+
+  /// The chat view's presenter (the base).
+  set presenter(BuildContext? Function() value) => _presenter = value;
+
+  /// A page stacked above the chat (the call) that can present device UI.
+  /// Returns the function that removes it; removing never touches a
+  /// presenter another view installed meanwhile.
+  void Function() addPresenter(BuildContext? Function() presenter) {
+    _overlayPresenters.add(presenter);
+    return () => _overlayPresenters.remove(presenter);
+  }
 
   /// Sends a `nexa.ui/1` event (chat: `POST /messages` `ui_event`).
   /// Returns the gateway error code, null when accepted.
