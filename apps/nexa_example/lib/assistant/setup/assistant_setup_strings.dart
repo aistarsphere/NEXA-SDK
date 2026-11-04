@@ -178,6 +178,10 @@ final class AssistantSetupStrings {
       'On Android 14+ listening restarts only while AMEER is open (after a restart open it once).',
       'في أندرويد 14+ يعود الاستماع بفتح أمير فقط (بعد إعادة التشغيل افتحه مرة).',
     ),
+    'verified_via_assist_only' => _t(
+      'Verified through the assistant gesture. Waking it by voice while locked is a separate test.',
+      'تأكّد عبر إيماءة المساعد. إيقاظه بالصوت والهاتف مقفل اختبار منفصل.',
+    ),
     'no_screen_lock' => _t(
       'This phone has no screen lock, so anyone can use it.',
       'لا يوجد قفل للشاشة في هذا الهاتف، فيستطيع أي شخص استعماله.',

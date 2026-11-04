@@ -36,6 +36,7 @@ final class NexaAssistantCapabilities {
     this.evidenceAssistAt,
     this.evidenceWakeAt,
     this.evidenceWakeLockedAt,
+    this.evidenceAssistLockedAt,
     this.evidenceRoleSeenAt,
   });
 
@@ -71,6 +72,7 @@ final class NexaAssistantCapabilities {
       evidenceAssistAt: ms('evidenceAssistAt'),
       evidenceWakeAt: ms('evidenceWakeAt'),
       evidenceWakeLockedAt: ms('evidenceWakeLockedAt'),
+      evidenceAssistLockedAt: ms('evidenceAssistLockedAt'),
       evidenceRoleSeenAt: ms('evidenceRoleSeenAt'),
     );
   }
@@ -110,6 +112,9 @@ final class NexaAssistantCapabilities {
   final int? evidenceAssistAt;
   final int? evidenceWakeAt;
   final int? evidenceWakeLockedAt;
+
+  /// The system assistant route reached AMEER while the phone was locked.
+  final int? evidenceAssistLockedAt;
   final int? evidenceRoleSeenAt;
 
   /// Vendors whose background management is known to stop services.
@@ -418,12 +423,15 @@ NexaSetupStep _lock(NexaAssistantCapabilities c, bool wantsWake) {
       note: 'keyguard_not_supported',
     );
   }
-  if (c.evidenceWakeLockedAt != null) {
+  if (c.evidenceWakeLockedAt != null || c.evidenceAssistLockedAt != null) {
     return NexaSetupStep(
       id: id,
       state: NexaStepState.verified,
       required: false,
-      note: c.deviceSecure ? '' : 'no_screen_lock',
+      // Which routes were proven: the assist route does not prove wake-while-locked.
+      note: c.evidenceWakeLockedAt != null
+          ? (c.deviceSecure ? '' : 'no_screen_lock')
+          : 'verified_via_assist_only',
     );
   }
   final viaAssist = c.roleHeld == true;

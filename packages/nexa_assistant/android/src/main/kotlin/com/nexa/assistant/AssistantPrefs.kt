@@ -52,6 +52,9 @@ internal class AssistantPrefs(context: Context) {
     var evidenceWakeLockedAt: Long?
         get() = p.getLong("ev_wake_locked", 0L).takeIf { it > 0 }
         set(v) = p.edit().putLong("ev_wake_locked", v ?: 0L).apply()
+    var evidenceAssistLockedAt: Long?
+        get() = p.getLong("ev_assist_locked", 0L).takeIf { it > 0 }
+        set(v) = p.edit().putLong("ev_assist_locked", v ?: 0L).apply()
     var evidenceRoleSeenAt: Long?
         get() = p.getLong("ev_role", 0L).takeIf { it > 0 }
         set(v) = p.edit().putLong("ev_role", v ?: 0L).apply()
@@ -64,6 +67,7 @@ internal class AssistantPrefs(context: Context) {
             if (a.locked) evidenceWakeLockedAt = a.at
         } else {
             evidenceAssistAt = a.at
+            if (a.locked) evidenceAssistLockedAt = a.at
         }
     }
 

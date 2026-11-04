@@ -112,6 +112,7 @@ internal object AssistantCapabilities {
             "evidenceAssistAt" to prefs.evidenceAssistAt,
             "evidenceWakeAt" to prefs.evidenceWakeAt,
             "evidenceWakeLockedAt" to prefs.evidenceWakeLockedAt,
+            "evidenceAssistLockedAt" to prefs.evidenceAssistLockedAt,
             "evidenceRoleSeenAt" to prefs.evidenceRoleSeenAt,
         )
     }

@@ -24,6 +24,7 @@ NexaAssistantCapabilities caps({
   int? evAssist,
   int? evWake,
   int? evWakeLocked,
+  int? evAssistLocked,
 }) => NexaAssistantCapabilities(
   sdkInt: sdk,
   manufacturer: maker,
@@ -53,6 +54,7 @@ NexaAssistantCapabilities caps({
   evidenceAssistAt: evAssist,
   evidenceWakeAt: evWake,
   evidenceWakeLockedAt: evWakeLocked,
+  evidenceAssistLockedAt: evAssistLocked,
 );
 
 NexaSetupStep step(List<NexaSetupStep> s, NexaStepId id) =>
@@ -269,6 +271,11 @@ void main() {
         reason: 'a wake with the screen on proves nothing about locked',
       );
       expect(lk(caps(evWakeLocked: 9)).state, NexaStepState.verified);
+      // The assist gesture reaching AMEER while locked verifies the step, but
+      // says so: it is not proof that the wake phrase works while locked.
+      final viaAssist = lk(caps(roleHeld: true, evAssistLocked: 9));
+      expect(viaAssist.state, NexaStepState.verified);
+      expect(viaAssist.note, 'verified_via_assist_only');
     });
 
     test('Android 14 says the listener must be restarted with AMEER open', () {

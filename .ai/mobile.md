@@ -102,3 +102,9 @@ Q1 `flutter analyze packages apps tools`; Q3 `tool/check.sh` or the touched pack
 * 2026-11-03 Mute: client-side bounded grace (E-01) unless T-M07-01 shows the agent already commits on mute; request G-02 regardless.
 * 2026-11-03 Barge-in: no client gating of call audio; honest label; evidence to AWS (G-03).
 * 2026-11-03 Wake word: evaluate Porcupine Arabic custom keyword first (licence check), then a self-owned speech-embedding classifier; DTW stays as fallback.
+
+## Assistant platform decisions (2026-11-04)
+- ROLE_ASSISTANT is not requestable by apps (Android 13 logs "Role is not requestable"): open the assistant picker (`Settings$ManageAssistActivity`) only if it resolves; never mark a step done from "returned from Settings" — read RoleManager/permissions on every resume.
+- A wake model is "validated" only after consented real-device measurements; synthetic-only heads ship as `experimental`.
+- A background microphone start is not possible on Android 14+; after a force-stop or reboot the listener restarts only when the user opens AMEER.
+- Lock screen: show only the lock gate; voice never unlocks or authorises.

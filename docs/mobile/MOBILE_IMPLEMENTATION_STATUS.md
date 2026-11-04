@@ -113,3 +113,6 @@ Live «غيّرلي شكل التطبيق» (T-M05-05) · six noise scenarios (T
 | Detector re-evaluation with separate training/held-out owner clips | BLOCKED on the owner session |
 | G-02 mute and barge-in requests to AWS | WRITTEN (read-only investigations), **NOT SENT** (no channel from here): `docs/handoff/aws-technical-investigations-2026-11-04.md` |
 | Scoped Beta `assets:write` credential | REQUEST WRITTEN, **NOT SENT**: `docs/handoff/beta-assets-write-credential-request.md` |
+
+## 2026-11-04 night — native assistant, wake phrases, lock screen
+Platform decisions and evidence: `docs/qa/assistant-platform-matrix.md`. Assistant role: not app-requestable on Android 13 (logged by the system) → wizard opens the assistant picker and re-reads the system on every resume; verification only from system state/evidence. Wake phrases «يا أمير», «أمير», «عباس» ship as **experimental** acoustic heads (synthetic data). Lock-screen activation by gesture and by wake phrase verified on the Nubia (lock gate, nothing private shown). Wake accuracy on real voices and non-Nubia devices: **not measured**.
