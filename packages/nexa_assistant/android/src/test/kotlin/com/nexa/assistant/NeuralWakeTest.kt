@@ -158,6 +158,25 @@ class NeuralWakeTest {
         assertFalse(out.single().accepted)
     }
 
+    /**
+     * Defect REL-03 (docs/mobile/ENGINEERING_QA_REPORT_2026-11-18.md): neither the
+     * detector nor the engine contains a model error, and WakeListenerService.loop()
+     * has no try/catch either, so one failed inference ends the app process.
+     * This pins the current behaviour: whoever drives the engine must catch.
+     */
+    @Test
+    fun aModelErrorIsNotContainedByTheEngine() {
+        val broken = object : WakeFeatures {
+            override fun mel(samples: FloatArray): Array<FloatArray> = error("model failed")
+            override fun embed(frames: Array<FloatArray>) = FloatArray(96)
+        }
+        val e = NeuralWakeEngine(
+            broken, head(), 0.9f, 2, null, null, false, Sensitivity.NORMAL, onDecision = {},
+        )
+        val thrown = kotlin.runCatching { repeat(4) { e.accept(chunk()) } }.exceptionOrNull()
+        assertTrue(thrown is IllegalStateException, "got $thrown")
+    }
+
     @Test
     fun speechTailStartsWhereSpeechStarts() {
         val tail = FloatArray(16000) + FloatArray(8000) { 0.3f } // 1 s silence, 0.5 s speech
