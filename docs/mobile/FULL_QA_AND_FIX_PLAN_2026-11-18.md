@@ -1,5 +1,7 @@
 # AMEER Android — Full QA, benchmarks, defects and fix plan (2026-11-18)
 
+> Superseded the same day by `ENGINEERING_QA_REPORT_2026-11-18.md` (round 2), which re-checks every item below and renumbers the defects.
+
 Branch `feature/phase5-3b-voice-contract-v1`, HEAD `48eadff` plus four uncommitted files
 (the speaker-mismatch tap-to-talk fix). Device: Nubia NX679J, Android 13, profile build.
 Evidence: `docs/qa/evidence/2026-11-18/`.

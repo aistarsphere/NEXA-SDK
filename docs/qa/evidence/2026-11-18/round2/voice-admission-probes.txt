@@ -1,0 +1,23 @@
+# Voice admission probes, 2026-11-18 (direct gateway requests with the dev token; token never printed)
+14:12:03 POST /v1/sdk/voice/sessions -> 503 33.0s  voice_model_preparing: STT trained-whisper-09849ed0dad3 is being prepared by the GPU; retry_after_seconds 15
+14:12:48 POST /v1/sdk/voice/sessions -> 503 33.0s
+{"error": {"code": "voice_model_preparing", "message": "STT trained-whisper-09849ed0dad3 is being prepared by the GPU; try again shortly.", "retryable": true, "retry_after_seconds": 15}}
+14:14:09 POST /v1/sdk/voice/sessions -> 503 36.3s
+{"error": {"code": "voice_model_preparing", "message": "STT trained-whisper-09849ed0dad3 is being prepared by the GPU; try again shortly.", "retryable": true, "retry_after_seconds": 15}}
+
+
+# Device (Nubia) at 14:10
+14:10:05.903 → POST /nexa/api/v1/sdk/voice/sessions
+14:10:36.158 ✗ receiveTimeout (app limit 30 s; the gateway answers after 33-36 s)
+Screen: «أنت غير متصل بالإنترنت…» although Wi-Fi was connected
+14:15:24 POST /v1/sdk/voice/sessions -> 503 33.2s
+{"error": {"code": "voice_model_preparing", "message": "STT trained-whisper-09849ed0dad3 is being prepared by the GPU; try again shortly.", "retryable": true, "retry_after_seconds": 15}}
+14:21:51 POST /v1/sdk/voice/sessions -> 503 34.2s
+{"error": {"code": "voice_model_preparing", "message": "STT trained-whisper-09849ed0dad3 is being prepared by the GPU; try again shortly.", "retryable": true, "retry_after_seconds": 15}}
+
+14:24:33 POST /v1/sdk/voice/sessions -> 503 36.3s
+{"error": {"code": "voice_model_preparing", "message": "STT trained-whisper-09849ed0dad3 is being prepared by the GPU; try again shortly.", "retryable": true, "retry_after_seconds": 15}}
+14:28:03 POST /v1/sdk/voice/sessions -> 503 33.0s
+{"error": {"code": "voice_model_preparing", "message": "STT trained-whisper-09849ed0dad3 is being prepared by the GPU; try again shortly.", "retryable": true, "retry_after_seconds": 15}}
+14:30:40 POST /v1/sdk/voice/sessions -> 503 33.1s
+{"error": {"code": "voice_model_preparing", "message": "STT trained-whisper-09849ed0dad3 is being prepared by the GPU; try again shortly.", "retryable": true, "retry_after_seconds": 15}}

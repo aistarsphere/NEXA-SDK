@@ -1,0 +1,63 @@
+{
+ "data": "synthetic training positives with training augmentation; NOT real voices",
+ "positives": 360,
+ "ungated_detected": 342,
+ "gates": {
+  "ratio2.0_hang12": {
+   "ratio": 2.0,
+   "abs_min": 0.0015,
+   "hang_chunks": 12,
+   "detections_kept": 342,
+   "lost_vs_ungated": 0,
+   "gate_open_fraction_in_test_clips": 0.541714893734886
+  },
+  "ratio1.5_hang12": {
+   "ratio": 1.5,
+   "abs_min": 0.001,
+   "hang_chunks": 12,
+   "detections_kept": 342,
+   "lost_vs_ungated": 0,
+   "gate_open_fraction_in_test_clips": 0.635558199129309
+  },
+  "ratio1.5_hang25": {
+   "ratio": 1.5,
+   "abs_min": 0.001,
+   "hang_chunks": 25,
+   "detections_kept": 342,
+   "lost_vs_ungated": 0,
+   "gate_open_fraction_in_test_clips": 0.6454527327814888
+  },
+  "ratio1.3_hang25": {
+   "ratio": 1.3,
+   "abs_min": 0.0008,
+   "hang_chunks": 25,
+   "detections_kept": 342,
+   "lost_vs_ungated": 0,
+   "gate_open_fraction_in_test_clips": 0.7087378155112256
+  }
+ },
+ "gate_open_fraction_stationary_noise_60s": {
+  "-70": {
+   "ratio2.0_hang12": 0.0,
+   "ratio1.5_hang12": 0.0,
+   "ratio1.5_hang25": 0.0,
+   "ratio1.3_hang25": 0.0
+  },
+  "-60": {
+   "ratio2.0_hang12": 0.0,
+   "ratio1.5_hang12": 0.0,
+   "ratio1.5_hang25": 0.0,
+   "ratio1.3_hang25": 0.0
+  },
+  "-50": {
+   "ratio2.0_hang12": 0.0,
+   "ratio1.5_hang12": 0.0,
+   "ratio1.5_hang25": 0.0,
+   "ratio1.3_hang25": 0.0
+  }
+ },
+ "desktop_cost_10s_audio_ms": {
+  "mel_one_pass": 2.9,
+  "embedding_per_chunk_calls": 68.9
+ }
+}
