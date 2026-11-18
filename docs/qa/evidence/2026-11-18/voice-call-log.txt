@@ -1,0 +1,14 @@
+Nubia NX679J (Android 13), profile build of the working tree, 2026-11-18. App log lines only (no tokens, no text).
+
+Attempt 1
+12:42:51.652 [nexa debug] → POST /nexa/api/v1/sdk/voice/sessions
+12:42:53.042 [nexa warning] ✗ 503 /nexa/api/v1/sdk/voice/sessions
+12:42:53.046 [nexa info] voice failed: ServerException(server): The GPU Realtime plan is FAILED: realtime_error.
+Screen: «الصوت مو متوفر هسه. جرّب بعد شوية.» / «انقطع الاتصال» / «حاول مرة أخرى»
+
+Attempt 2 (tap «حاول مرة أخرى»)
+13:01:48.931 [nexa debug] → POST /nexa/api/v1/sdk/voice/sessions
+13:02:19.172 [nexa warning] ✗ receiveTimeout /nexa/api/v1/sdk/voice/sessions
+13:02:19.176 [nexa info] voice failed: NetworkException(networkTimeout): Request timed out.
+Screen: «أنت غير متصل بالإنترنت. لن تُرسل الرسائل حتى تعود للاتصال.»
+Phone at the same moment: Wi-Fi connected and validated, ping 8.8.8.8 0% loss (107 ms).

@@ -119,3 +119,8 @@ Platform decisions and evidence: `docs/qa/assistant-platform-matrix.md`. Assista
 
 ## 2026-11-04 late — quick voice setup replaces the multi-sample journey
 `docs/qa/quick-voice-setup.md`. Default journey: consent → one sentence → a different sentence to verify → one more only if inconclusive → wake try-out. Two recordings in the normal case; decision rule from `enroll_policy_benchmark.py` (real speech, English). Provisional status only. The 15-take protocol and other engineering tools are developer-only. Owner calibration (Iraqi Arabic) still required.
+
+## 2026-11-18 — full QA, benchmarks and fix plan
+
+See `docs/mobile/FULL_QA_AND_FIX_PLAN_2026-11-18.md` (evidence in `docs/qa/evidence/2026-11-18/`).
+Voice calls were blocked by the backend (503, GPU Realtime plan failed). No code was changed.
