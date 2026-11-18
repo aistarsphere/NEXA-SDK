@@ -1,0 +1,41 @@
+On-device playback test of the wake listener, 2026-11-18, Nubia NX679J (Android 13), profile build.
+Method: a 64.7 s WAV pushed with adb and played by the phone's own audio-preview player through the phone speaker (media volume 15/15); AMEER in the background, wake listener running (AudioSource VOICE_RECOGNITION). The Mac made no sound.
+Clip: 12 s silence; wake phrase at about +12 s and +22 s; a different Arabic sentence at about +32 s; wake phrase at about +44 s and +54 s. Synthetic macOS voice (Majed), not the owner.
+Lines are the NexaWake log tag only (scores and decisions; no audio, no embeddings).
+
+== Run 1
+11-18 22:47:44.406 I/ExtendedUtils: printFileName fd(9) -> /storage/emulated/0/Music/ameer_wake_test.wav
+11-18 22:47:44.411 I/ExtendedNuUtils: printFileName fd(11) -> /storage/emulated/0/Music/ameer_wake_test.wav
+11-18 22:47:57.894 I/NexaWake: score=0.951
+11-18 22:47:58.081 I/NexaWake: decision=speaker_mismatch ms=1032 phrase=0.000/0.100 voice=0.05/0.39
+11-18 22:48:08.034 I/NexaWake: decision=speaker_mismatch ms=1022 phrase=0.000/0.100 voice=0.04/0.39
+11-18 22:48:08.035 I/NexaWake: score=1.000
+11-18 22:48:30.420 I/NexaWake: score=1.000
+11-18 22:48:30.527 I/NexaWake: decision=speaker_mismatch ms=1092 phrase=0.000/0.100 voice=0.04/0.39
+11-18 22:48:38.980 I/NexaWake: score=0.938
+11-18 22:48:39.206 I/NexaWake: decision=speaker_mismatch ms=1812 phrase=0.062/0.100 voice=-0.08/0.47
+11-18 22:48:39.396 I/NexaWake: score=0.871
+11-18 22:48:40.499 I/NexaWake: score=1.000
+
+== Run 2
+11-18 22:49:15.957 I/ExtendedUtils: printFileName fd(16) -> /storage/emulated/0/Music/ameer_wake_test.wav
+11-18 22:49:15.966 I/ExtendedNuUtils: printFileName fd(11) -> /storage/emulated/0/Music/ameer_wake_test.wav
+11-18 22:49:18.020 I/NexaWake: score=0.634
+11-18 22:49:20.012 I/NexaWake: score=0.656
+11-18 22:49:20.480 I/NexaWake: score=0.481
+11-18 22:49:28.302 I/NexaWake: score=0.801
+11-18 22:49:29.407 I/NexaWake: score=0.994
+11-18 22:49:29.533 I/NexaWake: decision=speaker_mismatch ms=1032 phrase=0.000/0.100 voice=0.07/0.39
+11-18 22:49:39.493 I/NexaWake: score=0.822
+11-18 22:49:39.683 I/NexaWake: decision=speaker_mismatch ms=1102 phrase=0.001/0.100 voice=0.04/0.39
+11-18 22:49:39.901 I/NexaWake: score=0.999
+11-18 22:49:41.680 I/NexaWake: score=0.404
+11-18 22:50:01.893 I/NexaWake: score=0.677
+11-18 22:50:02.073 I/NexaWake: decision=speaker_mismatch ms=1092 phrase=0.000/0.100 voice=0.06/0.39
+11-18 22:50:02.302 I/NexaWake: score=1.000
+11-18 22:50:11.992 I/NexaWake: score=1.000
+11-18 22:50:12.134 I/NexaWake: decision=speaker_mismatch ms=1252 phrase=0.000/0.100 voice=0.02/0.41
+11-18 22:50:12.393 I/NexaWake: score=0.470
+
+Result: 8/8 wake phrases reached a decision at the expected times; 0/2 decisions on the other sentence; all 8 decisions speaker_mismatch (correct for a synthetic voice); no call opened; tap-to-talk notification present afterwards.
+Note: the voice threshold varies with speech length by design (LengthAwareThreshold), hence 0.39, 0.41 and 0.47.

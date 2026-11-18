@@ -1,0 +1,42 @@
+Round 3, 2026-11-18 (local time +03). Direct gateway probes with the developer token; token, ids and message text are not recorded.
+
+== Voice admission, minimal body (22:39)
+22:39:06 POST /v1/sdk/voice/sessions -> 503 1.7s
+{"error": {"code": "voice_profile_not_executable", "message": "LLM qwen3.6-27b cannot be served: the active GPU plan serves gemma-4-31b-it and this model is not available as a Realtime alternate.", "retryable": false}}
+
+== Voice admission, app-shaped body (conversation_id + tools:true)
+22:41:14 POST /v1/sdk/conversations  -> 201 0.3s
+ conversation created: True keys: ['created_at', 'id', 'kind', 'last_message_at', 'message_count', 'title', 'title_source', 'updated_at']
+22:41:15 POST /v1/sdk/voice/sessions  -> 503 1.8s
+{"error": {"code": "voice_profile_not_executable", "message": "LLM qwen3.6-27b cannot be served: the active GPU plan serves gemma-4-31b-it and this model is not available as a Realtime alternate.", "retryable": false}}
+
+== In-app attempt 22:41:54 (Nubia NX679J): within 3 s the call page showed 'الصوت مو متوفر هسه. جرّب بعد شوية.' + 'انقطع الاتصال' + 'حاول مرة أخرى'; no automatic retry in 20 s.
+
+== Chat, direct (session with textChat; one message; event types only)
+22:46:31 POST /v1/sdk/conversations -> 201 0.3s
+22:46:31 POST /v1/sdk/sessions -> 201 0.3s
+ granted ['textChat']
+22:46:32 POST /v1/sdk/sessions/<id>/messages -> 202 0.3s
+  +0.3s session_started
+  +0.3s user_message_accepted
+  +0.3s assistant_message_started
+  +0.3s quota_updated
+  +0.9s message_failed {"error": {"code": "inference_failed", "message": "The model could not complete the request.", "retryable": true}}
+ deltas 0
+22:46:33 DELETE /v1/sdk/sessions/<id> -> 204 0.3s
+22:46:33 DELETE /v1/sdk/conversations/<id> -> 200 0.3s
+
+22:46:41 POST /v1/sdk/conversations -> 201 0.3s
+22:46:42 POST /v1/sdk/sessions -> 201 0.3s
+ granted ['textChat']
+22:46:42 POST /v1/sdk/sessions/<id>/messages -> 202 0.3s
+  +0.3s session_started
+  +0.3s user_message_accepted
+  +0.3s assistant_message_started
+  +0.3s quota_updated
+  +0.9s message_failed {"error": {"code": "inference_failed", "message": "The model could not complete the request.", "retryable": true}}
+ deltas 0
+22:46:43 DELETE /v1/sdk/sessions/<id> -> 204 0.3s
+22:46:44 DELETE /v1/sdk/conversations/<id> -> 200 0.3s
+
+== In-app chat 22:43:25: user bubble shown; after 3 minutes no reply, no error row, no retry (screenshot chat-no-reply-3min.png).

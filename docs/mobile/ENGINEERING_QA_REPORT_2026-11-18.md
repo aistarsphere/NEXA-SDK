@@ -516,3 +516,39 @@ Each item marked "Code" starts with a failing test; if the test cannot be made t
 | this commit | this report and `docs/qa/evidence/2026-11-18/round2/` |
 
 No application behaviour was changed apart from `9289ec6`. Nothing was changed on the backend. Nothing was pushed.
+
+## 15. Round 3 addendum (2026-11-18, 22:39–22:55 local)
+
+Evidence: `docs/qa/evidence/2026-11-18/round3/`. Workflow diagrams: `docs/mobile/AMEER_APP_WORKFLOW.html`.
+No application code was changed in this round.
+
+**Backend.** Voice and chat are both refused, so no blocked voice test could be resumed.
+
+| ID | Sev | Observation | Evidence |
+|---|---|---|---|
+| BE-08 | P0 | `POST /v1/sdk/voice/sessions` → `503 voice_profile_not_executable`, `retryable: false`, in 1.7 s: "LLM qwen3.6-27b cannot be served: the active GPU plan serves gemma-4-31b-it and this model is not available as a Realtime alternate." Minimal and app-shaped bodies, and one attempt from the app | `backend-probes.txt`, `voice-call-refused.png` |
+| BE-09 | P0 | Chat: every message ends in `message_failed` / `inference_failed` (`retryable: true`) 0.9 s after it is accepted (two direct probes, one from the app). Chat worked at 12:40–13:10 the same day | `backend-probes.txt` |
+| BE-10 | P3 | `GET /v1/sdk/tools` answered 502 once in five reads | `tool-catalogue.txt` |
+
+**New application defect.**
+
+| ID | Sev | Area | Location | Cause | Effect | Evidence | Fix | Test |
+|---|---|---|---|---|---|---|---|---|
+| COR-13 | P1 | Chat failure state | `nexa_chat_view.dart:891-894` (`showBubble`) | an assistant message that failed with empty text is neither in progress nor non-empty, so its bubble, and the failure row inside it, is not drawn; `conversation_reducer.dart:324` also sets `retryable` only for user messages | after a server `message_failed` before the first token the user sees their own message and nothing else: no error, no retry | device, `chat-no-reply-3min.png` | draw the failure row for a failed empty assistant message and offer "retry" on the preceding user message | widget test: `message_failed` before any delta shows the error row |
+
+In-app voice refusal (BE-08) was shown truthfully within 3 s ("voice not available now" + "try again"), with no automatic retry: **PASS** for that error path. REL-01 (30 s timeout) was not exercised because the answer was fast.
+
+**Tool calling status.**
+
+- Catalogue (`tool-catalogue.txt`): 60 tools, 48 server and 12 client. Unavailable: `vision.analyze`, `image.generate`, `image.edit` (`no_model_selected`), `ocr.extract` (`not_enabled_for_application`), `video.search` (`requires_configuration`). The catalogue is readable with the current token.
+- The app declares at most 8 client tools (`labeeb_tool_calls.dart:172-189`); with all 12 enabled, share, open-settings, network status and theme reset are never declared. The limit was observed on 2026-10-28 and should be re-confirmed with the backend.
+- Device-verified: request card and denial (round 2). Not re-run: approve → run on the phone → result. Blocked today by BE-09; tools inside a call are blocked by BE-08.
+- Code-only defects, unchanged: COR-03 (a failed result post is final, no retry), COR-04 (`_calls[id]!` after an `await`, also in `_run` and `_answer`), COR-10 (a decline reads like a missing permission). Two more from this reading, both code-only: a client tool that needs a screen while none is presented is put back to "awaiting user", but `decide()` only acts in `awaiting_approval`, so the card cannot move it until the server deadline (`labeeb_tool_calls.dart:523-527`, P2); `_run` returns silently when no session is known, leaving the card in "running" (`:520-521`, P3).
+
+**Audio test method without the computer speaking.**
+
+- On-device playback: a WAV pushed with adb and played by the phone's own player through its speaker. Two runs: 8/8 wake phrases decided at the expected times, 0/2 on a different sentence, all `speaker_mismatch` (synthetic voice), no call opened (`wake-on-device-playback.txt`). This exercises the real microphone path of the wake listener with the app in the background. It will not work inside a call, where echo cancellation removes the phone's own playback.
+- Not built: file injection into the wake loop for debug builds only (gated in native code), and a LiveKit test client that publishes a WAV into the room to test the agent and in-call tools without the phone microphone. The second needs BE-08 fixed first.
+- Real owner voice remains **NOT TESTED**.
+
+Housekeeping: the three conversations created by QA were deleted through the API; the test clip was removed from the phone; a tap-to-talk notification from the test may still be shown.
