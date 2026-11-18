@@ -552,3 +552,33 @@ In-app voice refusal (BE-08) was shown truthfully within 3 s ("voice not availab
 - Real owner voice remains **NOT TESTED**.
 
 Housekeeping: the three conversations created by QA were deleted through the API; the test clip was removed from the phone; a tap-to-talk notification from the test may still be shown.
+
+## 16. Round 4 addendum (2026-11-19, 01:14–01:30 local): voice tests resumed
+
+Evidence: `docs/qa/evidence/2026-11-19/`. No application code was changed. BE-08 is fixed (admission `201` in 2.3 s).
+
+| Test | Result | Note |
+|---|---|---|
+| Call connects from the chat header | **PASS** | listening within 3 s |
+| Turn states, transcripts of both sides, barge-in | **PASS** | ambient room speech and a synthetic voice; not the owner's scripted test |
+| Call foreground service; single microphone owner in a call | **PASS** | wake listener released the microphone; call capture uses echo cancellation |
+| End call | **PASS, 2–2.8 s** | REL-04 measured: the call microphone stays active about 2.5 s after the tap with a healthy server |
+| Wake listener resumes after the call | **PASS** | |
+| Server tool inside a call (`web.search`) and its result panel | **PASS** | card within 4 s of the question |
+| Mute / unmute | **PASS** (UI state) | whether the last sentence is delivered on mute was not checked |
+| Call turns and tool card appear in the chat afterwards | **PASS** | |
+| Client tool with approval inside a call | **NOT TESTED** | one spoken request produced no tool call |
+| Reconnect, background, Bluetooth, 10-minute limit, real owner voice | **NOT TESTED** | |
+| Chat in the app | **FAIL (backend, BE-11)** | and COR-13 again: nothing shown |
+
+New findings:
+
+| ID | Sev | Finding | Evidence |
+|---|---|---|---|
+| BE-11 | P0 | Chat: every turn in a session where `toolCalling` is granted ends in `message_failed inference_failed` (`retryable: false`), also for "hello"; the same messages complete in a `textChat`-only session. The app always requests `toolCalling`, so chat in the app does not answer. Replaces BE-09 | `backend-probes.txt`, `chat-toolcalling-no-reply.png` |
+| REL-12 | P2 | A call started about 10 s after the previous one ended showed "disconnected" for about 15 s without a reason and then connected by itself. Cause not established (no logs in a profile build); one occurrence | `voice-call-device.txt` |
+| UX-09 | P3 | The result panel of the previous call is still shown when a new call starts, and the panel covers part of the transcript | `call-web-search-tool.png` |
+| UX-10 | P3 | After a normal "End call" the button reads "try again" | `voice-call-device.txt` |
+| BE-12 | P3 | A spoken weather question was answered with `web.search` (a Wikipedia list), not `weather.forecast` | `call-web-search-tool.png` |
+
+Housekeeping: the two QA conversations of this round were deleted through the API.
