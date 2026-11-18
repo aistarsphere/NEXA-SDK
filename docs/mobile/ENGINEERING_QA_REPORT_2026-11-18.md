@@ -12,8 +12,9 @@ Labels: **PASS** (seen on the device), **FAIL** (seen on the device), **BLOCKED*
 
 ## 1. Executive summary
 
-**Realtime voice is still blocked by the backend.** Eight admission requests between 14:10 and 14:30
-all failed: the gateway answered `503 voice_model_preparing — STT trained-whisper-09849ed0dad3 is being
+**Realtime voice is still blocked by the backend.** Ten admission requests between 14:10 and 14:39
+(one from the app, nine direct; both the plain request and the app's own shape with `conversation_id` and
+`tools: true`) all failed: the gateway answered `503 voice_model_preparing — STT trained-whisper-09849ed0dad3 is being
 prepared by the GPU` after 33–36 s each time. No call reached `listening`, so nothing inside a call
 (audio, transcription, barge-in, mute, voice tools, reconnect, background) could be tested. This is
 reported as BLOCKED, not passed. Authentication, chat, tools and the contract endpoint work.
@@ -23,7 +24,7 @@ after 33–36 s. The app therefore never sees the real reason and tells the user
 while Wi-Fi is fine (REL-01).
 
 **Engineering quality.** The SDK is layered sensibly (core / ui / realtime / device / assistant / sdk),
-the gates are green (0 analyzer issues, 752 Dart tests, 53 Kotlin tests), secrets handling is sound
+the gates are green (0 analyzer issues, 752 Dart tests plus 1 skipped repro, 53 Kotlin tests), secrets handling is sound
 (token in memory only, HTTPS only, voice profile encrypted with a Keystore key, consent enforced in
 native code for the voice setup). The weak points are concentrated, not spread out:
 
@@ -46,14 +47,15 @@ attachment and conversation-management defects (COR-01, COR-12), no production s
 | Gateway reachable, contract served | PASS: `GET /v1/sdk/contract` 200 in 0.5 s, `labeeb.sdk/1.0.0` | direct request with the dev token |
 | Authentication | PASS: `GET /v1/sdk/assistant` 200, `GET /v1/sdk/tools` 200 | same |
 | Chat session, message, events | PASS on device (tool request after 8 s, reply after 7 s) | `chat-tool-declined.png` |
-| Voice admission | **BLOCKED**: 8 × `503 voice_model_preparing`, 33–36 s each, `retry_after_seconds: 15` | `round2/voice-admission-probes.txt` |
-| GPU Realtime READY | **Not ready** by the gateway's own answer (STT model still "being prepared" for at least 18 minutes) | same |
+| Voice admission | **BLOCKED**: 9 direct requests, all `503 voice_model_preparing`, 33–36 s each, `retry_after_seconds: 15`. Eight used the minimal body, the last one the app's body (`conversation_id` + `tools: true`, on my own test conversation): same answer | `round2/voice-admission-probes.txt` |
+| GPU Realtime READY | **Not ready** by the gateway's own answer (STT model "being prepared" from 14:12 to 14:39 at least) | same |
+| TLS | PASS: the gateway certificate validates without any override | direct request without `-k` |
 | Expected global STT / LLM / TTS configuration | NOT TESTED. No session was granted, so no grant or diagnostics exist. The only model name seen is the STT id in the error. No document in the repo states the expected ids, so none is asserted here | — |
 | Errors reported accurately by the app | **FAIL**: shown as "offline" (REL-01, UX-01) | `voice-call-log.txt`, round 2 log |
 
 The app never sends model ids (requirement M-16.1); nothing was changed on the backend.
-Note: the owner's own conversation from today contains voice turns, so voice worked at some point today;
-it did not work at any time during this test window.
+Note: the server shows a mixed voice/text conversation of the owner last updated at 10:52 UTC (13:52 local),
+so voice did work shortly before this window. Every request from 14:10 to 14:39 local failed.
 
 ## 3. Requirements baseline
 
@@ -77,15 +79,15 @@ Device = this round on the Nubia unless a date is given. Earlier device evidence
 | Send and receive (M-01) | yes | bloc and view tests | **PASS** | 7–8 s per step in run 2 |
 | Conversation creation, stable `client_ref` (M-01.3) | yes | 9 coordinator tests | **PASS** (new conversation created and listed) | offline-then-online case NOT TESTED |
 | Root list from the server (M-01.1) | yes | 8 list tests | **PASS** with defect COR-07 (list not refreshed on return; pull-to-refresh fixes it) | |
-| Message count in the list | yes | — | **FAIL** (COR-08): a 2-message conversation shows "1" | cause not established |
+| Message count in the list | yes | — | **FAIL** (BE-07): a conversation with a question and an answer shows "1" | the number is the server's `message_count` (checked with `GET /conversations`); the app shows what it gets |
 | Open an old conversation, history loads (M-01.2) | yes | bloc tests | **PASS** | declined tool card restored with its state |
 | Rename / delete one conversation | code exists (`NexaHistoryView`) | history tests | **NOT IMPLEMENTED in the default list mode** (COR-12) | no action on the list or in the chat; Settings says it exists |
 | Delete all assistant data | yes | — | NOT TESTED (destructive on the owner's data) | |
-| Persistence across restart | yes | cache tests | **PASS** after force-stop (round 1) | `am kill` does not end the process while the wake service runs |
+| Persistence across restart | yes | cache tests | **PASS** after force-stop (round 1: the app reopens on the list with the conversations) | restoration after a system kill NOT TESTED: `am kill` does not end the process while the wake service runs |
 | Arabic and English UI | yes | l10n tests | **PASS** both languages, RTL and LTR | |
 | Streaming | yes | transport tests | NOT TESTED as such (replies arrived whole within the 2–5 s polling of the test) | |
 | Cancel generation | yes | bloc tests | **PASS** before the first token (cancel request sent, composer re-enabled); mid-text cancel NOT TESTED | no "stopped" marker (COR-11) |
-| Attach: choose a file | yes | — | **FAIL** (COR-01): the picked PNG was dropped silently, no chip, no upload, no error | 1 of 1 attempt |
+| Attach: choose a file | yes | — | **FAIL** (COR-01): the picked PNG was dropped silently, no chip, no upload, no error | one attempt only, with a tiny hand-made 179-byte PNG; repeat with an ordinary file before fixing |
 | Attach: camera, gallery, share location | yes | device-tool tests | NOT TESTED (would use the owner's photos or location) | |
 | Upload failure keeps the typed text | no | — | Code: text is lost (COR-02) | not reproduced: the upload never started |
 | Retry and recovery | partly | reliability tests | NOT TESTED on device | resume failure has no retry (COR-05) |
@@ -117,7 +119,8 @@ Device = this round on the Nubia unless a date is given. Earlier device evidence
 | Three phrases, each with its own model | yes, all marked "experimental" (synthetic training only) | head parity + detector tests | Page renders, **PASS** |
 | Detection in the foreground, synthetic voice | yes | — | **PASS** 4 of 4 plays of «يا أمير» (scores 0.91–0.999) |
 | Detection of the owner's real voice | — | — | **NOT TESTED** (needs the owner). No reliability is claimed |
-| Background / screen-off detection | yes | — | NOT TESTED this round; PASS with synthetic voice on 2026-11-04 |
+| Background detection | yes | — | **PASS** with a synthetic voice, app on the home screen: 2 of 3 plays detected (both rejected as not the owner) |
+| Screen-off detection | yes | — | NOT TESTED this round (PASS with a synthetic voice on 2026-11-04) |
 | False positives on speech | — | — | 60 s of non-wake Arabic TTS: no decision logged. Too short to give a rate: NOT TESTED as a rate |
 | CPU in silence | — | — | **FAIL**: 27.9 % of one core (target ≤ 5 %, M-10.1) |
 | Battery | — | — | NOT TESTED (phone was charging over USB) |
@@ -125,7 +128,7 @@ Device = this round on the Nubia unless a date is given. Earlier device evidence
 | Force-stop and reboot limits | handled by design (not sticky; boot notification) | — | Force-stop then open: listener restarts, **PASS**. Reboot NOT TESTED |
 | Default-assistant invocation | yes | tests | Role held and shown as verified, **PASS**; gesture not re-run (PASS 2026-10-30 / 11-04) |
 | Lock-screen behaviour | hands over to the app's unlock gate | policy tests | NOT TESTED this round (PASS 2026-11-04 on this phone) |
-| Tap-to-talk when the voice is not accepted | yes (commit `9289ec6`) | none for the new branch | **PASS**: 4 mismatches → one tap-to-talk notification, no call opened |
+| Tap-to-talk when the voice is not accepted | yes (commit `9289ec6`) | none for the new branch | **PASS** for the notification: 4 mismatches → one tap-to-talk notification, no call opened. The voice-card change of the same commit is NOT device-verified |
 
 ### Voice identity and enrolment (M-11; flow superseded by brief: quick setup)
 
@@ -169,6 +172,27 @@ Device = this round on the Nubia unless a date is given. Earlier device evidence
 | State persistence (language, theme) | **PASS** (changed and restored) |
 | Onboarding and setup checklist | **PASS** (renders with correct states) |
 
+### Requirements traceability (one row per requirement)
+
+| Req | Title | QA rows | Automated | Device status today | Open items |
+|---|---|---|---|---|---|
+| M-01 | Conversation-first | T-M01-01…06 | coordinator, list, identity tests pass | list, create, open: **PASS**; T-M01-05 (two conversations, force-stop, reopen) partly (round 1) | COR-06, COR-07, COR-12, BE-07 |
+| M-02 | Direct call and navigation | T-M02-01…07 | router tests pass | chat ↔ call page navigation PASS; every row that needs a live call **BLOCKED** | REL-01 |
+| M-03 | Realtime voice | T-M03-01…08 | provisioner, controller, journey tests pass | **BLOCKED**; AC2 ("503 shows try again") **FAIL** for the errors that occur | REL-01, REL-02, REL-04, REL-05, REL-11 |
+| M-04 | Transcript sync | T-M04-01…07 | merge and reconcile tests pass | **BLOCKED** | — |
+| M-05 | Structured tool responses, Dynamic UI | T-M05-01…07 | parser, renderer, selection tests pass | tool card and denial **PASS**; live theme flow not re-run (PASS 2026-11-04) | COR-09, COR-10 |
+| M-06 | Tool continuity | T-M06-01…04 | 31 controller tests pass | restore of a declined card after reopening the conversation **PASS**; kill-at-card (T-M06-04) NOT TESTED | COR-03, COR-04 |
+| M-07 | Mute | T-M07-00…06 | machine test passes | **BLOCKED**; item 2/4 NOT IMPLEMENTED (E-01) | MISS-05, BE-04 |
+| M-08 | Barge-in | T-M08-01…03 | label test passes | **BLOCKED**; backend-owned | BE-04 |
+| M-09 | Android assistant | T-M09-01…07 | activation tests pass | role and checklist **PASS**; gesture, lock screen, reboot not re-run | REL-08, REL-10 |
+| M-10 | Wake word (phrase superseded by brief: «يا أمير» + two more) | T-M10-01…04 | head parity and detector tests pass | synthetic voice **PASS** (4/4 foreground, 2/3 background); owner voice **NOT TESTED**; CPU target **FAIL** | PERF-01, REL-03, MISS-06 |
+| M-11 | Speaker verification (flow superseded by brief: quick setup) | T-M11-* | policy, calibration, store tests pass | synthetic stranger rejected 6/6; owner **NOT TESTED** | SEC-01, SEC-07, UX-03, MISS-06 |
+| M-12 | Permissions and lifecycle | T-M12-* | permission tests pass | wake service state **PASS**; call service **BLOCKED**; Bluetooth NOT IMPLEMENTED; Android 14+ NOT TESTED | MISS-04, REL-08 |
+| M-13 | Performance | T-M13-* | — | wake CPU **FAIL**; APK measured; list 60 fps, 20-cycle leak, battery NOT MEASURED | PERF-01…04 |
+| M-14 | Accessibility and Arabic | T-M14-* | contrast, text-scale tests pass | RTL **PASS**; 200 % text **FAIL** on the assistant pages; TalkBack NOT TESTED | UX-02 |
+| M-15 | Authentication and account isolation | T-M15-* | credential and history-scope tests pass | dev token works; account switch (AC2) and 401 mid-call (AC3) **NOT TESTED**: there is no sign-in to switch accounts with | MISS-01, SEC-02, SEC-06 |
+| M-16 | Scope boundaries | — | — | Code PASS: no model id in any request body; the minimal and the app-shaped admission bodies carry none | — |
+
 ### Other implemented features found in the repository
 
 Dynamic UI renderer (18 components), theme tool, places/maps cards, media viewer, QA recorder and
@@ -189,7 +213,8 @@ Coverage gaps that matter: `livekit_voice_transport.dart` (every call goes throu
 `device_assistant_page.dart` (519 of 520 lines uncovered), `nexa_surface_view.dart` (418 of 713),
 `nexa_tool_card.dart` (0 %), the Kotlin services (`WakeListenerService`, `CallForegroundService`,
 `ActivationRouter`: no tests), and the two new branches of commit `9289ec6`.
-Only one regression test was added this round; the register names the test each fix needs.
+Two tests were added this round: the Kotlin test above (REL-03) and a skipped Dart repro for REL-04 that fails
+today when unskipped. Repro tests for REL-02, COR-02, COR-03, COR-05 and SEC-01 were **not** written; the register names the test each fix needs.
 
 ## 6. Device test records (round 2)
 
@@ -203,7 +228,9 @@ Environment for all rows: Nubia NX679J, Android 13, profile build with developer
 | D4 | Cancel generation | send a long request, tap stop after 6 s | reply stops, composer usable | cancel request sent, no reply text, composer usable | PASS (before first token) | `round2/chat-stop-generation.png` | 1 |
 | D5 | Attach a file | attach → choose a file → pick a 64×64 test PNG → type → send | attachment chip, upload, message with file | no chip, no upload request, text sent alone, no error | **FAIL** | `round2/chat-attach-file-dropped.png` | 1 of 1 |
 | D6 | Rename / delete a conversation | long-press an entry; look for actions in the chat | rename and delete offered | long-press opens the chat; no action anywhere | **NOT IMPLEMENTED** (list mode) | code: `nexa_conversation_list_page.dart` has only open | — |
-| D7 | Process kill | Home, `am kill`, reopen | state kept | process survives (foreground service), chat still open | PASS | — | 1 |
+| D7 | Process kill | Home, `am kill`, reopen | state kept | the process was not killed (foreground service keeps it), so this proves nothing about restoration | **NOT TESTED** | — | 1 |
+| D13 | Wake phrase in the background | Home screen, play «يا أمير» 3 times | detected, not accepted | 2 of 3 detected, both `speaker_mismatch`; no call | PASS (2/3) | appended to the wake evidence file | 3 |
+| D14 | REL-04 unit repro | `voice_end_order_test.dart` unskipped | room left before the server answers | still connected while `DELETE` is pending | **FAIL** (unit) | test file, skipped in the suite | deterministic |
 | D8 | Font scale 2.0, Arabic | chat, settings, assistant page | no clipping | selectors on the assistant page break and clip; header truncates | **FAIL** | `round2/f2_assistant_ar2.png`, `round2/f2_chat_ar.png` | 1 |
 | D9 | Wake CPU, silent room | 120 s, per-thread CPU ticks | ≤ 5 % of a core | 27.9 % (`nexa-wake`), 35.7 % whole process | **FAIL** | section 7 | 3 measurements today: 25–31 %, 33–40 %, 27.9 % |
 | D10 | Wake CPU during speech | 60 s of Arabic TTS | — | 28.5 % | same cost as silence | section 7 | 1 |
@@ -218,7 +245,7 @@ because single deletion is not available (D6).
 
 | Measure | Value | Target (M-13 / M-10) | Verdict |
 |---|---|---|---|
-| Start after force-stop | 354–377 ms (3 runs), 377–491 ms earlier | ≤ 2.0 s | PASS |
+| Start after force-stop (`am start -W`, activity displayed) | 354–377 ms (3 runs), 377–491 ms earlier | ≤ 2.0 s **to an interactive list** | not measured against the target: the tool reports the first frame of the activity (and labelled these starts WARM), not the list being usable. No sign of a problem |
 | Warm start | 95–104 ms | — | fine |
 | Memory, foreground idle | 314–338 MB PSS | none set | noted; ONNX sessions and the Flutter engine dominate |
 | Wake thread, silent room, 120 s | **27.9 % of one core** | ≤ 5 % | **FAIL** |
@@ -285,7 +312,7 @@ Not reviewed: iOS, the reference gateway, dependency CVEs, permission revocation
 | W-1 wake CPU | PERF-01 | **Reproduced and confirmed** (27.9 %; root cause in code; gating simulated) |
 | S-1 APK size | PERF-02 | **Confirmed and measured** (254 → 117 MB with arm64 only) |
 | V-1 recovery race | REL-02 | Confirmed by code inspection; not reproducible on device (blocked) |
-| V-2 End waits for DELETE | REL-04 | Confirmed by code inspection; device blocked |
+| V-2 End waits for DELETE | REL-04 | **Reproduced by a unit test** (D14); device blocked |
 | V-3 audio levels | REL-11 | Confirmed by code inspection (default diagnostics object is disabled) |
 | V-4 misleading errors | UX-01 | **Reproduced** (third time) |
 | V-5 30 s without feedback | REL-01 | **Reproduced**; screen during the wait still not captured |
@@ -319,14 +346,13 @@ Severity: P0 blocks Beta, P1 required before Beta, P2 quality, P3 later. "Refact
 
 | ID | Sev | Feature | Where | Root cause | User impact | Evidence | Fix | Regression test | Depends on | Refactor |
 |---|---|---|---|---|---|---|---|---|---|---|
-| COR-01 | P1 | Attach a file | attach sheet → file picker → `nexa_chat_view.dart` media reference | not established (picked file never became a reference) | the file is ignored without a word | D5 | trace the picker result; show the chip or an error | widget test with a fake picker result | — | no |
+| COR-01 | P1 (one attempt) | Attach a file | attach sheet → file picker → `nexa_chat_view.dart` media reference | not established (picked file never became a reference) | the file is ignored without a word | D5 | trace the picker result; show the chip or an error | widget test with a fake picker result | — | no |
 | COR-02 | P1 | Send with attachment | `nexa_composer.dart:62-68`, `nexa_chat_view.dart:219-246` | composer clears before the upload result; handler returns after a snackbar | typed text is lost when the upload fails | Code | keep the draft until the send is accepted | widget test: failing upload keeps the text | COR-01 | no |
 | COR-03 | P1 | Tool result | `labeeb_tool_calls.dart:556-587` | a failed result post marks the call failed and keeps it in the answered set | the assistant waits until the server deadline; the user cannot retry (M-06.3 asks for retry on network errors) | Code | retry with back-off on network errors only; allow manual retry | unit: first post fails, second succeeds, exactly one result | — | part of ARCH-02 |
 | COR-04 | P2 | Tool approval | `labeeb_tool_calls.dart:486-512` | `_calls[id]!` after an awaited request | crash if the session was reset meanwhile | Code | null-check and session check after each `await` | unit: clear during approve | — | part of ARCH-02 |
 | COR-05 | P1 | Resume a conversation | `chat_bloc.dart:198-216` | `resumePending` cleared before the load; error only recorded | an old conversation opens empty after one network error, with no message and no retry | Code | restore the flag on failure, show retry | bloc test: load fails then succeeds | — | no |
 | COR-06 | P2 | Conversation list | `nexa_history.dart:399-430` | `refresh()` during an in-flight `loadMore` resets the list but the old page still lands | wrong or missing entries after a quick refresh | Code | serialise, or tag requests with a generation | unit: refresh during loadMore | — | no |
 | COR-07 | P2 | Conversation list | list page / router return path | list is not refreshed when returning from a chat | a new conversation is missing until pull-to-refresh | D3 | refresh on return or upsert locally | widget test | — | no |
-| COR-08 | P2 | Conversation list | count shown per entry | not established (server value or client mapping) | "1 message" for a conversation with a question and an answer | device | compare with `GET /conversations`; fix the side that is wrong | unit on the mapper, or backend ticket | — | no |
 | COR-09 | P2 | Dynamic UI | `nexa_ui_view.dart:298, 324, 356-357` | server props cast with `as` inside `build` | a wrong type from the server throws in `build` | Code (parser check unverified) | validate types in the parser, read safely | unit: wrong types → dropped document | — | no |
 | COR-10 | P2 | Tool denial | tool result / backend prompt | a user decline is reported like a missing permission | assistant says "enable it in device settings" after "Not now" | device, `chat-tool-declined.png` | send a distinct "declined by user" code; backend wording | integration with the reference gateway | BE | no |
 | COR-11 | P3 | Cancel | chat timeline | no marker for a cancelled reply | user message stays unanswered with no hint | D4 | small "stopped" row | widget test | — | no |
@@ -336,10 +362,10 @@ Severity: P0 blocks Beta, P1 required before Beta, P2 quality, P3 later. "Refact
 
 | ID | Sev | Feature | Where | Root cause | User impact | Evidence | Fix | Regression test | Depends on | Refactor |
 |---|---|---|---|---|---|---|---|---|---|---|
-| REL-01 | P0 | Voice admission | `nexa_config.dart:44` (30 s), `gateway_voice_provisioner.dart` create | client timeout shorter than the gateway's own wait (33–36 s) | truthful server answer never seen; "offline" shown; a late `201` would leave a session nobody ends | D1 + 8 probes | longer timeout for this one request, progress and cancel while waiting, end a late session | unit: 35 s answer is mapped; widget: waiting state | BE-02 | no |
+| REL-01 | P0 | Voice admission | `nexa_config.dart:44` (30 s), `gateway_voice_provisioner.dart` create | client timeout shorter than the gateway's own wait (33–36 s) | truthful server answer never seen; "offline" shown; a late `201` would leave a session nobody ends | D1 + 9 direct requests | longer timeout for this one request, progress and cancel while waiting, end a late session | unit: 35 s answer is mapped; widget: waiting state | BE-02 | no |
 | REL-02 | P1 | Reconnect | `nexa_voice_controller.dart:752-810` | after each `await` the result is applied with only a phase check, not "is this still the same call" | an old recovery can end or rejoin a new call | Code | per-call generation token checked after every `await` | unit: end + start during recovery | — | ARCH-01 |
 | REL-03 | P1 | Wake listener | `WakeListenerService.kt:258-318`, `OnnxWakeFeatures.kt` | no error containment around inference | one model error ends the app process while listening | Code + unit test | catch in the loop, release the microphone, publish `error`, rebuild the engine once | Kotlin: throwing engine → state `error`, no crash | — | no |
-| REL-04 | P1 | End call | `nexa_voice_controller.dart:978-1004` | `DELETE` is awaited before `disconnect()` | microphone stays published until the request returns or times out | Code | disconnect (or unpublish) first, then `DELETE` | unit: slow `end` → transport disconnected first | — | ARCH-01 |
+| REL-04 | P1 | End call | `nexa_voice_controller.dart:978-1004` | `DELETE` is awaited before `disconnect()` | microphone stays published until the request returns or times out | Code + unit repro (D14) | disconnect (or unpublish) first, then `DELETE` | unit: slow `end` → transport disconnected first | — | ARCH-01 |
 | REL-05 | P1 | Voice errors | `nexa_voice_controller.dart:506-508`, capsule mapping | only `voice_unavailable` is treated as "try again"; `voice_model_preparing` and "GPU Realtime plan is FAILED" are unknown | no "try again in 15 s" for the cases that actually occur | probes, code | treat any retryable 503 with `retry_after_seconds` the same way | unit with both bodies | BE-02 | no |
 | REL-06 | P2 | Wake listener stop | `WakeListenerService.kt:161-172` | joins the worker on the main thread (1.5 s), then closes the models even if the worker is still alive | possible freeze or native crash on stop | Code | stop off the main thread; close after the worker exits | Kotlin: stop during model load | REL-03 | no |
 | REL-07 | P2 | Microphone ownership | `NexaAssistantPlugin.kt:75`, `VoiceSetup.kt:62` | two independent busy flags | a plugin recording and a setup recording can overlap | Code | one owner object | Kotlin: second request gets `busy` | — | ARCH-04 |
@@ -350,19 +376,27 @@ Severity: P0 blocks Beta, P1 required before Beta, P2 quality, P3 later. "Refact
 
 ### 10.3 Performance and battery
 
-| ID | Sev | Finding | Where | Evidence | Fix | Verification |
-|---|---|---|---|---|---|---|
-| PERF-01 | P0 | Wake listener 28 % of a core, constant | `engine/EmbeddingWakeDetector.kt:64-82` | D9, D10, section 7 | energy gate with warm mel context and back-fill | idle CPU < 5 % on the phone; `wake_eval.py` and the simulation unchanged; owner recall test |
-| PERF-02 | P1 | Universal APK 254 MB | `apps/nexa_example/android/app/build.gradle.kts` (no ABI split) | section 7 | ship per-ABI builds or an app bundle; consider downloading the 28 MB speaker model on demand | size recorded per ABI |
-| PERF-03 | P2 | 314–338 MB idle memory | ONNX sessions held while listening | meminfo | load the speaker model only when "only my voice" is on (already lazy) and release after use | meminfo before/after |
-| PERF-04 | P2 | No frame, leak or battery measurements; `tool/perf.sh` missing | — | — | write the script; run with a working backend | numbers in `docs/qa/perf-baseline.md` |
+| ID | Sev | Feature | Where | Root cause | User impact | Evidence | Fix | Regression test / verification | Refactor |
+|---|---|---|---|---|---|---|---|---|---|
+| PERF-01 | P0 | Wake listener | `engine/EmbeddingWakeDetector.kt:64-82` (`process`) | mel, embedding and classifier run on every 80 ms chunk, silence included | about 28 % of one core for as long as listening is on: battery drain and heat | D9, D10, 72-minute average, simulation | energy gate; keep the mel context warm; back-fill 16 embeddings when the gate opens | Kotlin: gated and ungated detectors give the same decisions on the fixtures; phone: idle CPU < 5 %; owner recall check | no |
+| PERF-02 | P1 | App size | `apps/nexa_example/android/app/build.gradle.kts` (no ABI split) | universal APK with three architectures of ONNX Runtime | 254 MB download instead of about 100–117 MB | measured builds | per-ABI builds or an app bundle; consider downloading the 28 MB speaker model on demand | size recorded per ABI in the release notes | no |
+| PERF-03 | P2 | Memory | ONNX sessions held while listening | models stay loaded | 314–338 MB idle | `runtime-benchmarks.txt` | release the speaker model after each check; measure | meminfo before and after | no |
+| PERF-04 | P2 | Measurement gaps | `tool/perf.sh` is named in the QA plan and does not exist | never written | frame timing, leaks and battery are unknown | — | write the script; run it with a working backend | numbers in `docs/qa/perf-baseline.md` | no |
 
 ### 10.4 Security and privacy
 
-SEC-01 **P1** (compile the two developer recording methods out of release and add the native consent check),
-SEC-02 P2 (set `allowBackup="false"` or backup rules), SEC-03 P2 (move kept clips to internal storage),
-SEC-04 P2 (debug-only logs and marker), SEC-06 P2 (atomic write; decide on encryption), SEC-05 P3, SEC-07 note, SEC-08 note.
-Regression tests: Kotlin test that each recording method answers `consent_required`; manifest test for the backup flag.
+| ID | Sev | Feature | Where | Root cause | User impact | Evidence | Fix | Regression test | Refactor |
+|---|---|---|---|---|---|---|---|---|---|
+| SEC-01 | P1 | Recording consent | `NexaAssistantPlugin.kt:281` (`enrollmentRecord` → `recordOne` :673), `:317` (`benchRecord` :826) | the native methods check only the microphone permission; consent lives in a Dart developer flag | a release build still contains recording paths that do not ask the recorded consent; `benchRecord` writes WAV files | Code | native `consented` check on both; move both to a debug-only source set; delete the legacy enrolment path (ARCH-05) | Kotlin: each method answers `consent_required` without consent | ARCH-04 |
+| SEC-02 | P2 | Local data in backups | `apps/nexa_example/android/app/src/main/AndroidManifest.xml` (no `allowBackup`) | Android default is on | conversation cache and pending tool state can leave the phone in a backup | manifest read | `allowBackup="false"` or explicit rules | manifest test | no |
+| SEC-03 | P2 | Kept clips, benchmark WAVs | `VoiceSetup.kt:56` and `NexaAssistantPlugin.kt` `benchDir()` use the external files folder | chosen so clips can be pulled over USB | on Android 10 and older, other apps with storage permission can read voice clips | Code | internal storage; export on request | Kotlin path test | no |
+| SEC-04 | P2 | Logs and test switches in release | `WakeListenerService.kt:219-231, 313` | not gated on a debug build | similarity scores in the system log; a marker file can silence activation | Code; log lines seen on device | debug-only | — | no |
+| SEC-05 | P3 | Activation extras | `Activation.kt` `fromIntent` | extras trusted from any launching intent | another app can show the "verified" badge | Code | accept `verified` only from the in-process path | unit | no |
+| SEC-06 | P2 | Conversation cache | `nexa_history.dart:175, 187` | plain JSON, direct write | readable on a rooted or backed-up phone; a crash mid-write corrupts it | Code | write to a temp file and rename; decide on encryption with MISS-01 | unit | no |
+| SEC-07 | note | Speaker verification | by design | no liveness check | a recording of the owner can pass the wake gate | design documents | keep it away from any authorisation | — | no |
+| SEC-08 | note | `NexaRecognitionService` | plugin manifest | exported as Android requires | low; the framework checks the caller's microphone permission | manifest read | none | — | no |
+
+Regression tests named above are not written yet.
 
 ### 10.5 Architecture and maintainability (see section 11)
 
@@ -371,15 +405,15 @@ ARCH-05 legacy enrolment and wake code, ARCH-06 two string systems, ARCH-07 test
 
 ### 10.6 UI/UX and accessibility
 
-| ID | Sev | Finding | Evidence | Fix |
-|---|---|---|---|---|
-| UX-01 | P1 | Server failure shown with a "no Wi-Fi" icon; timeout shown as "You are offline" | `voice-call-503.png`, D1 | separate "server busy / preparing" state with the retry time |
-| UX-02 | P1 | 200 % text: selectors on the assistant page break and clip; "System" breaks at 130 % in English; header truncates the assistant name | D8, round 1 screenshot | wrap or stack the segmented controls at large scale; M-14 AC2 test for these pages |
-| UX-03 | P2 | "Set up again" does not re-record | Code | explicit re-enrol step |
-| UX-04 | P2 | Wake try-out: every failure says "allow the microphone"; raw scores shown | Code | map reasons; hide scores outside dev builds |
-| UX-05 | P2 | Developer text and raw states in the checks card | unverified | re-read, then gate |
-| UX-07 | P2 | iOS still branded LABEEB | unverified | — |
-| UX-08 | P3 | Notification icon on the Nubia | earlier finding | — |
+| ID | Sev | Feature | Where | Root cause | User impact | Evidence | Fix | Regression test | Refactor |
+|---|---|---|---|---|---|---|---|---|---|
+| UX-01 | P1 | Voice errors | error mapping for the call page (`nexa_voice_capsule.dart` labels, network error mapper) | timeouts and 5xx fall into the "connection lost / offline" presentation | the user is told to check the internet when the server is busy | `voice-call-503.png`, D1 | a "server busy, try again in N s" state | widget test per error kind | no |
+| UX-02 | P1 | Large text | `device_assistant_page.dart` segmented selectors (position, end-after-silence); settings theme selector; chat header | fixed-width segments, single-line title | words broken mid-letter and clipped at 200 %; "System" broken at 130 % in English | D8, round 1 screenshot | stack or wrap the options at large scale | text-scale widget tests for these pages (M-14 AC2) | no |
+| UX-03 | P2 | Re-enrol | `voice_status_card.dart:41-46, 203`; `voice_wizard_page.dart` `_stepFor` | the button opens the wizard, which resumes at "try it" for a ready profile | no way to record again without deleting the profile | Code | explicit "record again" entry | widget test | no |
+| UX-04 | P2 | Wake try-out | `wake_phrase_page.dart:146-156` | every failed result shows the microphone text; raw score and threshold printed | wrong advice for "busy" or "not installed"; numbers mean nothing to users | Code | map reasons; hide numbers outside dev builds | widget test | no |
+| UX-05 | P2 | Checks card | `device_assistant_page.dart:181, 285-293, 340-342` | — | developer wording for normal users | unverified this round | re-read, then gate | — | no |
+| UX-07 | P2 | iOS branding | `ios/Runner/Info.plist` | not updated | LABEEB name on iOS | unverified | update with the iOS phase | — | no |
+| UX-08 | P3 | Notification icon | plugin `Notifications.smallIcon` | host icon missing on the Nubia shell | generic icon | earlier finding | ship the icon resource | — | no |
 
 ### 10.7 Missing or incomplete against the requirements
 
@@ -404,6 +438,7 @@ ARCH-05 legacy enrolment and wake code, ARCH-06 two string systems, ARCH-07 test
 | BE-04 | P1 | G-02 (commit turn on mute) and G-03 (barge-in tuning): requests written, not sent | `docs/handoff/` |
 | BE-05 | P2 | One chat run with 60–85 s replies | round 1 |
 | BE-06 | P2 | Decline wording (with COR-10) | device |
+| BE-07 | P2 | `message_count` in `GET /v1/sdk/conversations` is 1 for a conversation with a user message and an assistant reply; four empty untitled conversations (count 0) exist on the account from earlier failed starts (the app hides them) | direct request |
 
 ## 11. Architecture assessment and which refactors are justified
 
@@ -475,8 +510,9 @@ Each item marked "Code" starts with a failing test; if the test cannot be made t
 
 | Commit | Content |
 |---|---|
-| `9289ec6` | Tap-to-talk on an unrecognised voice; voice card shows an older or locked-out profile as needing attention (reviewed, gate green, later device-checked with a synthetic voice) |
+| `9289ec6` | Tap-to-talk on an unrecognised voice; voice card shows an older or locked-out profile as needing attention. Reviewed, gate green. Device-checked with a synthetic voice for the notification only; the voice-card half is not device-verified and no test covers either new branch |
 | `8133f01` | Kotlin test pinning REL-03; `tools/wake_training/vad_gate_sim.py` |
+| `03052bf` | `packages/nexa_sdk/test/features/voice_end_order_test.dart`: repro of REL-04, skipped so the gate stays green (fails when unskipped) |
 | this commit | this report and `docs/qa/evidence/2026-11-18/round2/` |
 
 No application behaviour was changed apart from `9289ec6`. Nothing was changed on the backend. Nothing was pushed.

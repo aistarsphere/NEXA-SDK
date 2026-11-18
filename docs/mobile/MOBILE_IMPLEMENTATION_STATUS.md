@@ -126,4 +126,4 @@ See `docs/mobile/FULL_QA_AND_FIX_PLAN_2026-11-18.md` (evidence in `docs/qa/evide
 Voice calls were blocked by the backend (503, GPU Realtime plan failed). No code was changed.
 
 Round 2 the same day: `docs/mobile/ENGINEERING_QA_REPORT_2026-11-18.md` is the current assessment (feature matrix, defect register, plan).
-Voice was still blocked (503 `voice_model_preparing`, eight probes 14:10–14:30). Commits: `9289ec6` (tap-to-talk fix), `8133f01` (test + simulation).
+Voice was still blocked (503 `voice_model_preparing`, ten admission requests 14:10–14:39, both request shapes). Commits: `9289ec6` (tap-to-talk fix), `8133f01` (test + simulation).

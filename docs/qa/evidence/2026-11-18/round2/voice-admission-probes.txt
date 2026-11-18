@@ -21,3 +21,10 @@ Screen: «أنت غير متصل بالإنترنت…» although Wi-Fi was conn
 {"error": {"code": "voice_model_preparing", "message": "STT trained-whisper-09849ed0dad3 is being prepared by the GPU; try again shortly.", "retryable": true, "retry_after_seconds": 15}}
 14:30:40 POST /v1/sdk/voice/sessions -> 503 33.1s
 {"error": {"code": "voice_model_preparing", "message": "STT trained-whisper-09849ed0dad3 is being prepared by the GPU; try again shortly.", "retryable": true, "retry_after_seconds": 15}}
+
+# Probe with the app's request shape (conversation_id of my own test conversation + tools:true)
+14:38:39 POST /v1/sdk/voice/sessions -> 503 34.0s
+{"error": {"code": "voice_model_preparing", "message": "STT trained-whisper-09849ed0dad3 is being prepared by the GPU; try again shortly.", "retryable": true, "retry_after_seconds": 15}}
+
+# Same minute: GET /v1/sdk/contract without disabling certificate checks -> 200 (TLS validates)
+# GET /v1/sdk/conversations: the owner's mixed conversation was last updated 10:52 UTC (13:52 local), i.e. voice worked shortly before this window.

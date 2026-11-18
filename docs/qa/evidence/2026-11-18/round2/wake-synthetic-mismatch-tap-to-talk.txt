@@ -13,3 +13,5 @@
     pkg=com.nexa.nexa_example user=UserHandle{0} id=٢٠٠٣٣ tag=null importance=٣ key=0|com.nexa.nexa_exam
     pkg=com.nexa.nexa_example user=UserHandle{0} id=٢٠٠٣٢ tag=null importance=٢ key=0|com.nexa.nexa_exam
 Foreground window stayed MainActivity (no call opened).
+11-18 14:39:59.226 I/NexaWake(11958): decision=speaker_mismatch ms=1812 phrase=0.002/0.100 voice=0.08/0.47
+11-18 14:40:04.980 I/NexaWake(11958): decision=speaker_mismatch ms=1812 phrase=0.000/0.100 voice=0.02/0.46
