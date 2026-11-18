@@ -304,6 +304,9 @@ internal class VoiceSetup(
         "takes" to sp.getInt("simple_takes", 0),
         "reason" to sp.getString("simple_reason", null),
         "hasProfile" to (simplePool().isNotEmpty()),
+        // An older (multi-sample) voice profile exists that the quick setup did not make.
+        "legacyProfile" to (simpleState() == "none" && store.exists),
+        "requireOwner" to prefs.requireOwner,
         // Always provisional: nothing here was measured on the owner's own voice.
         "quality" to if (simpleState() == "ready") "provisional" else "none",
         "modelAvailable" to OnnxSpeakerEmbedder.available(context),

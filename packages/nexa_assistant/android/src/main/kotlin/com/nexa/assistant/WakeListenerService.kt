@@ -230,8 +230,9 @@ class WakeListenerService : Service() {
             ),
         )
         main.post { onDecision?.invoke(d) }
-        if (d.reason == "speaker_uncertain" && !dryRun()) {
-            // Low confidence: the assistant does not open by itself. The owner can tap.
+        if ((d.reason == "speaker_uncertain" || d.reason == "speaker_mismatch") && !dryRun()) {
+            // The phrase was heard but the voice was not recognised: never a silent
+            // "nothing happens". The assistant does not open by itself; the person can tap.
             main.post { ActivationRouter.offerTapToTalk(this, Activation("wake", false, Activation.locked(this))) }
             return
         }

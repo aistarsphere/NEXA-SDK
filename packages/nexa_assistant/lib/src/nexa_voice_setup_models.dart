@@ -226,6 +226,8 @@ final class NexaEnrollStatus {
     this.takes = 0,
     this.reason,
     this.hasProfile = false,
+    this.legacyProfile = false,
+    this.requireOwner = false,
     this.modelAvailable = false,
   });
 
@@ -238,6 +240,8 @@ final class NexaEnrollStatus {
     takes: (m['takes'] as num?)?.toInt() ?? 0,
     reason: m['reason'] as String?,
     hasProfile: m['hasProfile'] == true,
+    legacyProfile: m['legacyProfile'] == true,
+    requireOwner: m['requireOwner'] == true,
     modelAvailable: m['modelAvailable'] == true,
   );
 
@@ -248,6 +252,12 @@ final class NexaEnrollStatus {
   /// `not_sure`, `different_voice` or `not_consistent`.
   final String? reason;
   final bool hasProfile;
+
+  /// An older voice profile that the quick setup did not make is active.
+  final bool legacyProfile;
+
+  /// "Respond only to my voice" is on.
+  final bool requireOwner;
   final bool modelAvailable;
 }
 

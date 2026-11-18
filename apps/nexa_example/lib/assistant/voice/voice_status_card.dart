@@ -97,7 +97,15 @@ class _VoiceStatusCardState extends State<VoiceStatusCard> {
     final st = _st;
     final scheme = Theme.of(context).colorScheme;
     if (st == null) return const SizedBox.shrink();
-    final state = st.consented ? st.state : NexaEnrollState.none;
+    // An older profile that the quick setup did not make (or "only my voice"
+    // left on without a ready profile) is shown as needing attention, with the
+    // switch to turn the voice check off: never a silent lock-out.
+    final stale =
+        (st.legacyProfile || st.requireOwner) &&
+        st.state == NexaEnrollState.none;
+    final state = stale
+        ? NexaEnrollState.improve
+        : (st.consented ? st.state : NexaEnrollState.none);
     final ready = state == NexaEnrollState.ready;
     final color = switch (state) {
       NexaEnrollState.ready => scheme.primary,
@@ -145,7 +153,7 @@ class _VoiceStatusCardState extends State<VoiceStatusCard> {
                 key: const Key('voice_card_note'),
               ),
               const SizedBox(height: 8),
-              if (ready) ...[
+              if (ready || _requireOwner) ...[
                 SwitchListTile(
                   key: const Key('voice_card_only_me'),
                   contentPadding: EdgeInsets.zero,
@@ -157,18 +165,19 @@ class _VoiceStatusCardState extends State<VoiceStatusCard> {
                     await _load();
                   },
                 ),
-                OutlinedButton.icon(
-                  key: const Key('voice_card_test'),
-                  onPressed: _testing ? null : _test,
-                  icon: _testing
-                      ? const SizedBox.square(
-                          dimension: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.mic_none_rounded),
-                  label: Text(s.testMyVoice),
-                ),
-                if (_testing)
+                if (ready)
+                  OutlinedButton.icon(
+                    key: const Key('voice_card_test'),
+                    onPressed: _testing ? null : _test,
+                    icon: _testing
+                        ? const SizedBox.square(
+                            dimension: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.mic_none_rounded),
+                    label: Text(s.testMyVoice),
+                  ),
+                if (ready && _testing)
                   Padding(
                     padding: const EdgeInsets.only(top: 6),
                     child: Text(s.sentence(2)),
