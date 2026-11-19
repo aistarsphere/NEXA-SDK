@@ -1,6 +1,6 @@
 Delete a conversation from the list — device check
 Date: 2026-11-19, 13:18–13:21 (local). Device: Nubia NX679J, Android 13 (the only device).
-Build: profile, commit d212b3e, --dart-define-from-file + NEXA_DEV_TOOLS=true.
+Build for steps 1-4: profile, commit d212b3e, --dart-define-from-file + NEXA_DEV_TOOLS=true.
 Data: two conversations created for this test through the API, titled
 "QA delete test A" and "QA delete test B". No conversation of the owner was
 opened or deleted. Row titles of other conversations were not recorded.
@@ -28,6 +28,14 @@ Setup (API)
 
 4. Settings tiles present                                           PASS (presence only)
    "حذف كل المحادثات" and "مسح الذاكرة المؤقتة" are shown under Conversations.
+
+5. Confirm, then close the sheet by tapping outside it               PASS
+   Build: profile, commit 030c988 (installed 13:26). Two new test rows
+   created through the API at 13:26:40.
+   13:27:05 tap "حذف" on row B -> "حُذف من هذا الجهاز" / "حُذف من الخادم".
+   Tap outside the sheet: the sheet closes, the list shows row A only.
+   13:27:15 GET /v1/sdk/conversations -> 200 | total 43 | test rows present: A
+   13:27:15 DELETE (API) of the remaining test row -> 200. No test row is left.
 
 NOT TESTED on the device
 - "Delete all conversations": it would delete the owner's real history.
