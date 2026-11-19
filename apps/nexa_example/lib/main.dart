@@ -19,6 +19,7 @@ import 'package:nexa_example/assistant/labeeb_router.dart';
 import 'package:nexa_example/brand/labeeb_brand.dart';
 import 'package:nexa_example/brand/labeeb_theme_controller.dart';
 import 'package:nexa_example/crash/crash_sink.dart';
+import 'package:nexa_example/dev/call_audio_debug.dart';
 import 'package:nexa_example/dev/dynamic_ui_gallery_page.dart';
 import 'package:nexa_example/dev/qa/qa_recorder.dart';
 import 'package:nexa_example/dev_token_auth_provider.dart';
@@ -373,7 +374,10 @@ class ExampleApp extends StatelessWidget {
           routerConfig: _router,
           builder: (context, child) {
             final d = device;
-            final app = child ?? const SizedBox.shrink();
+            var app = child ?? const SizedBox.shrink();
+            if (CallAudioDebugOverlay.enabled) {
+              app = CallAudioDebugOverlay(voice: client.voice, child: app);
+            }
             return d == null
                 ? app
                 : DeviceAssistantLockGate(
