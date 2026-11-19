@@ -1,5 +1,13 @@
 # AMEER voice calls — capture quality, phantom transcripts and interruptions (plan, 2026-11-19)
 
+> **SUPERSEDED (2026-11-19, owner decision).** The on-device primary-speaker gate in §3.1 is not
+> built: no on-device ML models, so the app stays light on low-end phones. The client keeps the
+> standard AEC/NS/AGC (no Krisp, no AudioProcessor); voice isolation, VAD gating and interruption policy
+> are the server's job. What replaced this plan: immediate mute, "speaking" until the server confirms an
+> interruption, the speaker/earpiece choice with the real route and mode, phone-call hold, and
+> capability-gated listening-control and client-info signals (`docs/voice/client-signals-proposal.md`).
+> Manual tests: `docs/qa/VOICE_AUDIO_TEST_SHEET_2026-11-19.md`. Kept for its research and measurements.
+
 Status: research and plan only. No code was changed. Nothing here is measured yet except where a
 round-4 record is cited (`docs/qa/evidence/2026-11-19/voice-call-device.txt`).
 
