@@ -1351,4 +1351,28 @@ class NexaLocalizationsAr extends NexaLocalizations {
 
   @override
   String get tcToolJira => 'Jira';
+
+  @override
+  String get voiceOutputSpeaker => 'السماعة الخارجية';
+
+  @override
+  String get voiceOutputEarpiece => 'سماعة الهاتف';
+
+  @override
+  String get voiceOutputHeadset => 'سماعة الرأس';
+
+  @override
+  String get voiceOutputSpeakerTooltip =>
+      'السماعة الخارجية مشغّلة. اضغط لاستخدام سماعة الهاتف';
+
+  @override
+  String get voiceOutputEarpieceTooltip =>
+      'سماعة الهاتف. اضغط لاستخدام السماعة الخارجية';
+
+  @override
+  String get voiceOutputHeadsetTooltip =>
+      'سماعة الرأس موصولة. اضغط لتغيير سماعة الهاتف عند فصلها';
+
+  @override
+  String get voicePhoneCallHold => 'متوقف بسبب مكالمة هاتفية';
 }

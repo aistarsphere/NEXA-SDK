@@ -417,5 +417,12 @@
   "tcJiraNotFound": "غير موجود في Jira.",
   "tcUnsupportedMedia": "لا يمكن إرسال هذا النوع من الملفات.",
   "tcToolVoiceProfile": "صوتك",
-  "tcToolJira": "Jira"
+  "tcToolJira": "Jira",
+  "voiceOutputSpeaker": "السماعة الخارجية",
+  "voiceOutputEarpiece": "سماعة الهاتف",
+  "voiceOutputHeadset": "سماعة الرأس",
+  "voiceOutputSpeakerTooltip": "السماعة الخارجية مشغّلة. اضغط لاستخدام سماعة الهاتف",
+  "voiceOutputEarpieceTooltip": "سماعة الهاتف. اضغط لاستخدام السماعة الخارجية",
+  "voiceOutputHeadsetTooltip": "سماعة الرأس موصولة. اضغط لتغيير سماعة الهاتف عند فصلها",
+  "voicePhoneCallHold": "متوقف بسبب مكالمة هاتفية"
 }

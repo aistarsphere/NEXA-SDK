@@ -6,6 +6,7 @@ import 'package:nexa_core/nexa_core.dart';
 import 'package:nexa_sdk/src/features/tools/labeeb_tool_call_card.dart';
 import 'package:nexa_sdk/src/features/tools/labeeb_tool_calls.dart';
 import 'package:nexa_sdk/src/features/voice/nexa_voice_controller.dart';
+import 'package:nexa_sdk/src/features/voice/nexa_voice_output.dart';
 import 'package:nexa_sdk/src/features/voice/presentation/nexa_voice_identity_note.dart';
 import 'package:nexa_sdk/src/nexa_ui_settings.dart' as sdk;
 import 'package:nexa_ui/nexa_ui.dart';
@@ -145,7 +146,11 @@ class _VoiceBodyState extends State<_VoiceBody> {
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: Listenable.merge([widget.controller.state, ?widget.tools]),
+      listenable: Listenable.merge([
+        widget.controller.state,
+        ?widget.controller.callAudio?.state,
+        ?widget.tools,
+      ]),
       builder: (context, _) {
         final s = widget.controller.state.value;
         return Column(
@@ -169,6 +174,11 @@ class _VoiceBodyState extends State<_VoiceBody> {
                 onStart: widget.controller.start,
                 onEnd: widget.controller.end,
                 onToggleMute: widget.controller.toggleMute,
+                output: nexaVoiceOutputOf(widget.controller.callAudio),
+                onToggleOutput: widget.controller.callAudio == null
+                    ? null
+                    : () => nexaToggleVoiceOutput(widget.controller.callAudio!),
+                phoneCallHold: s.phoneCallHold,
                 onRetry: widget.controller.start,
                 onOpenSettings: widget.onOpenSettings,
               ),

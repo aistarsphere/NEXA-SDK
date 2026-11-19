@@ -11,6 +11,13 @@ library;
 
 export 'package:nexa_core/nexa_core.dart';
 export 'package:nexa_device/nexa_device.dart';
+export 'package:nexa_realtime/nexa_realtime.dart'
+    show
+        MethodChannelCallAudioPlatform,
+        NexaAudioRoute,
+        NexaCallAudio,
+        NexaCallAudioPlatform,
+        NexaCallAudioState;
 export 'package:nexa_ui/nexa_ui.dart'
     show NexaColors, NexaLocale, NexaMotion, NexaTheme, NexaThemeOverrides;
 

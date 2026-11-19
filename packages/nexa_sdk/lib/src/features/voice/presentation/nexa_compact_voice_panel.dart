@@ -6,6 +6,7 @@ import 'package:nexa_sdk/src/features/tools/labeeb_tool_call_card.dart';
 import 'package:nexa_sdk/src/features/tools/labeeb_tool_calls.dart';
 import 'package:nexa_sdk/src/features/voice/nexa_voice_controller.dart';
 import 'package:nexa_sdk/src/features/voice/nexa_voice_idle_timeout.dart';
+import 'package:nexa_sdk/src/features/voice/nexa_voice_output.dart';
 import 'package:nexa_sdk/src/features/voice/presentation/nexa_voice_orb.dart';
 import 'package:nexa_ui/nexa_ui.dart';
 
@@ -96,6 +97,7 @@ class _NexaCompactVoicePanelState extends State<NexaCompactVoicePanel> {
     super.initState();
     _voice.state.addListener(_onState);
     _voice.levels.addListener(_onLevels);
+    _voice.callAudio?.state.addListener(_onAudio);
     widget.tools?.addListener(_onTools);
     _uiEvents = _voice.toolEvents.listen((e) {
       if (e.type == 'ui_presented' && mounted) setState(() => _hasUi = true);
@@ -128,6 +130,7 @@ class _NexaCompactVoicePanelState extends State<NexaCompactVoicePanel> {
     unawaited(_uiEvents?.cancel());
     _voice.state.removeListener(_onState);
     _voice.levels.removeListener(_onLevels);
+    _voice.callAudio?.state.removeListener(_onAudio);
     widget.tools?.removeListener(_onTools);
     _level.dispose();
     super.dispose();
@@ -149,6 +152,10 @@ class _NexaCompactVoicePanelState extends State<NexaCompactVoicePanel> {
   }
 
   void _onTools() {
+    if (mounted) setState(() {});
+  }
+
+  void _onAudio() {
     if (mounted) setState(() {});
   }
 
@@ -227,11 +234,14 @@ class _NexaCompactVoicePanelState extends State<NexaCompactVoicePanel> {
               '${approval != null ? l10n.panelNeedsApproval : l10n.panelOpenToContinue}'
         : tool != null
         ? '${l10n.panelWorking} ${labeebToolTitle(l10n, tool.call.tool)}'
+        : state.phoneCallHold && state.isActive
+        ? l10n.voicePhoneCallHold
         : NexaVoiceCapsule.voiceStateLabel(
             l10n,
             state.phase,
             interruptConfirmed: state.interruptConfirmed,
           );
+    final output = state.isActive ? nexaVoiceOutputOf(_voice.callAudio) : null;
     final caption = state.transcript.isEmpty ? null : state.transcript.last;
     final vertical =
         widget.placement == NexaPanelPlacement.left ||
@@ -394,6 +404,14 @@ class _NexaCompactVoicePanelState extends State<NexaCompactVoicePanel> {
         selected: state.muted,
         onPressed: state.isActive ? _voice.toggleMute : null,
       ),
+      if (output != null)
+        _PanelButton(
+          key: const Key('nexa_panel_output'),
+          icon: nexaVoiceOutputIcon(output),
+          label: nexaVoiceOutputTooltip(l10n, output),
+          selected: output == NexaVoiceOutput.speaker,
+          onPressed: () => nexaToggleVoiceOutput(_voice.callAudio!),
+        ),
       if (widget.onExpand != null)
         _PanelButton(
           key: const Key('nexa_panel_expand'),

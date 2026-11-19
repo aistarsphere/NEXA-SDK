@@ -4,5 +4,6 @@
 /// dependencies; `nexa_sdk` depends on it to offer `NexaClient.voice`.
 library;
 
+export 'src/call_audio.dart';
 export 'src/livekit_audio_setup.dart';
 export 'src/livekit_voice_transport.dart';

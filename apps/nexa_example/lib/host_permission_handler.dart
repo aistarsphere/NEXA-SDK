@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:nexa_sdk/nexa_sdk.dart';
 import 'package:permission_handler/permission_handler.dart' as ph;
 
@@ -13,11 +14,18 @@ final class HostPermissionHandler implements NexaPermissionHandler {
 
   @override
   Future<bool> request(NexaPermission permission) async {
+    // Only Android 12+ has a runtime Bluetooth permission for audio; on iOS
+    // permission_handler would ask for Core Bluetooth, which calls do not use.
+    if (permission == NexaPermission.bluetooth &&
+        defaultTargetPlatform != TargetPlatform.android) {
+      return true;
+    }
     final target = switch (permission) {
       NexaPermission.microphone => ph.Permission.microphone,
       NexaPermission.camera => ph.Permission.camera,
       NexaPermission.location => ph.Permission.locationWhenInUse,
       NexaPermission.notifications => ph.Permission.notification,
+      NexaPermission.bluetooth => ph.Permission.bluetoothConnect,
     };
     // Already granted: answer without a prompt. Also needed when the call
     // starts in the assistant panel with no activity on screen, where a

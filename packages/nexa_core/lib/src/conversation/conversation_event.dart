@@ -17,7 +17,10 @@ enum SessionEndReason { userEnded, expired, serverEnded, quotaExceeded, error }
 
 /// Platform permissions the backend may ask the host to obtain.
 @JsonEnum(fieldRename: FieldRename.snake)
-enum NexaPermission { microphone, location, camera, notifications }
+/// `bluetooth`: Android 12+ `BLUETOOTH_CONNECT`, asked only when a
+/// Bluetooth headset is present during a call (hosts may answer `true` on
+/// platforms that need no permission).
+enum NexaPermission { microphone, location, camera, notifications, bluetooth }
 
 /// Error attached to an event.
 @freezed

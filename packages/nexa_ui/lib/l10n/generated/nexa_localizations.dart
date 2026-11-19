@@ -2605,6 +2605,48 @@ abstract class NexaLocalizations {
   /// In en, this message translates to:
   /// **'Jira'**
   String get tcToolJira;
+
+  /// No description provided for @voiceOutputSpeaker.
+  ///
+  /// In en, this message translates to:
+  /// **'Speaker'**
+  String get voiceOutputSpeaker;
+
+  /// No description provided for @voiceOutputEarpiece.
+  ///
+  /// In en, this message translates to:
+  /// **'Earpiece'**
+  String get voiceOutputEarpiece;
+
+  /// No description provided for @voiceOutputHeadset.
+  ///
+  /// In en, this message translates to:
+  /// **'Headset'**
+  String get voiceOutputHeadset;
+
+  /// No description provided for @voiceOutputSpeakerTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Speaker on. Tap to use the phone earpiece'**
+  String get voiceOutputSpeakerTooltip;
+
+  /// No description provided for @voiceOutputEarpieceTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Phone earpiece. Tap to use the speaker'**
+  String get voiceOutputEarpieceTooltip;
+
+  /// No description provided for @voiceOutputHeadsetTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Headset connected. Tap to change the phone output for when it is removed'**
+  String get voiceOutputHeadsetTooltip;
+
+  /// No description provided for @voicePhoneCallHold.
+  ///
+  /// In en, this message translates to:
+  /// **'Paused for a phone call'**
+  String get voicePhoneCallHold;
 }
 
 class _NexaLocalizationsDelegate

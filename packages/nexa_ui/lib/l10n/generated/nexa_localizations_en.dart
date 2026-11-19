@@ -1367,4 +1367,28 @@ class NexaLocalizationsEn extends NexaLocalizations {
 
   @override
   String get tcToolJira => 'Jira';
+
+  @override
+  String get voiceOutputSpeaker => 'Speaker';
+
+  @override
+  String get voiceOutputEarpiece => 'Earpiece';
+
+  @override
+  String get voiceOutputHeadset => 'Headset';
+
+  @override
+  String get voiceOutputSpeakerTooltip =>
+      'Speaker on. Tap to use the phone earpiece';
+
+  @override
+  String get voiceOutputEarpieceTooltip =>
+      'Phone earpiece. Tap to use the speaker';
+
+  @override
+  String get voiceOutputHeadsetTooltip =>
+      'Headset connected. Tap to change the phone output for when it is removed';
+
+  @override
+  String get voicePhoneCallHold => 'Paused for a phone call';
 }

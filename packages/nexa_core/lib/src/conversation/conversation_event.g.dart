@@ -440,6 +440,7 @@ const _$NexaPermissionEnumMap = {
   NexaPermission.location: 'location',
   NexaPermission.camera: 'camera',
   NexaPermission.notifications: 'notifications',
+  NexaPermission.bluetooth: 'bluetooth',
 };
 
 QuotaUpdatedEvent _$QuotaUpdatedEventFromJson(Map<String, dynamic> json) =>

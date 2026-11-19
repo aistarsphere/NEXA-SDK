@@ -103,6 +103,7 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.lazySingleton<_i1004.NexaVoiceController>(
       () => sdkModule.voiceController(
+        gh<_i480.NexaOverrides>(),
         gh<_i1027.SessionManager>(),
         gh<_i829.VoiceProvisioner>(),
         gh<_i829.RealtimeVoiceTransport>(),

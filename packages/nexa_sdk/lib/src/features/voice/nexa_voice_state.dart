@@ -68,6 +68,7 @@ final class NexaVoiceState {
     this.switchingVoice = false,
     this.interruptConfirmed = false,
     this.mutePending = false,
+    this.phoneCallHold = false,
   });
 
   /// The voice of this call as the gateway reported it at start (null when
@@ -98,6 +99,10 @@ final class NexaVoiceState {
   /// microphone stays open for a short, bounded grace so the server can
   /// close that turn, then closes. [muted] already reads true.
   final bool mutePending;
+
+  /// A phone call holds the audio: the microphone is off until it ends,
+  /// then the user's own mute choice applies again.
+  final bool phoneCallHold;
 
   /// True while a remote audio track from the assistant is subscribed, i.e.
   /// agent audio is actually being received and played by the engine.
@@ -142,6 +147,7 @@ final class NexaVoiceState {
     bool? switchingVoice,
     bool? interruptConfirmed,
     bool? mutePending,
+    bool? phoneCallHold,
   }) => NexaVoiceState(
     phase: phase ?? this.phase,
     muted: muted ?? this.muted,
@@ -159,6 +165,7 @@ final class NexaVoiceState {
     switchingVoice: switchingVoice ?? this.switchingVoice,
     interruptConfirmed: interruptConfirmed ?? this.interruptConfirmed,
     mutePending: mutePending ?? this.mutePending,
+    phoneCallHold: phoneCallHold ?? this.phoneCallHold,
   );
 }
 

@@ -12,11 +12,34 @@ import '../helpers.dart';
 
 final class _Permissions implements NexaPermissionHandler {
   bool grant = true;
+  bool grantBluetooth = true;
   int calls = 0;
+  final asked = <NexaPermission>[];
   @override
   Future<bool> request(NexaPermission permission) async {
+    asked.add(permission);
+    if (permission == NexaPermission.bluetooth) return grantBluetooth;
     calls++;
     return grant;
+  }
+}
+
+final class _AudioPlatform implements NexaCallAudioPlatform {
+  final facts = <String, Object?>{
+    'platform': 'android',
+    'mode': 'in_communication',
+    'route': 'speaker',
+    'phoneCall': false,
+    'bluetoothPresent': false,
+    'bluetoothPermissionNeeded': false,
+  };
+  int reasserts = 0;
+  @override
+  Future<Map<String, Object?>?> state() async => Map.of(facts);
+  @override
+  Future<String?> reassertCommunicationMode() async {
+    reasserts++;
+    return 'in_communication';
   }
 }
 
@@ -45,6 +68,7 @@ void main() {
   Future<NexaVoiceController> voice({
     NexaVoiceOptions options = const NexaVoiceOptions(),
     String lang = 'en',
+    NexaCallAudio? callAudio,
   }) async {
     client = await Nexa.initialize(
       config: testConfig(lang: lang),
@@ -54,6 +78,7 @@ void main() {
         voiceTransport: transport,
         voiceProvisioner: provisioner,
         permissionHandler: permissions,
+        callAudio: callAudio,
       ),
       voiceOptions: options,
     );
@@ -604,6 +629,140 @@ void main() {
       await phase(v, VoiceState.aiSpeaking);
       transport.emit(const RealtimeAssistantThinking());
       await phase(v, VoiceState.thinking);
+    });
+  });
+
+  group('call audio: phone calls and Bluetooth (T4, routing)', () {
+    late _AudioPlatform platform;
+    late List<bool> speaker;
+
+    NexaCallAudio audio() => NexaCallAudio(
+      platform: platform,
+      setSpeaker: (on) async => speaker.add(on),
+      readProcessing: () async => const {},
+      pollInterval: const Duration(hours: 1),
+    );
+
+    setUp(() {
+      platform = _AudioPlatform();
+      speaker = [];
+    });
+
+    test('a call starts on the loudspeaker; no Bluetooth prompt without a '
+        'headset', () async {
+      final v = await voice(callAudio: audio());
+      await v.start();
+      await phase(v, VoiceState.listening);
+      expect(speaker.first, isTrue);
+      expect(v.callAudio!.state.value.active, isTrue);
+      expect(permissions.asked, [NexaPermission.microphone]);
+    });
+
+    test('Bluetooth headset present without permission: asked once, a '
+        'refusal keeps the call going', () async {
+      platform.facts
+        ..['bluetoothPresent'] = true
+        ..['bluetoothPermissionNeeded'] = true;
+      permissions.grantBluetooth = false;
+      final v = await voice(callAudio: audio());
+      await v.start();
+      await phase(v, VoiceState.listening);
+      expect(permissions.asked, [
+        NexaPermission.microphone,
+        NexaPermission.bluetooth,
+      ]);
+      expect(transport.isMicrophoneEnabled, isTrue);
+      // A route change later in the same call does not ask again.
+      platform.facts['route'] = 'earpiece';
+      await v.callAudio!.refresh();
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      expect(
+        permissions.asked.where((p) => p == NexaPermission.bluetooth),
+        hasLength(1),
+      );
+    });
+
+    test('a headset connected mid-call asks then', () async {
+      final v = await voice(callAudio: audio());
+      await v.start();
+      await phase(v, VoiceState.listening);
+      platform.facts
+        ..['route'] = 'bluetooth'
+        ..['bluetoothPresent'] = true
+        ..['bluetoothPermissionNeeded'] = true;
+      await v.callAudio!.refresh();
+      await waitFor(
+        () => permissions.asked.contains(NexaPermission.bluetooth),
+        reason: 'asked when the headset appeared',
+      );
+    });
+
+    test('a phone call turns the microphone off; afterwards the mode is '
+        'reasserted and the mic comes back', () async {
+      final v = await voice(callAudio: audio());
+      await v.start();
+      await phase(v, VoiceState.listening);
+      platform.facts
+        ..['phoneCall'] = true
+        ..['mode'] = 'in_call';
+      await v.callAudio!.refresh();
+      await waitFor(() => !transport.isMicrophoneEnabled, reason: 'held');
+      expect(v.state.value.phoneCallHold, isTrue);
+      expect(v.state.value.muted, isFalse, reason: 'not a user mute');
+
+      platform.facts
+        ..['phoneCall'] = false
+        ..['mode'] = 'normal';
+      await v.callAudio!.refresh();
+      await waitFor(() => transport.isMicrophoneEnabled, reason: 'back');
+      expect(v.state.value.phoneCallHold, isFalse);
+      expect(platform.reasserts, 1);
+    });
+
+    test('a call muted before the phone call stays muted after it', () async {
+      final v = await voice(callAudio: audio());
+      await v.start();
+      await phase(v, VoiceState.listening);
+      await v.toggleMute();
+      await phase(v, VoiceState.muted);
+      platform.facts['phoneCall'] = true;
+      await v.callAudio!.refresh();
+      await waitFor(() => v.state.value.phoneCallHold, reason: 'held');
+      platform.facts['phoneCall'] = false;
+      await v.callAudio!.refresh();
+      await waitFor(() => !v.state.value.phoneCallHold, reason: 'released');
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      expect(transport.isMicrophoneEnabled, isFalse);
+      expect(v.state.value.muted, isTrue);
+    });
+
+    test(
+      'unmute during a phone call keeps the mic off until it ends',
+      () async {
+        final v = await voice(callAudio: audio());
+        await v.start();
+        await phase(v, VoiceState.listening);
+        await v.toggleMute();
+        await phase(v, VoiceState.muted);
+        platform.facts['phoneCall'] = true;
+        await v.callAudio!.refresh();
+        await waitFor(() => v.state.value.phoneCallHold, reason: 'held');
+        await v.toggleMute();
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+        expect(transport.isMicrophoneEnabled, isFalse);
+        platform.facts['phoneCall'] = false;
+        await v.callAudio!.refresh();
+        await waitFor(() => transport.isMicrophoneEnabled, reason: 'after');
+      },
+    );
+
+    test('ending the call stops call audio', () async {
+      final v = await voice(callAudio: audio());
+      await v.start();
+      await phase(v, VoiceState.listening);
+      await v.end();
+      await phase(v, VoiceState.ended);
+      await waitFor(() => !v.callAudio!.state.value.active, reason: 'inactive');
     });
   });
 

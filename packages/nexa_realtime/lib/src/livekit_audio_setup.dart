@@ -30,8 +30,11 @@ abstract final class LiveKitAudioSetup {
     typingNoiseDetection: true,
   );
 
-  /// Output options: loudspeaker on by default for a hands-free call.
-  static const AudioOutputOptions output = AudioOutputOptions(speakerOn: true);
+  /// Output options. No `speakerOn` here: LiveKit applies a room's
+  /// `speakerOn` on every new Room, which reset the user's earpiece choice
+  /// on each rejoin. The loudspeaker default and the user's choice are set
+  /// through `AudioManager` by `NexaCallAudio`.
+  static const AudioOutputOptions output = AudioOutputOptions();
 
   /// After joining a call's room and before enabling the microphone (iOS
   /// only; no-op elsewhere). Earlier, the native audio device module does

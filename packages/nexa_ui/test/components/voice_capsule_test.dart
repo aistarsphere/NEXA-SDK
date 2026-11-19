@@ -29,6 +29,9 @@ void main() {
     VoidCallback? onOpenSettings,
     Locale locale = const Locale('en'),
     bool reducedMotion = false,
+    NexaVoiceOutput? output,
+    VoidCallback? onToggleOutput,
+    bool phoneCallHold = false,
   }) => harness(
     SizedBox(
       width: 360,
@@ -46,11 +49,65 @@ void main() {
         onToggleMute: onToggleMute,
         onRetry: onRetry,
         onOpenSettings: onOpenSettings,
+        output: output,
+        onToggleOutput: onToggleOutput,
+        phoneCallHold: phoneCallHold,
       ),
     ),
     locale: locale,
     reducedMotion: reducedMotion,
   );
+
+  group('call output and phone calls', () {
+    testWidgets('the output button is shown in a call and toggles', (
+      tester,
+    ) async {
+      var taps = 0;
+      await tester.pumpWidget(
+        capsule(
+          state: VoiceState.listening,
+          output: NexaVoiceOutput.speaker,
+          onToggleOutput: () => taps++,
+        ),
+      );
+      await tester.pumpAndSettle();
+      final button = find.byKey(const Key('nexa_voice_output'));
+      expect(button, findsOneWidget);
+      expect(find.byIcon(Icons.volume_up_rounded), findsOneWidget);
+      await tester.tap(button);
+      expect(taps, 1);
+
+      await tester.pumpWidget(
+        capsule(
+          state: VoiceState.listening,
+          output: NexaVoiceOutput.earpiece,
+          onToggleOutput: () {},
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byIcon(Icons.phone_in_talk_rounded), findsOneWidget);
+    });
+
+    testWidgets('no output button without call audio', (tester) async {
+      await tester.pumpWidget(capsule(state: VoiceState.listening));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('nexa_voice_output')), findsNothing);
+    });
+
+    testWidgets('a phone call replaces the state label (Arabic)', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        capsule(
+          state: VoiceState.listening,
+          phoneCallHold: true,
+          locale: const Locale('ar'),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('متوقف بسبب مكالمة هاتفية'), findsOneWidget);
+    });
+  });
 
   group('error banners say what happened', () {
     testWidgets('a rate limit is named, not "something went wrong"', (

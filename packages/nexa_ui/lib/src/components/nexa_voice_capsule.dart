@@ -20,6 +20,10 @@ import 'package:nexa_ui/src/theme/nexa_motion.dart';
 /// and agent events), never from timers inside this widget. Bars move only
 /// in speaking states and stay still under reduced motion, where the text
 /// label carries the state.
+/// Where the call is heard, for the output button: the user's choice
+/// (loudspeaker / earpiece) or a connected headset, which takes priority.
+enum NexaVoiceOutput { speaker, earpiece, headset }
+
 class NexaVoiceCapsule extends StatefulWidget {
   const NexaVoiceCapsule({
     required this.state,
@@ -36,10 +40,22 @@ class NexaVoiceCapsule extends StatefulWidget {
     this.onToggleMute,
     this.onRetry,
     this.onOpenSettings,
+    this.output,
+    this.onToggleOutput,
+    this.phoneCallHold = false,
     super.key,
   });
 
   final VoiceState state;
+
+  /// Current output; null hides the output button.
+  final NexaVoiceOutput? output;
+
+  /// Switches loudspeaker ⇄ earpiece.
+  final VoidCallback? onToggleOutput;
+
+  /// A phone call holds the audio; the label says so.
+  final bool phoneCallHold;
   final List<VoiceTranscriptEntry> transcript;
   final bool muted;
 
@@ -241,6 +257,9 @@ class _NexaVoiceCapsuleState extends State<NexaVoiceCapsule> {
             onEnd: widget.onEnd,
             onToggleMute: widget.onToggleMute,
             onToggleCaptions: () => setState(() => _captions = !_captions),
+            output: widget.output,
+            onToggleOutput: widget.onToggleOutput,
+            phoneCallHold: widget.phoneCallHold,
           ),
         ],
       ),
@@ -384,8 +403,14 @@ class _Panel extends StatelessWidget {
     this.onStart,
     this.onEnd,
     this.onToggleMute,
+    this.output,
+    this.onToggleOutput,
+    this.phoneCallHold = false,
   });
 
+  final NexaVoiceOutput? output;
+  final VoidCallback? onToggleOutput;
+  final bool phoneCallHold;
   final bool interruptConfirmed;
   final String? toolLabel;
   final VoiceState state;
@@ -411,7 +436,9 @@ class _Panel extends StatelessWidget {
         state != VoiceState.aiSpeaking &&
         state != VoiceState.userSpeaking &&
         state != VoiceState.bargeIn;
-    final label = showTool
+    final label = phoneCallHold && inCall
+        ? l10n.voicePhoneCallHold
+        : showTool
         ? toolLabel!
         : NexaVoiceCapsule.voiceStateLabel(
             l10n,
@@ -535,6 +562,8 @@ class _Panel extends StatelessWidget {
                 onEnd: onEnd,
                 onToggleMute: onToggleMute,
                 onToggleCaptions: onToggleCaptions,
+                output: output,
+                onToggleOutput: onToggleOutput,
               ),
             ],
           ),
@@ -602,7 +631,11 @@ class _Controls extends StatelessWidget {
     this.onStart,
     this.onEnd,
     this.onToggleMute,
+    this.output,
+    this.onToggleOutput,
   });
+  final NexaVoiceOutput? output;
+  final VoidCallback? onToggleOutput;
   final bool inCall;
   final bool canMute;
   final bool muted;
@@ -650,6 +683,18 @@ class _Controls extends StatelessWidget {
             icon: Icon(muted ? Icons.mic_off_rounded : Icons.mic_rounded),
           ),
           const SizedBox(width: 12),
+          if (output case final out?) ...[
+            IconButton(
+              key: const Key('nexa_voice_output'),
+              tooltip: nexaVoiceOutputTooltip(l10n, out),
+              isSelected: out == NexaVoiceOutput.speaker,
+              onPressed: onToggleOutput,
+              iconSize: 24,
+              style: round,
+              icon: Icon(nexaVoiceOutputIcon(out)),
+            ),
+            const SizedBox(width: 12),
+          ],
         ],
         IconButton(
           key: const Key('nexa_voice_captions'),
@@ -1085,3 +1130,26 @@ class _VoicePillState extends State<_VoicePill> with TickerProviderStateMixin {
     }
   }
 }
+
+/// Icon of the output button (also used by the compact panel).
+IconData nexaVoiceOutputIcon(NexaVoiceOutput output) => switch (output) {
+  NexaVoiceOutput.speaker => Icons.volume_up_rounded,
+  NexaVoiceOutput.earpiece => Icons.phone_in_talk_rounded,
+  NexaVoiceOutput.headset => Icons.headset_rounded,
+};
+
+/// Says what the output is now and what a tap does.
+String nexaVoiceOutputTooltip(NexaLocalizations l10n, NexaVoiceOutput output) =>
+    switch (output) {
+      NexaVoiceOutput.speaker => l10n.voiceOutputSpeakerTooltip,
+      NexaVoiceOutput.earpiece => l10n.voiceOutputEarpieceTooltip,
+      NexaVoiceOutput.headset => l10n.voiceOutputHeadsetTooltip,
+    };
+
+/// Short label of the output button (compact panel).
+String nexaVoiceOutputLabel(NexaLocalizations l10n, NexaVoiceOutput output) =>
+    switch (output) {
+      NexaVoiceOutput.speaker => l10n.voiceOutputSpeaker,
+      NexaVoiceOutput.earpiece => l10n.voiceOutputEarpiece,
+      NexaVoiceOutput.headset => l10n.voiceOutputHeadset,
+    };

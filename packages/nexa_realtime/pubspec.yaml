@@ -18,3 +18,13 @@ dev_dependencies:
   flutter_lints: ^6.0.0
   flutter_test:
     sdk: flutter
+
+# Read-only audio session facts for calls (mode, route, phone call).
+flutter:
+  plugin:
+    platforms:
+      android:
+        package: com.nexa.realtime
+        pluginClass: NexaRealtimePlugin
+      ios:
+        pluginClass: NexaRealtimePlugin

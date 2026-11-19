@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:clock/clock.dart';
 import 'package:flutter/foundation.dart';
 import 'package:nexa_core/nexa_core.dart';
+import 'package:nexa_realtime/nexa_realtime.dart';
 import 'package:nexa_sdk/src/features/voice/nexa_voice_state.dart';
 import 'package:nexa_sdk/src/permissions/nexa_permission_handler.dart';
 import 'package:nexa_sdk/src/session/session_manager.dart';
@@ -41,14 +42,23 @@ final class NexaVoiceController {
     NexaDiagnostics diagnostics = const NoopNexaDiagnostics(),
     NexaVoiceOptions options = const NexaVoiceOptions(),
     String languageTag = 'en',
+    NexaCallAudio? callAudio,
   }) : _diagnostics = diagnostics,
+       _callAudio = callAudio,
        _sessions = sessions,
        _provisioner = provisioner,
        _transport = transport,
        _permissions = permissions,
        _logger = logger,
        _options = options,
-       _languageTag = languageTag;
+       _languageTag = languageTag {
+    final audio = callAudio;
+    if (audio != null) {
+      _audioSubs
+        ..add(audio.phoneCallChanges.listen(_onPhoneCall))
+        ..add(audio.changes.listen((_) => _onAudioChanged()));
+    }
+  }
 
   /// Extra time after `max_seconds` before the client ends the call itself
   /// (the server normally ends it first with `quota_exceeded`).
@@ -61,6 +71,10 @@ final class NexaVoiceController {
   final NexaLogger _logger;
   final NexaDiagnostics _diagnostics;
   final NexaVoiceOptions _options;
+  final NexaCallAudio? _callAudio;
+  final List<StreamSubscription<Object?>> _audioSubs = [];
+  bool _phoneHold = false;
+  bool _bluetoothAsked = false;
   final VoiceSessionMachine _machine = const VoiceSessionMachine();
 
   final ValueNotifier<NexaVoiceState> _state = ValueNotifier(
@@ -114,6 +128,10 @@ final class NexaVoiceController {
 
   /// Audio-quality counters of the current call (QA / debug panel).
   ValueListenable<NexaVoiceCallStats> get stats => _stats;
+
+  /// Route choice (loudspeaker / earpiece) and the platform audio state;
+  /// null when the transport is not LiveKit (tests, mocks).
+  NexaCallAudio? get callAudio => _callAudio;
 
   /// Typed event stream for hosts (analytics, custom UI).
   Stream<NexaVoiceEvent> get events => _events.stream;
@@ -194,6 +212,7 @@ final class NexaVoiceController {
       ),
     );
     _stats.value = const NexaVoiceCallStats();
+    _bluetoothAsked = false;
     _diagnostics.record('voice.start', {
       'language': _languageTag,
       'muted': _options.startMuted,
@@ -333,6 +352,48 @@ final class NexaVoiceController {
     }
   }
 
+  /// A phone call took the audio (true) or ended (false). The microphone is
+  /// off during it whatever the mute button says; afterwards the user's
+  /// choice applies again and the communication mode is restored.
+  Future<void> _onPhoneCall(bool active) async {
+    if (_disposed || _phoneHold == active) return;
+    _phoneHold = active;
+    _set(_state.value.copyWith(phoneCallHold: active));
+    _diagnostics.record('voice.phone_hold', {'active': active});
+    if (!_state.value.isActive) return;
+    if (active) {
+      await _setMic(false);
+      return;
+    }
+    await _callAudio?.recoverAfterPhoneCall();
+    if (_disposed || !_state.value.isActive || _phoneHold) return;
+    await _setMic(!_state.value.muted);
+  }
+
+  void _onAudioChanged() {
+    if (_state.value.isActive) unawaited(_askBluetoothIfNeeded());
+  }
+
+  /// Android 12+: a Bluetooth headset is usable only with BLUETOOTH_CONNECT.
+  /// Asked only when a headset is actually present, once per call; a
+  /// refusal changes nothing (the call stays on the phone).
+  Future<void> _askBluetoothIfNeeded() async {
+    final audio = _callAudio;
+    if (audio == null || _bluetoothAsked) return;
+    await audio.refresh();
+    final s = audio.state.value;
+    if (!s.bluetoothPresent || !s.bluetoothPermissionNeeded) return;
+    _bluetoothAsked = true;
+    bool granted;
+    try {
+      granted = await _permissions.request(NexaPermission.bluetooth);
+    } on Object {
+      granted = false;
+    }
+    _diagnostics.record('voice.bluetooth_permission', {'granted': granted});
+    await audio.refresh();
+  }
+
   /// Toggles the published microphone and records how long the engine took
   /// (the unmute budget is 1 s; the first unmute of a call that started
   /// muted also publishes the track and is the slow case).
@@ -355,6 +416,10 @@ final class NexaVoiceController {
     _backgroundTimer?.cancel();
     _capTimer?.cancel();
     await _subscription?.cancel();
+    for (final sub in _audioSubs) {
+      await sub.cancel();
+    }
+    await _callAudio?.dispose();
     await _events.close();
     await _toolEvents.close();
     _state.dispose();
@@ -427,6 +492,7 @@ final class NexaVoiceController {
             'granted': granted,
             'ms': watch.elapsedMilliseconds,
           });
+          if (granted) await _askBluetoothIfNeeded();
           _dispatch(VoicePermissionResult(granted: granted));
         case ConnectTransport():
           try {
@@ -441,7 +507,7 @@ final class NexaVoiceController {
             rethrow;
           }
         case StartCapture():
-          await _timedMic(!_state.value.muted);
+          await _timedMic(!_state.value.muted && !_phoneHold);
           if (_state.value.muted) {
             _dispatch(const VoiceMuteToggled(muted: true));
           }
@@ -460,7 +526,7 @@ final class NexaVoiceController {
             _startMuteGrace();
           } else {
             _cancelMuteGrace();
-            await _setMic(!muted);
+            await _setMic(!muted && !_phoneHold);
           }
         case StartPlayback():
         case StopPlayback():
@@ -572,7 +638,9 @@ final class NexaVoiceController {
     _armCapBackstop(grant);
     await _subscription?.cancel();
     _subscription = _transport.events.listen(_onTransportEvent);
+    await _callAudio?.beginCall();
     await _transport.connect(grant);
+    unawaited(_callAudio?.afterConnect());
   }
 
   void _armCapBackstop(VoiceGrant grant) {
@@ -831,6 +899,7 @@ final class NexaVoiceController {
       if (_state.value.phase != VoiceState.reconnecting) return;
       _grant = fresh;
       await _transport.connect(fresh); // handshake → RealtimeConnected
+      unawaited(_callAudio?.afterConnect());
       outcome = 'rejoined';
     } on NexaException catch (e) {
       outcome = 'failed:${e.code.name}';
@@ -1028,7 +1097,15 @@ final class NexaVoiceController {
       } on Object catch (e) {
         _logger.log(NexaLogLevel.debug, 'voice disconnect: $e');
       }
-      _set(_state.value.copyWith(agentPresent: false, agentAudioActive: false));
+      await _callAudio?.endCall();
+      _phoneHold = false;
+      _set(
+        _state.value.copyWith(
+          agentPresent: false,
+          agentAudioActive: false,
+          phoneCallHold: false,
+        ),
+      );
       _diagnostics.record('voice.teardown_done', {
         'voice_session_id': id,
         'ms': watch.elapsedMilliseconds,

@@ -58,7 +58,12 @@ void main() {
       expect(options.dynacast, isFalse);
       expect(options.defaultAudioCaptureOptions.echoCancellation, isTrue);
       expect(options.defaultAudioCaptureOptions.noiseSuppression, isTrue);
-      expect(options.defaultAudioOutputOptions.speakerOn, isTrue);
+      expect(options.defaultAudioCaptureOptions.autoGainControl, isTrue);
+      expect(
+        options.defaultAudioOutputOptions.speakerOn,
+        isNull,
+        reason: 'a per-room speakerOn resets the user choice on rejoin',
+      );
     });
   });
 

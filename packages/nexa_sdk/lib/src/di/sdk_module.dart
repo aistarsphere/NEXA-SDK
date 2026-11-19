@@ -137,6 +137,7 @@ abstract class SdkModule {
 
   @lazySingleton
   NexaVoiceController voiceController(
+    NexaOverrides overrides,
     SessionManager sessions,
     VoiceProvisioner provisioner,
     RealtimeVoiceTransport transport,
@@ -154,6 +155,13 @@ abstract class SdkModule {
     diagnostics: diagnostics,
     options: options,
     languageTag: config.languageTag,
+    // Platform call audio (route choice, phone calls) only with the real
+    // LiveKit transport; mocks have no audio session.
+    callAudio:
+        overrides.callAudio ??
+        (transport is LiveKitVoiceTransport
+            ? NexaCallAudio(diagnostics: diagnostics)
+            : null),
   );
 
   static void _warnOverride(NexaConfig config, NexaLogger logger, String what) {
