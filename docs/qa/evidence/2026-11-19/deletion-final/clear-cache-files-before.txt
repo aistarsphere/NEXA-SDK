@@ -1,0 +1,11 @@
+9c508942 app_flutter/nexa_qa/index.jsonl
+37f96412 app_flutter/nexa_qa/records/qa_20261119-110707_chat_1dae.jsonl
+a0b6f3f4 app_flutter/nexa_qa/records/qa_20261119-110819_chat_c651.jsonl
+740d9abd cache/picked/qa.pdf
+0e3a5e82 cache/qa_tmp_capture.jpg
+7e563910 files/history_37a8eec1.json
+c077c45d files/installation_id
+3de2d299 files/labeeb_theme.json
+1594720b files/nexa_media/att_qa_orphan.png
+d49b5ae9 no_backup/nexa_assistant/voice_profile.bin
+e1911322 shared_prefs/nexa_assistant.xml

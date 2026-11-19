@@ -30,6 +30,11 @@ android {
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "com.nexa.nexa_example"
+        // QA only: NEXA_APP_ID_SUFFIX=.qa installs a second, separate app
+        // (own data) next to the real one, for destructive tests.
+        System.getenv("NEXA_APP_ID_SUFFIX")?.takeIf { it.isNotBlank() }?.let {
+            applicationIdSuffix = it
+        }
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion

@@ -648,6 +648,11 @@ class NexaLocalizationsAr extends NexaLocalizations {
       'تُحذف كل المحادثات والمكالمات في سجلك من هذا الجهاز ومن الخدمة. لا يمكن التراجع عن ذلك.';
 
   @override
+  String deletionQuestion(String title) {
+    return '$title؟';
+  }
+
+  @override
   String get scopeNoteDefault => 'لا يمكن استرجاع ما تمت مشاركته خارج التطبيق.';
 
   @override

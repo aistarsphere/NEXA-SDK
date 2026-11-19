@@ -651,6 +651,11 @@ class NexaLocalizationsEn extends NexaLocalizations {
       'Every chat and call in your history is deleted from this device and from the service. This can\'t be undone.';
 
   @override
+  String deletionQuestion(String title) {
+    return '$title?';
+  }
+
+  @override
   String get scopeNoteDefault =>
       'Items already shared outside the app are not recalled.';
 

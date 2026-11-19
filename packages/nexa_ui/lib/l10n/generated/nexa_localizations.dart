@@ -1286,6 +1286,12 @@ abstract class NexaLocalizations {
   /// **'Every chat and call in your history is deleted from this device and from the service. This can\'t be undone.'**
   String get scopeNoteAllConversations;
 
+  /// No description provided for @deletionQuestion.
+  ///
+  /// In en, this message translates to:
+  /// **'{title}?'**
+  String deletionQuestion(String title);
+
   /// No description provided for @scopeNoteDefault.
   ///
   /// In en, this message translates to:

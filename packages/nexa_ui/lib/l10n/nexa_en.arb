@@ -299,6 +299,8 @@
   "scopeNoteLocalCache": "Only data cached on this device. History on the server is not affected.",
   "scopeNoteEverything": "The request is sent to the service. Billing and security audit records are kept as its retention policy requires.",
   "scopeNoteAllConversations": "Every chat and call in your history is deleted from this device and from the service. This can't be undone.",
+  "deletionQuestion": "{title}?",
+  "@deletionQuestion": {"placeholders": {"title": {"type": "String"}}},
   "scopeNoteDefault": "Items already shared outside the app are not recalled.",
   "scopeServerUnavailable": "On the server: not available yet",
   "deletionLocalDone": "Removed from this device",

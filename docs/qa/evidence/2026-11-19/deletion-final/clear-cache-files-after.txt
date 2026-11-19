@@ -1,0 +1,5 @@
+d41d8cd9 app_flutter/nexa_qa/index.jsonl
+c077c45d files/installation_id
+3de2d299 files/labeeb_theme.json
+d49b5ae9 no_backup/nexa_assistant/voice_profile.bin
+e1911322 shared_prefs/nexa_assistant.xml

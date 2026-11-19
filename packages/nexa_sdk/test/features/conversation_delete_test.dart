@@ -197,13 +197,14 @@ void main() {
     late NexaHistoryController history;
     late List<String> deleted;
 
-    Widget app(_Server server) {
+    Widget app(_Server server, {Locale? locale}) {
       history = NexaHistoryController(
         NexaHistoryOptions(cache: InMemoryHistoryStore(), server: server),
       );
       addTearDown(history.dispose);
       deleted = [];
       return MaterialApp(
+        locale: locale,
         localizationsDelegates: NexaLocale.delegates,
         supportedLocales: NexaLocale.supported,
         home: NexaConversationListPage(
@@ -276,6 +277,20 @@ void main() {
       expect(deleted, ['conv_1']);
       expect(find.byKey(const Key('nexa_list_conv_1')), findsNothing);
       expect(find.byKey(const Key('nexa_list_conv_2')), findsOneWidget);
+    });
+
+    testWidgets('Arabic: the question ends with the Arabic question mark', (
+      tester,
+    ) async {
+      await tester.pumpWidget(app(_Server(1), locale: const Locale('ar')));
+      await tester.pumpAndSettle();
+      await tester.longPress(find.byKey(const Key('nexa_list_conv_1')));
+      await tester.pumpAndSettle();
+      final title = tester
+          .widget<Text>(find.byKey(const Key('nexa_deletion_title')))
+          .data!;
+      expect(title, endsWith('؟'));
+      expect(title, isNot(contains('?')));
     });
 
     testWidgets('long press opens the same confirmation', (tester) async {

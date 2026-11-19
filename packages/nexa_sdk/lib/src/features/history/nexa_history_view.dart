@@ -677,7 +677,11 @@ class _DeletionSheetState extends State<_DeletionSheet> {
                 ),
                 const SizedBox(width: 10),
                 Expanded(
-                  child: Text('$title?', style: theme.textTheme.titleLarge),
+                  child: Text(
+                    l10n.deletionQuestion(title),
+                    key: const Key('nexa_deletion_title'),
+                    style: theme.textTheme.titleLarge,
+                  ),
                 ),
               ],
             ),
