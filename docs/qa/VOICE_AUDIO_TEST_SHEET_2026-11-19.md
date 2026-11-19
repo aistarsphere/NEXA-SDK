@@ -39,7 +39,7 @@ The device list was not given (the answer was a placeholder). Fill these in:
 | Slot | Model | OS | Notes |
 |---|---|---|---|
 | Low-end Android | | | |
-| Mid/high Android | | | |
+| Mid/high Android | nubia NX679J (adb bf5c6761) | Android 13 | Smoke check 2026-11-19: panel values real (see `docs/qa/evidence/2026-11-19/voice-audio/nubia-NX679J/`). T1–T6 not run yet. |
 | iPhone | | | |
 
 Routes for each device: **speaker**, **earpiece**, **wired headset**, **Bluetooth headset**.
@@ -110,12 +110,17 @@ cut by Mute may be joined with the next one after Unmute. Note it if seen; it is
    * The label must say "Paused for a phone call" and `mic sending` = false.
    * Answer, talk 10 s, hang up. Check that `phone call hold` = false, `mode (actual)` is back to `in_communication`, and the mic is back unless the user had muted before.
    * Repeat once while already muted. It must stay muted after the phone call.
+   * Android: have someone call the test phone on **WhatsApp** (or another VoIP app) during the call. Check that
+     the label reads "Paused: another app is using the audio", `hold` = otherApp, `focus` = lost/lost_transient,
+     and `mic sending` = false. After it ends, the mic comes back by itself, or a **Resume** button appears;
+     tapping it must bring the mic back.
 2. **Background / foreground:** press Home for 10 s, then return. The call should continue, or it ends cleanly after the 25 s background grace if nothing holds it. Check that the UI matches the mic state.
 3. **Network drop 10 s:** turn on airplane mode for 10 s, then off. The call recovers (reconnecting → listening) or ends with a clear message. Check that `muted (user)` and `mic sending` match the UI afterwards.
 
 | Device | Case | Result | UI matches mic? | Pass/Fail |
 |---|---|---|---|---|
 | | incoming phone call | | | NOT TESTED |
+| | WhatsApp (or other VoIP) call during the call: label "Paused: another app is using the audio", mic off; after it ends the mic is back (or Resume shown and works) | | | NOT TESTED |
 | | phone call while muted | | | NOT TESTED |
 | | background 10 s | | | NOT TESTED |
 | | network drop 10 s | | | NOT TESTED |

@@ -149,17 +149,21 @@ class _Panel extends StatelessWidget {
         borderRadius: BorderRadius.circular(8),
         child: Padding(
           padding: const EdgeInsets.all(8),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 260),
-            child: open
-                ? Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      for (final (k, v) in rows) Text('$k: $v', style: style),
-                    ],
-                  )
-                : Text('audio debug', style: style),
+          child: Directionality(
+            textDirection: TextDirection.ltr,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 260),
+              // Values are English/ASCII: keep them left-to-right in Arabic.
+              child: open
+                  ? Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        for (final (k, v) in rows) Text('$k: $v', style: style),
+                      ],
+                    )
+                  : Text('audio debug', style: style),
+            ),
           ),
         ),
       ),
