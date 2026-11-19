@@ -64,6 +64,40 @@ final class NexaCallAudioState {
   /// applied by the engine (`platform`, `software`, `disabled`, ...).
   final Map<String, String> processing;
 
+  @override
+  bool operator ==(Object other) =>
+      other is NexaCallAudioState &&
+      other.active == active &&
+      other.speakerPreferred == speakerPreferred &&
+      other.route == route &&
+      other.mode == mode &&
+      other.requestedMode == requestedMode &&
+      other.phoneCall == phoneCall &&
+      other.bluetoothPresent == bluetoothPresent &&
+      other.bluetoothPermissionNeeded == bluetoothPermissionNeeded &&
+      other.platform == platform &&
+      other.osVersion == osVersion &&
+      other.model == model &&
+      mapEquals(other.processing, processing);
+
+  @override
+  int get hashCode => Object.hash(
+    active,
+    speakerPreferred,
+    route,
+    mode,
+    requestedMode,
+    phoneCall,
+    bluetoothPresent,
+    bluetoothPermissionNeeded,
+    platform,
+    osVersion,
+    model,
+    Object.hashAllUnordered(
+      processing.entries.map((e) => '${e.key}=${e.value}'),
+    ),
+  );
+
   bool get headset =>
       route == NexaAudioRoute.wired ||
       route == NexaAudioRoute.bluetooth ||

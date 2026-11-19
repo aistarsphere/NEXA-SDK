@@ -224,6 +224,7 @@ final class NexaVoiceController {
     );
     _stats.value = const NexaVoiceCallStats();
     _bluetoothAsked = false;
+    _callAudioOff(); // nothing from a previous call carries over
     _diagnostics.record('voice.start', {
       'language': _languageTag,
       'muted': _options.startMuted,
@@ -369,6 +370,7 @@ final class NexaVoiceController {
   /// choice applies again and the communication mode is restored.
   Future<void> _onPhoneCall(bool active) async {
     if (_disposed || _phoneHold == active) return;
+    if (!_options.holdOnPhoneCall) return;
     _phoneHold = active;
     _set(_state.value.copyWith(phoneCallHold: active));
     _diagnostics.record('voice.phone_hold', {'active': active});
@@ -389,6 +391,19 @@ final class NexaVoiceController {
   }
 
   String _micOffReason() => _phoneHold ? 'phone_call' : 'mute';
+
+  /// The call is over (any path): stop polling platform audio, forget the
+  /// agent's signal configuration and any phone-call hold.
+  void _callAudioOff() {
+    if (_callAudio?.state.value.active ?? false) {
+      unawaited(_callAudio!.endCall());
+    }
+    _signals.reset();
+    if (_phoneHold) {
+      _phoneHold = false;
+      _set(_state.value.copyWith(phoneCallHold: false));
+    }
+  }
 
   /// Client info for the server's call trace (no content): which app and
   /// device, the route, mute and phone-call state. Sent on agent_ready and
@@ -427,7 +442,9 @@ final class NexaVoiceController {
     _bluetoothAsked = true;
     bool granted;
     try {
-      granted = await _permissions.request(NexaPermission.bluetooth);
+      granted = await _permissions
+          .request(NexaPermission.bluetooth)
+          .timeout(const Duration(seconds: 30), onTimeout: () => false);
     } on Object {
       granted = false;
     }
@@ -509,6 +526,7 @@ final class NexaVoiceController {
           interruptConfirmed: false,
         ),
       );
+      if (!_state.value.isActive) _callAudioOff();
       _emit(
         NexaVoicePhaseChanged(clock.now(), from: before, to: transition.state),
       );
@@ -747,7 +765,9 @@ final class NexaVoiceController {
         _set(_state.value.copyWith(agentPresent: true));
         _signals.configure(capabilities);
         _sendClientInfo();
-        if (!_transport.isMicrophoneEnabled) {
+        // Only a deliberate off state; the mic may simply not be started
+        // yet when agent_ready arrives.
+        if (_state.value.muted || _phoneHold) {
           _signals.listening(listening: false, reason: _micOffReason());
         }
       case RealtimeAgentAudioTrack(:final subscribed):
@@ -1150,16 +1170,8 @@ final class NexaVoiceController {
       } on Object catch (e) {
         _logger.log(NexaLogLevel.debug, 'voice disconnect: $e');
       }
-      await _callAudio?.endCall();
-      _signals.reset();
-      _phoneHold = false;
-      _set(
-        _state.value.copyWith(
-          agentPresent: false,
-          agentAudioActive: false,
-          phoneCallHold: false,
-        ),
-      );
+      _callAudioOff();
+      _set(_state.value.copyWith(agentPresent: false, agentAudioActive: false));
       _diagnostics.record('voice.teardown_done', {
         'voice_session_id': id,
         'ms': watch.elapsedMilliseconds,

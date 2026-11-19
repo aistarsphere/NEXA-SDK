@@ -756,6 +756,67 @@ void main() {
       },
     );
 
+    test('the earpiece choice survives a full rejoin', () async {
+      final v = await voice(callAudio: audio());
+      await v.start();
+      await phase(v, VoiceState.listening);
+      await v.callAudio!.setSpeakerPreferred(false);
+      transport.simulateRoomDeleted();
+      await waitFor(() => transport.grants.length == 2, reason: 'rejoined');
+      await phase(v, VoiceState.listening);
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      expect(v.callAudio!.state.value.active, isTrue);
+      expect(v.callAudio!.state.value.speakerPreferred, isFalse);
+      expect(speaker.last, isFalse);
+    });
+
+    test('a call ended by the server stops call audio and the hold', () async {
+      final v = await voice(callAudio: audio());
+      await v.start();
+      await phase(v, VoiceState.listening);
+      platform.facts['phoneCall'] = true;
+      await v.callAudio!.refresh();
+      await waitFor(() => v.state.value.phoneCallHold, reason: 'held');
+      transport.emit(const RealtimeSessionEnding('server_ended'));
+      await waitFor(
+        () => !v.state.value.isActive,
+        reason: 'ended by the server',
+      );
+      await waitFor(
+        () => !v.callAudio!.state.value.active,
+        reason: 'call audio off',
+      );
+      expect(v.state.value.phoneCallHold, isFalse);
+    });
+
+    test('holdOnPhoneCall off leaves phone calls to the OS', () async {
+      final v = await voice(
+        callAudio: audio(),
+        options: const NexaVoiceOptions(holdOnPhoneCall: false),
+      );
+      await v.start();
+      await phase(v, VoiceState.listening);
+      platform.facts['phoneCall'] = true;
+      await v.callAudio!.refresh();
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      expect(v.state.value.phoneCallHold, isFalse);
+      expect(transport.isMicrophoneEnabled, isTrue);
+    });
+
+    test('polling without a change does not notify listeners', () async {
+      final v = await voice(callAudio: audio());
+      await v.start();
+      await phase(v, VoiceState.listening);
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      var notified = 0;
+      void count() => notified++;
+      v.callAudio!.state.addListener(count);
+      await v.callAudio!.refresh();
+      await v.callAudio!.refresh();
+      v.callAudio!.state.removeListener(count);
+      expect(notified, 0);
+    });
+
     test('ending the call stops call audio', () async {
       final v = await voice(callAudio: audio());
       await v.start();

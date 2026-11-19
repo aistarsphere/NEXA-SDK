@@ -229,6 +229,7 @@ final class NexaVoiceOptions {
     this.restartOnVoiceActivation = true,
     this.muteGrace = Duration.zero,
     this.backgroundGrace = const Duration(seconds: 25),
+    this.holdOnPhoneCall = true,
     this.postCallReconcileDelays = const [
       Duration(milliseconds: 500),
       Duration(milliseconds: 2500),
@@ -253,6 +254,11 @@ final class NexaVoiceOptions {
   /// deliberately. Shorter than the server's reconnect grace (30 s) so the
   /// server is not left to its idle timeout.
   final Duration backgroundGrace;
+
+  /// Turn the microphone off while a phone call holds the audio (detected
+  /// from the platform audio mode on Android, CallKit on iOS) and back on
+  /// afterwards. Off: phone calls are left to the OS.
+  final bool holdOnPhoneCall;
 
   /// After a call ends the open chat refetches the conversation at each of
   /// these delays, so the spoken turns the gateway recorded show up (the

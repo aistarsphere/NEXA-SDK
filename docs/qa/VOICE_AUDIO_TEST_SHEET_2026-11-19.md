@@ -29,6 +29,10 @@ For the human tester. One copy of the tables per device. Nothing here has been r
 
 **T1 is scored from server events (the two counters), not from what the tester hears.**
 
+**Stop rule:** if the panel shows `mode (actual): n/a` or `route: unknown` during a call, stop and report it.
+The native part did not answer, and a broken plugin looks the same as "unknown". Do not score anything on that
+device until it is fixed.
+
 ## Devices
 The device list was not given (the answer was a placeholder). Fill these in:
 
@@ -70,7 +74,7 @@ For each route:
 2. Talk loudly and make noise (clap, knock on the table) for 15 s.
 3. Check that `speech starts (server)` did not increase and the agent did not answer or react.
 4. Tap **Unmute** and speak at once. Read `last unmute`. The agent should hear you normally.
-5. Repeat once with a call that **starts muted**, if the build has that option. The first unmute also publishes the track (the slow case).
+5. (The app has no "start the call muted" setting, so that case is covered by unit tests only.)
 
 **Pass:** no server speech starts and no reaction while muted; `last unmute` ≤ 1000 ms; normal behaviour after unmute.
 
@@ -117,6 +121,9 @@ cut by Mute may be joined with the next one after Unmute. Note it if seen; it is
 | | network drop 10 s | | | NOT TESTED |
 
 ## T5 — Performance (low-end Android)
+Use a **profile** build (`flutter build apk --profile`, dev token from the secrets file). Debug builds are slow
+and do not measure performance. The panel is not needed; this test uses adb only.
+
 1. Start a **10-minute** call on the speaker with normal conversation.
 2. In parallel, record from a computer: `adb shell top -b -d 5 -n 120 | grep nexa > top.txt` and
    `adb shell dumpsys meminfo com.nexa.nexa_example` at minutes 0, 5 and 10. Optionally also

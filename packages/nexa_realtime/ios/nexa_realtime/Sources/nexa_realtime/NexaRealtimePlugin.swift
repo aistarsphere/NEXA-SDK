@@ -8,8 +8,11 @@ import UIKit
 /// CallKit call) holds the audio. LiveKit owns the session; nothing here
 /// changes it. No audio and no permissions.
 public class NexaRealtimePlugin: NSObject, FlutterPlugin {
+  // Phone calls come only from CallKit's observer: it clears itself when a
+  // call ends. (An audio-session interruption flag was not used: iOS does
+  // not guarantee the matching "ended" notification, so it could stick and
+  // keep the microphone off for the rest of the call.)
   private let callObserver = CXCallObserver()
-  private var interrupted = false
 
   public static func register(with registrar: FlutterPluginRegistrar) {
     let channel = FlutterMethodChannel(
@@ -18,19 +21,6 @@ public class NexaRealtimePlugin: NSObject, FlutterPlugin {
     )
     let instance = NexaRealtimePlugin()
     registrar.addMethodCallDelegate(instance, channel: channel)
-    NotificationCenter.default.addObserver(
-      instance,
-      selector: #selector(onInterruption(_:)),
-      name: AVAudioSession.interruptionNotification,
-      object: nil
-    )
-  }
-
-  @objc private func onInterruption(_ note: Notification) {
-    guard let raw = note.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt,
-      let type = AVAudioSession.InterruptionType(rawValue: raw)
-    else { return }
-    interrupted = type == .began
   }
 
   public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
@@ -58,7 +48,7 @@ public class NexaRealtimePlugin: NSObject, FlutterPlugin {
       "category": session.category.rawValue.replacingOccurrences(
         of: "AVAudioSessionCategory", with: ""),
       "route": outputs.first.map { route($0.portType) } ?? "unknown",
-      "phoneCall": otherCall || interrupted,
+      "phoneCall": otherCall,
       "bluetoothPresent": outputs.contains { route($0.portType) == "bluetooth" }
         || inputs.contains { route($0.portType) == "bluetooth" },
       "bluetoothPermissionNeeded": false,
