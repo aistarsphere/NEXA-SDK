@@ -174,14 +174,20 @@ class AssistantSettingsPage extends StatelessWidget {
     NexaHistoryController history,
   ) async {
     final router = GoRouter.of(context);
-    final outcome = await showNexaDeletionFlow(
+    var ran = false;
+    await showNexaDeletionFlow(
       context,
       history,
       NexaDeletionScope.allConversations,
       deleteLocalMedia: () async => 0,
+      // Runs as soon as the deletion ran, however the sheet is closed.
+      onDeleted: (_) async {
+        ran = true;
+        await client.toolCalls.pendingStore?.clear();
+        await client.newConversation();
+      },
     );
-    if (outcome == null) return;
-    await client.newConversation();
+    if (!ran) return;
     await history.refresh();
     router.go('/');
   }
@@ -193,13 +199,15 @@ class AssistantSettingsPage extends StatelessWidget {
     BuildContext context,
     NexaHistoryController history,
   ) async {
-    final outcome = await showNexaDeletionFlow(
+    var ran = false;
+    await showNexaDeletionFlow(
       context,
       history,
       NexaDeletionScope.localCache,
       deleteLocalMedia: client.deviceActions.deleteLocalMedia,
+      onDeleted: (_) async => ran = true,
     );
-    if (outcome == null) return;
+    if (!ran) return;
     PaintingBinding.instance.imageCache
       ..clear()
       ..clearLiveImages();

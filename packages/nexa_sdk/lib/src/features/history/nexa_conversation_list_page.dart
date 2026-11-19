@@ -67,16 +67,20 @@ class _NexaConversationListPageState extends State<NexaConversationListPage> {
   /// Confirm, delete (device, then server), then reload the list: a row the
   /// server did not delete comes back.
   Future<void> _delete(NexaHistoryEntry entry) async {
-    final outcome = await showNexaDeletionFlow(
+    var ran = false;
+    await showNexaDeletionFlow(
       context,
       widget.history,
       NexaDeletionScope.conversation,
       conversation: entry,
       deleteLocalMedia: () async => 0, // a conversation keeps no device media
+      onDeleted: (_) async {
+        ran = true;
+        await widget.onDeleted?.call(entry);
+      },
     );
-    if (outcome == null) return;
-    await widget.onDeleted?.call(entry);
-    await widget.history.refresh();
+    // Also after a retry in the sheet, and however the sheet was closed.
+    if (ran) await widget.history.refresh();
   }
 
   @override

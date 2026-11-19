@@ -443,13 +443,17 @@ String nexaScopeLabel(NexaLocalizations l10n, NexaDeletionScope s) =>
 
 /// Confirm (scope + what is kept) → progress → result: removed locally,
 /// server confirmed / requested with request id / partial failure with
-/// retry / server not available. Returns null when cancelled.
+/// retry / server not available. Returns null when cancelled **or** when
+/// the sheet was dismissed without its Done button, so follow-up work that
+/// must happen after a deletion belongs in [onDeleted]: it runs as soon as
+/// the deletion ran, however the sheet is closed afterwards.
 Future<NexaDeletionOutcome?> showNexaDeletionFlow(
   BuildContext context,
   NexaHistoryController history,
   NexaDeletionScope scope, {
   required Future<int> Function() deleteLocalMedia,
   NexaHistoryEntry? conversation,
+  Future<void> Function(NexaDeletionOutcome outcome)? onDeleted,
 }) => showModalBottomSheet<NexaDeletionOutcome>(
   context: context,
   isScrollControlled: true,
@@ -460,6 +464,7 @@ Future<NexaDeletionOutcome?> showNexaDeletionFlow(
       scope: scope,
       conversation: conversation,
       deleteLocalMedia: deleteLocalMedia,
+      onDeleted: onDeleted,
     ),
   ),
 );
@@ -470,12 +475,14 @@ class _DeletionSheet extends StatefulWidget {
     required this.scope,
     required this.deleteLocalMedia,
     this.conversation,
+    this.onDeleted,
   });
 
   final NexaHistoryController history;
   final NexaDeletionScope scope;
   final NexaHistoryEntry? conversation;
   final Future<int> Function() deleteLocalMedia;
+  final Future<void> Function(NexaDeletionOutcome outcome)? onDeleted;
 
   @override
   State<_DeletionSheet> createState() => _DeletionSheetState();
@@ -499,6 +506,8 @@ class _DeletionSheetState extends State<_DeletionSheet> {
             conversation: widget.conversation,
             deleteLocalMedia: widget.deleteLocalMedia,
           );
+    // Before the mounted check: the sheet may already be dismissed.
+    if (!retry) await widget.onDeleted?.call(o);
     if (!mounted) return;
     setState(() {
       final previous = _outcome;

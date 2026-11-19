@@ -64,7 +64,11 @@ void main() {
     return c;
   }
 
-  Future<void> open(WidgetTester tester, NexaClient c) async {
+  Future<void> open(
+    WidgetTester tester,
+    NexaClient c, {
+    String location = '/settings',
+  }) async {
     tester.view.physicalSize = const Size(1080, 2400);
     tester.view.devicePixelRatio = 3;
     addTearDown(tester.view.reset);
@@ -72,7 +76,7 @@ void main() {
       ExampleApp(
         client: c,
         auth: MockAuthProvider(),
-        initialLocation: '/settings',
+        initialLocation: location,
       ),
     );
     await tester.pumpAndSettle();
@@ -84,6 +88,16 @@ void main() {
     final cache = InMemoryHistoryStore();
     final c = await client(
       history: NexaHistoryOptions(cache: cache, server: server),
+    );
+    final pending = InMemoryPendingStore();
+    c.toolCalls.pendingStore = pending;
+    await pending.save(
+      'conv_2',
+      const LabeebPendingState(
+        uiValues: {
+          'ui_1': {'name': 'x'},
+        },
+      ),
     );
     await c.history!.refresh();
     expect(c.history!.entries, hasLength(2));
@@ -103,9 +117,48 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(server.calls, ['allConversations']);
+    expect((await pending.load('conv_2')).isEmpty, isTrue);
     expect(c.history!.entries, isEmpty);
     expect(await cache.load(), isEmpty);
     expect(c.conversationId, isNull);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('deleting the open conversation from the list leaves it, also '
+      'when the sheet is closed by tapping outside', (tester) async {
+    final server = _Server();
+    final pending = InMemoryPendingStore();
+    final c = await client(
+      history: NexaHistoryOptions(
+        cache: InMemoryHistoryStore(),
+        server: server,
+      ),
+    );
+    c.toolCalls.pendingStore = pending;
+    await pending.save(
+      'conv_1',
+      const LabeebPendingState(
+        uiValues: {
+          'ui_1': {'name': 'x'},
+        },
+      ),
+    );
+    c.conversations.open('conv_1');
+    expect(c.conversationId, 'conv_1');
+    await open(tester, c, location: '/');
+
+    await tester.tap(find.byKey(const Key('nexa_list_menu_conv_1')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('nexa_list_delete_conv_1')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('nexa_deletion_confirm')));
+    await tester.pumpAndSettle();
+    await tester.tapAt(const Offset(20, 20)); // the barrier, not "Done"
+    await tester.pumpAndSettle();
+
+    expect(server.calls, ['conversation']);
+    expect(c.conversationId, isNull);
+    expect((await pending.load('conv_1')).isEmpty, isTrue);
     expect(tester.takeException(), isNull);
   });
 

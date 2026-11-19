@@ -9,6 +9,7 @@ import 'package:nexa_sdk/src/features/history/nexa_conversation_list_page.dart';
 import 'package:nexa_sdk/src/features/history/nexa_history.dart';
 import 'package:nexa_sdk/src/features/history/nexa_history_view.dart';
 import 'package:nexa_sdk/src/features/media/nexa_media_widgets.dart';
+import 'package:nexa_sdk/src/features/tools/labeeb_pending_store.dart';
 import 'package:nexa_sdk/src/features/tools/labeeb_voice_companion.dart';
 import 'package:nexa_sdk/src/features/voice/nexa_voice_controller.dart';
 import 'package:nexa_sdk/src/features/voice/presentation/nexa_voice_identity_note.dart';
@@ -99,6 +100,10 @@ class NexaAssistantView extends StatelessWidget {
           onOpenSettings: onOpenSettings,
           // The next message must not go to a conversation that is gone.
           onDeleted: (e) async {
+            await client.toolCalls.pendingStore?.save(
+              e.conversationId,
+              const LabeebPendingState(),
+            );
             if (client.conversationId == e.conversationId) {
               await client.newConversation();
             }

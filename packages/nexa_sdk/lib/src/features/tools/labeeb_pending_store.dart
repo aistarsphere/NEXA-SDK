@@ -45,6 +45,9 @@ abstract interface class LabeebPendingStore {
 
   /// Replaces the state of [conversationId]; an empty state removes it.
   Future<void> save(String conversationId, LabeebPendingState state);
+
+  /// Removes the state of every conversation (all history was deleted).
+  Future<void> clear();
 }
 
 /// Keeps state for the life of the process only (tests, and the default).
@@ -63,6 +66,9 @@ final class InMemoryPendingStore implements LabeebPendingStore {
       _byConversation[conversationId] = state;
     }
   }
+
+  @override
+  Future<void> clear() async => _byConversation.clear();
 }
 
 /// One small JSON file per account, bounded: 50 calls per conversation,
@@ -141,6 +147,11 @@ final class JsonFilePendingStore implements LabeebPendingStore {
         await file.parent.create(recursive: true);
         await file.writeAsString(jsonEncode(kept));
       });
+
+  @override
+  Future<void> clear() => _serial(() async {
+    if (file.existsSync()) await file.delete();
+  });
 
   LabeebPendingState _prune(LabeebPendingState s) {
     final limit = clock.now().toUtc().subtract(maxAge);

@@ -260,6 +260,24 @@ void main() {
       expect(find.byKey(const Key('nexa_list_conv_1')), findsOneWidget);
     });
 
+    testWidgets('sheet closed by tapping outside after the deletion: the '
+        'host still hears about it and the list reloads', (tester) async {
+      final server = _Server(2);
+      await tester.pumpWidget(app(server));
+      await tester.pumpAndSettle();
+
+      await openDelete(tester, 'conv_1');
+      await tester.tap(find.byKey(const Key('nexa_deletion_confirm')));
+      await tester.pumpAndSettle();
+      await tester.tapAt(const Offset(20, 20)); // the barrier, not "Done"
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('nexa_deletion_sheet')), findsNothing);
+      expect(deleted, ['conv_1']);
+      expect(find.byKey(const Key('nexa_list_conv_1')), findsNothing);
+      expect(find.byKey(const Key('nexa_list_conv_2')), findsOneWidget);
+    });
+
     testWidgets('long press opens the same confirmation', (tester) async {
       await tester.pumpWidget(app(_Server(1)));
       await tester.pumpAndSettle();
