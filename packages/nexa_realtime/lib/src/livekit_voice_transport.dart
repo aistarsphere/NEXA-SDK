@@ -157,6 +157,42 @@ final class LiveKitVoiceTransport implements RealtimeVoiceTransport {
   }
 
   @override
+  Future<RealtimeSignalResult> sendSignal(
+    String method,
+    Map<String, Object?> payload,
+  ) async {
+    _check();
+    final grant = _grant;
+    final local = _room?.localParticipant;
+    if (grant == null || local == null) return RealtimeSignalResult.failed;
+    try {
+      await local.performRpc(
+        lk.PerformRpcParams(
+          destinationIdentity: grant.agentIdentity,
+          method: method,
+          payload: jsonEncode(payload),
+          responseTimeoutMs: const Duration(seconds: 5),
+        ),
+      );
+      return RealtimeSignalResult.sent;
+    } on lk.RpcError catch (e) {
+      _diagnostics.record('voice.signal_failed', {
+        'method': method,
+        'code': e.code,
+      });
+      return e.code == lk.RpcError.unsupportedMethod
+          ? RealtimeSignalResult.unsupported
+          : RealtimeSignalResult.failed;
+    } on Object catch (e) {
+      _diagnostics.record('voice.signal_failed', {
+        'method': method,
+        'error': e.runtimeType.toString(),
+      });
+      return RealtimeSignalResult.failed;
+    }
+  }
+
+  @override
   Future<void> disconnect() async {
     if (_room == null) return;
     await _teardownRoom();

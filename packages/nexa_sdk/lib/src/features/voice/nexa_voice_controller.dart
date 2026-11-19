@@ -4,6 +4,7 @@ import 'package:clock/clock.dart';
 import 'package:flutter/foundation.dart';
 import 'package:nexa_core/nexa_core.dart';
 import 'package:nexa_realtime/nexa_realtime.dart';
+import 'package:nexa_sdk/src/features/voice/nexa_voice_signals.dart';
 import 'package:nexa_sdk/src/features/voice/nexa_voice_state.dart';
 import 'package:nexa_sdk/src/permissions/nexa_permission_handler.dart';
 import 'package:nexa_sdk/src/session/session_manager.dart';
@@ -56,7 +57,12 @@ final class NexaVoiceController {
     if (audio != null) {
       _audioSubs
         ..add(audio.phoneCallChanges.listen(_onPhoneCall))
-        ..add(audio.changes.listen((_) => _onAudioChanged()));
+        ..add(
+          audio.changes.listen((_) {
+            _onAudioChanged();
+            _sendClientInfo();
+          }),
+        );
     }
   }
 
@@ -74,7 +80,12 @@ final class NexaVoiceController {
   final NexaCallAudio? _callAudio;
   final List<StreamSubscription<Object?>> _audioSubs = [];
   bool _phoneHold = false;
+  bool _phoneReleasing = false;
   bool _bluetoothAsked = false;
+  late final NexaVoiceSignals _signals = NexaVoiceSignals(
+    send: _transport.sendSignal,
+    diagnostics: _diagnostics,
+  );
   final VoiceSessionMachine _machine = const VoiceSessionMachine();
 
   final ValueNotifier<NexaVoiceState> _state = ValueNotifier(
@@ -280,6 +291,7 @@ final class NexaVoiceController {
     _diagnostics.record('voice.mute', {'muted': muted});
     _emit(NexaVoiceMuteChanged(clock.now(), muted: muted));
     _dispatch(VoiceMuteToggled(muted: muted));
+    _sendClientInfo();
   }
 
   /// Convenience for the capsule's single button.
@@ -367,7 +379,36 @@ final class NexaVoiceController {
     }
     await _callAudio?.recoverAfterPhoneCall();
     if (_disposed || !_state.value.isActive || _phoneHold) return;
-    await _setMic(!_state.value.muted);
+    _phoneReleasing = true;
+    try {
+      await _setMic(!_state.value.muted);
+    } finally {
+      _phoneReleasing = false;
+    }
+    _sendClientInfo();
+  }
+
+  String _micOffReason() => _phoneHold ? 'phone_call' : 'mute';
+
+  /// Client info for the server's call trace (no content): which app and
+  /// device, the route, mute and phone-call state. Sent on agent_ready and
+  /// on every change, coalesced by [NexaVoiceSignals].
+  void _sendClientInfo() {
+    if (_disposed || !_signals.clientInfoEnabled) return;
+    final audio = _callAudio?.state.value;
+    _signals.clientInfo({
+      'source': 'app',
+      'sdk': 'nexa_flutter',
+      'platform': audio?.platform ?? defaultTargetPlatform.name,
+      'os_version': audio?.osVersion,
+      'device_model': audio?.model,
+      'route': audio?.route.name,
+      'speaker_preferred': audio?.speakerPreferred,
+      'audio_mode': audio?.mode,
+      'muted': _state.value.muted,
+      'microphone_on': _transport.isMicrophoneEnabled,
+      'phone_call': _phoneHold,
+    });
   }
 
   void _onAudioChanged() {
@@ -403,6 +444,13 @@ final class NexaVoiceController {
     final ms = watch.elapsedMilliseconds;
     _diagnostics.record('voice.mic_applied', {'enabled': enabled, 'ms': ms});
     if (_disposed) return;
+    _signals.listening(
+      listening: enabled,
+      reason: enabled
+          ? (_phoneReleasing ? 'phone_call_ended' : 'unmute')
+          : _micOffReason(),
+    );
+    _sendClientInfo();
     _stats.value = enabled
         ? _stats.value.copyWith(unmuteMs: ms)
         : _stats.value.copyWith(muteMs: ms);
@@ -695,8 +743,13 @@ final class NexaVoiceController {
             present: true,
           ),
         );
-      case RealtimeAgentReady():
+      case RealtimeAgentReady(:final capabilities):
         _set(_state.value.copyWith(agentPresent: true));
+        _signals.configure(capabilities);
+        _sendClientInfo();
+        if (!_transport.isMicrophoneEnabled) {
+          _signals.listening(listening: false, reason: _micOffReason());
+        }
       case RealtimeAgentAudioTrack(:final subscribed):
         _set(_state.value.copyWith(agentAudioActive: subscribed));
       case RealtimeAgentLeft(:final identity):
@@ -1098,6 +1151,7 @@ final class NexaVoiceController {
         _logger.log(NexaLogLevel.debug, 'voice disconnect: $e');
       }
       await _callAudio?.endCall();
+      _signals.reset();
       _phoneHold = false;
       _set(
         _state.value.copyWith(

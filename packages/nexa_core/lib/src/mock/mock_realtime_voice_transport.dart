@@ -63,6 +63,21 @@ final class MockRealtimeVoiceTransport implements RealtimeVoiceTransport {
     _micEnabled = enabled;
   }
 
+  /// Signals sent (method, payload); [signalResult] answers each.
+  final List<(String, Map<String, Object?>)> signals = [];
+  RealtimeSignalResult Function(String method) signalResult = _sent;
+  static RealtimeSignalResult _sent(String _) => RealtimeSignalResult.sent;
+
+  @override
+  Future<RealtimeSignalResult> sendSignal(
+    String method,
+    Map<String, Object?> payload,
+  ) async {
+    _check();
+    signals.add((method, payload));
+    return signalResult(method);
+  }
+
   /// Local only, like the real transport (contract v1 has no interrupt
   /// command). Tests emit [RealtimeInterrupted] themselves when the
   /// scripted agent acknowledges a barge-in.

@@ -178,10 +178,9 @@ final class VoiceSessionMachine {
           [StopPlayback()],
         ),
         // A new turn began without an interruption event.
-        VoiceAssistantThinking() => const VoiceTransition(
-          VoiceState.thinking,
-          [StopPlayback()],
-        ),
+        VoiceAssistantThinking() => const VoiceTransition(VoiceState.thinking, [
+          StopPlayback(),
+        ]),
         VoiceAssistantTurnEnded() => const VoiceTransition(
           VoiceState.listening,
           [StopPlayback()],

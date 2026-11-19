@@ -414,7 +414,12 @@ final class VoiceReplayGuard {
 RealtimeVoiceEvent? realtimeEventFromV1(VoiceEventV1 e) {
   switch (e.type) {
     case 'agent_ready':
-      return const RealtimeAgentReady();
+      final caps = e['capabilities'];
+      return RealtimeAgentReady(
+        capabilities: caps is Map
+            ? Map<String, Object?>.from(caps)
+            : const <String, Object?>{},
+      );
     case 'session_state':
       return RealtimeSessionSnapshot(
         state: e['state']?.toString() ?? 'listening',

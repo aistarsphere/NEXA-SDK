@@ -25,7 +25,22 @@ final class RealtimeConnected extends RealtimeVoiceEvent {
 
 /// Verified `agent_ready`: the agent pipeline is up for this session.
 final class RealtimeAgentReady extends RealtimeVoiceEvent {
-  const RealtimeAgentReady();
+  const RealtimeAgentReady({this.capabilities = const {}});
+
+  /// The event's `capabilities` object (contract §5). `client_signals`
+  /// in it says which client→agent signals this agent accepts.
+  final Map<String, Object?> capabilities;
+}
+
+/// Outcome of [RealtimeVoiceTransport.sendSignal].
+enum RealtimeSignalResult {
+  sent,
+
+  /// The agent has no such method: stop sending it this session.
+  unsupported,
+
+  /// Not connected, timed out, rate limited or refused; may be retried.
+  failed,
 }
 
 /// Verified `session_state` snapshot (pushed on every (re)join) or the
@@ -225,6 +240,15 @@ abstract interface class RealtimeVoiceTransport {
   /// agent detects barge-in from the microphone and confirms with
   /// `interrupted`. Implementations must not send anything to the server.
   Future<void> interrupt();
+
+  /// Sends one client→agent signal (listening control, client info) as an
+  /// RPC to the agent: the only client→agent path contract §4 allows (no
+  /// data packets, no metadata updates). Only for methods the agent
+  /// advertised in `agent_ready.capabilities.client_signals`. No content.
+  Future<RealtimeSignalResult> sendSignal(
+    String method,
+    Map<String, Object?> payload,
+  );
 
   /// Leaves the room. Safe to call when not connected.
   Future<void> disconnect();
