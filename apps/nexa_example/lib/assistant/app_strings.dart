@@ -40,6 +40,19 @@ final class AppStrings {
     'تحتفظ الخدمة بمحادثاتك. افتح السجل لمتابعة محادثة أو إعادة تسميتها أو '
         'حذفها.',
   );
+  String get deleteAllConversations =>
+      _t('Delete all conversations', 'حذف كل المحادثات');
+  String get deleteAllConversationsBody => _t(
+    'Removes every chat and call from this device and the service.',
+    'يحذف كل المحادثات والمكالمات من هذا الجهاز ومن الخدمة.',
+  );
+  String get clearCache => _t('Clear cache', 'مسح الذاكرة المؤقتة');
+  String get clearCacheBody => _t(
+    'Removes temporary files and images kept on this device. Your '
+        'conversations stay on the service.',
+    'يحذف الملفات المؤقتة والصور المحفوظة على هذا الجهاز. تبقى محادثاتك '
+        'لدى الخدمة.',
+  );
   String get about => _t('About', 'حول التطبيق');
   String get privacy => _t('Privacy', 'الخصوصية');
   String get deleteData =>

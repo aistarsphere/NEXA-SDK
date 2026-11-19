@@ -1,3 +1,4 @@
+import 'package:nexa_core/nexa_core.dart';
 import 'package:nexa_sdk/src/data/labeeb/labeeb_sdk_client.dart';
 import 'package:nexa_sdk/src/features/history/nexa_history.dart';
 
@@ -24,6 +25,7 @@ final class LabeebConversationsApi implements NexaConversationsApi {
   @override
   bool supportsDeletion(NexaDeletionScope scope) => switch (scope) {
     NexaDeletionScope.conversation ||
+    NexaDeletionScope.allConversations ||
     NexaDeletionScope.allChats ||
     NexaDeletionScope.allVoice ||
     NexaDeletionScope.everything => true,
@@ -96,6 +98,12 @@ final class LabeebConversationsApi implements NexaConversationsApi {
     switch (scope) {
       case NexaDeletionScope.conversation:
         await api.deleteConversation(conversationId!);
+      case NexaDeletionScope.allConversations:
+        // The list shows only this installation's conversations when the
+        // filter is set, so only those are deleted; otherwise the whole
+        // history of the account is cleared in one request.
+        if (installationId != null) return _deleteListed();
+        await api.clearConversations();
       case NexaDeletionScope.allChats:
         await api.clearConversations(kind: 'chat');
       case NexaDeletionScope.allVoice:
@@ -107,6 +115,39 @@ final class LabeebConversationsApi implements NexaConversationsApi {
     }
     // The gateway deletes synchronously and reports the counts.
     return const NexaDeletionReceipt(state: NexaDeletionState.completed);
+  }
+
+  /// Deletes this installation's conversations one by one (the first page
+  /// again after each pass). Rows that fail are reported as partial and
+  /// retryable.
+  Future<NexaDeletionReceipt> _deleteListed() async {
+    final failed = <String>{};
+    for (var pass = 0; pass < 100; pass++) {
+      final p = await api.conversations(
+        limit: 50,
+        installation: installationId,
+      );
+      final todo = [
+        for (final c in p.items)
+          if (!failed.contains(c.id)) c.id,
+      ];
+      // Only rows that already failed are left (or nothing at all).
+      if (todo.isEmpty) break;
+      for (final id in todo) {
+        try {
+          await api.deleteConversation(id);
+        } on NexaException {
+          failed.add(id);
+        }
+      }
+    }
+    return failed.isEmpty
+        ? const NexaDeletionReceipt(state: NexaDeletionState.completed)
+        : NexaDeletionReceipt(
+            state: NexaDeletionState.partial,
+            failedItems: failed.length,
+            retryable: true,
+          );
   }
 
   @override

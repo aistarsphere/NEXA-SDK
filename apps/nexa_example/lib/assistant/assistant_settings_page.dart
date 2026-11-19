@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:nexa_example/assistant/app_strings.dart';
@@ -12,6 +15,7 @@ import 'package:nexa_example/dev/wake_benchmark_page.dart';
 import 'package:nexa_example/dev_token_auth_provider.dart';
 import 'package:nexa_example/example_config.dart';
 import 'package:nexa_sdk/nexa_sdk.dart';
+import 'package:path_provider/path_provider.dart';
 
 /// User settings: language and appearance, what the app does and does not
 /// keep, and (development builds only) the developer section.
@@ -91,6 +95,33 @@ class AssistantSettingsPage extends StatelessWidget {
                     : s.historyUnavailable,
               ),
             ),
+            if (client.history case final history?) ...[
+              const SizedBox(height: 8),
+              Card(
+                child: ListTile(
+                  key: const Key('settings_delete_all_conversations'),
+                  leading: Icon(
+                    Icons.delete_sweep_outlined,
+                    color: scheme.error,
+                  ),
+                  title: Text(s.deleteAllConversations),
+                  subtitle: Text(s.deleteAllConversationsBody),
+                  onTap: () => _deleteAllConversations(context, history),
+                ),
+              ),
+              Card(
+                child: ListTile(
+                  key: const Key('settings_clear_cache'),
+                  leading: Icon(
+                    Icons.cleaning_services_outlined,
+                    color: scheme.primary,
+                  ),
+                  title: Text(s.clearCache),
+                  subtitle: Text(s.clearCacheBody),
+                  onTap: () => _clearCache(context, history),
+                ),
+              ),
+            ],
             _SectionLabel(s.privacy),
             Card(
               child: ListTile(
@@ -133,6 +164,47 @@ class AssistantSettingsPage extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  /// Deletes every conversation (device, then server) after the SDK's
+  /// confirmation sheet. The open conversation is gone too, so the app
+  /// starts a fresh one and returns to the root.
+  Future<void> _deleteAllConversations(
+    BuildContext context,
+    NexaHistoryController history,
+  ) async {
+    final router = GoRouter.of(context);
+    final outcome = await showNexaDeletionFlow(
+      context,
+      history,
+      NexaDeletionScope.allConversations,
+      deleteLocalMedia: () async => 0,
+    );
+    if (outcome == null) return;
+    await client.newConversation();
+    await history.refresh();
+    router.go('/');
+  }
+
+  /// Clears what this device cached: conversation summaries, captured or
+  /// attached images, temporary files and decoded images. Nothing on the
+  /// server, and no settings, sign-in or voice profile.
+  Future<void> _clearCache(
+    BuildContext context,
+    NexaHistoryController history,
+  ) async {
+    final outcome = await showNexaDeletionFlow(
+      context,
+      history,
+      NexaDeletionScope.localCache,
+      deleteLocalMedia: client.deviceActions.deleteLocalMedia,
+    );
+    if (outcome == null) return;
+    PaintingBinding.instance.imageCache
+      ..clear()
+      ..clearLiveImages();
+    // No list reload here: it would cache the summaries again at once.
+    await clearTemporaryFiles();
   }
 
   /// `DELETE /me/assistant-data` after an explicit confirmation; then a
@@ -420,4 +492,26 @@ class _InfoCard extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Empties the app's temporary directory (camera captures, picked-file
+/// copies). The system may clear it at any time, so nothing durable lives
+/// there. Returns how many entries were removed.
+Future<int> clearTemporaryFiles([Directory? directory]) async {
+  var removed = 0;
+  try {
+    final dir = directory ?? await getTemporaryDirectory();
+    if (!dir.existsSync()) return 0;
+    await for (final entry in dir.list()) {
+      try {
+        await entry.delete(recursive: true);
+        removed++;
+      } on FileSystemException {
+        // In use or already gone: leave it.
+      }
+    }
+  } on Object {
+    // No temporary directory on this platform.
+  }
+  return removed;
 }

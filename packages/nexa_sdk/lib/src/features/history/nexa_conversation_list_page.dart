@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:nexa_sdk/src/features/history/nexa_history.dart';
+import 'package:nexa_sdk/src/features/history/nexa_history_view.dart';
 import 'package:nexa_ui/nexa_ui.dart';
 
 /// The conversation list: the root screen of an assistant that keeps one
@@ -15,6 +16,7 @@ class NexaConversationListPage extends StatefulWidget {
     required this.onOpen,
     this.onCall,
     this.onOpenSettings,
+    this.onDeleted,
     this.title,
     super.key,
   });
@@ -31,6 +33,10 @@ class NexaConversationListPage extends StatefulWidget {
   final void Function(NexaHistoryEntry entry) onOpen;
 
   final VoidCallback? onOpenSettings;
+
+  /// Called after the user deleted [entry] (the host leaves that
+  /// conversation if it is the open one).
+  final Future<void> Function(NexaHistoryEntry entry)? onDeleted;
   final Widget? title;
 
   @override
@@ -56,6 +62,21 @@ class _NexaConversationListPageState extends State<NexaConversationListPage> {
   void dispose() {
     _scroll.dispose();
     super.dispose();
+  }
+
+  /// Confirm, delete (device, then server), then reload the list: a row the
+  /// server did not delete comes back.
+  Future<void> _delete(NexaHistoryEntry entry) async {
+    final outcome = await showNexaDeletionFlow(
+      context,
+      widget.history,
+      NexaDeletionScope.conversation,
+      conversation: entry,
+      deleteLocalMedia: () async => 0, // a conversation keeps no device media
+    );
+    if (outcome == null) return;
+    await widget.onDeleted?.call(entry);
+    await widget.history.refresh();
   }
 
   @override
@@ -173,7 +194,29 @@ class _NexaConversationListPageState extends State<NexaConversationListPage> {
                     '${MaterialLocalizations.of(context).formatShortDate(e.updatedAt.toLocal())}'
                     ' · ${l10n.historyMessages(e.count)}',
                   ),
+                  trailing: PopupMenuButton<void>(
+                    key: Key('nexa_list_menu_${e.id}'),
+                    tooltip: l10n.scopeConversation,
+                    itemBuilder: (context) => [
+                      PopupMenuItem<void>(
+                        key: Key('nexa_list_delete_${e.id}'),
+                        onTap: () => unawaited(_delete(e)),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.delete_outline_rounded,
+                              color: Theme.of(context).colorScheme.error,
+                            ),
+                            const SizedBox(width: 12),
+                            Flexible(child: Text(l10n.scopeConversation)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                   onTap: () => widget.onOpen(e),
+                  onLongPress: () => unawaited(_delete(e)),
                 );
               },
             ),

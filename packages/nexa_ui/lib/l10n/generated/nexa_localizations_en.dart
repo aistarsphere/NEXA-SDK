@@ -621,6 +621,9 @@ class NexaLocalizationsEn extends NexaLocalizations {
   String get scopeConversation => 'Delete this conversation';
 
   @override
+  String get scopeAllConversations => 'Delete all conversations';
+
+  @override
   String get scopeAllChats => 'Clear chat history';
 
   @override
@@ -642,6 +645,10 @@ class NexaLocalizationsEn extends NexaLocalizations {
   @override
   String get scopeNoteEverything =>
       'The request is sent to the service. Billing and security audit records are kept as its retention policy requires.';
+
+  @override
+  String get scopeNoteAllConversations =>
+      'Every chat and call in your history is deleted from this device and from the service. This can\'t be undone.';
 
   @override
   String get scopeNoteDefault =>

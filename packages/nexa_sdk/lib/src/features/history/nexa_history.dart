@@ -193,6 +193,9 @@ final class JsonFileHistoryStore implements NexaHistoryStore {
 /// Deletion scopes (design "Data & privacy").
 enum NexaDeletionScope {
   conversation,
+
+  /// Every conversation in the history, chat and voice.
+  allConversations,
   allChats,
   allVoice,
   assets,
@@ -597,6 +600,8 @@ final class NexaHistoryController extends ChangeNotifier {
       case NexaDeletionScope.conversation:
         final id = conversation?.sessionId;
         removeWhere((e) => e.sessionId == id);
+      case NexaDeletionScope.allConversations:
+        removeWhere((_) => true);
       case NexaDeletionScope.allChats:
         removeWhere((e) => e.kind != NexaHistoryKind.voice);
       case NexaDeletionScope.allVoice:

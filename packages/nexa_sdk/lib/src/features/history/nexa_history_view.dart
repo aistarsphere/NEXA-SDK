@@ -433,6 +433,7 @@ class NexaDataPrivacyView extends StatelessWidget {
 String nexaScopeLabel(NexaLocalizations l10n, NexaDeletionScope s) =>
     switch (s) {
       NexaDeletionScope.conversation => l10n.scopeConversation,
+      NexaDeletionScope.allConversations => l10n.scopeAllConversations,
       NexaDeletionScope.allChats => l10n.scopeAllChats,
       NexaDeletionScope.allVoice => l10n.scopeAllVoice,
       NexaDeletionScope.assets => l10n.scopeAssets,
@@ -523,6 +524,7 @@ class _DeletionSheetState extends State<_DeletionSheet> {
     final note = switch (widget.scope) {
       NexaDeletionScope.localCache => l10n.scopeNoteLocalCache,
       NexaDeletionScope.everything => l10n.scopeNoteEverything,
+      NexaDeletionScope.allConversations => l10n.scopeNoteAllConversations,
       _ => l10n.scopeNoteDefault,
     };
     final title = nexaScopeLabel(l10n, widget.scope);

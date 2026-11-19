@@ -97,6 +97,12 @@ class NexaAssistantView extends StatelessWidget {
           onCall: voiceEnabled && onCall != null ? () => onCall(context) : null,
           onOpen: (e) => onOpen(context, e),
           onOpenSettings: onOpenSettings,
+          // The next message must not go to a conversation that is gone.
+          onDeleted: (e) async {
+            if (client.conversationId == e.conversationId) {
+              await client.newConversation();
+            }
+          },
         ),
       ),
     );

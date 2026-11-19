@@ -1232,6 +1232,12 @@ abstract class NexaLocalizations {
   /// **'Delete this conversation'**
   String get scopeConversation;
 
+  /// No description provided for @scopeAllConversations.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete all conversations'**
+  String get scopeAllConversations;
+
   /// No description provided for @scopeAllChats.
   ///
   /// In en, this message translates to:
@@ -1273,6 +1279,12 @@ abstract class NexaLocalizations {
   /// In en, this message translates to:
   /// **'The request is sent to the service. Billing and security audit records are kept as its retention policy requires.'**
   String get scopeNoteEverything;
+
+  /// No description provided for @scopeNoteAllConversations.
+  ///
+  /// In en, this message translates to:
+  /// **'Every chat and call in your history is deleted from this device and from the service. This can\'t be undone.'**
+  String get scopeNoteAllConversations;
 
   /// No description provided for @scopeNoteDefault.
   ///

@@ -618,6 +618,9 @@ class NexaLocalizationsAr extends NexaLocalizations {
   String get scopeConversation => 'حذف هذه المحادثة';
 
   @override
+  String get scopeAllConversations => 'حذف كل المحادثات';
+
+  @override
   String get scopeAllChats => 'مسح سجل المحادثات';
 
   @override
@@ -639,6 +642,10 @@ class NexaLocalizationsAr extends NexaLocalizations {
   @override
   String get scopeNoteEverything =>
       'يُرسل الطلب إلى الخدمة. تُحفظ سجلات الفوترة والتدقيق الأمني وفق سياسة الاحتفاظ.';
+
+  @override
+  String get scopeNoteAllConversations =>
+      'تُحذف كل المحادثات والمكالمات في سجلك من هذا الجهاز ومن الخدمة. لا يمكن التراجع عن ذلك.';
 
   @override
   String get scopeNoteDefault => 'لا يمكن استرجاع ما تمت مشاركته خارج التطبيق.';
