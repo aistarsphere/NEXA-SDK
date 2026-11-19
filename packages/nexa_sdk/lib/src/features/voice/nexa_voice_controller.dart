@@ -69,6 +69,9 @@ final class NexaVoiceController {
   final ValueNotifier<NexaVoiceLevels> _levels = ValueNotifier(
     NexaVoiceLevels.silent,
   );
+  final ValueNotifier<NexaVoiceCallStats> _stats = ValueNotifier(
+    const NexaVoiceCallStats(),
+  );
   final StreamController<NexaVoiceEvent> _events =
       StreamController<NexaVoiceEvent>.broadcast();
   final StreamController<NexaVoiceToolEvent> _toolEvents =
@@ -108,6 +111,9 @@ final class NexaVoiceController {
   /// Real speaking levels from the media server (a few updates per
   /// second; silent outside a call). For visualisation only.
   ValueListenable<NexaVoiceLevels> get levels => _levels;
+
+  /// Audio-quality counters of the current call (QA / debug panel).
+  ValueListenable<NexaVoiceCallStats> get stats => _stats;
 
   /// Typed event stream for hosts (analytics, custom UI).
   Stream<NexaVoiceEvent> get events => _events.stream;
@@ -187,6 +193,7 @@ final class NexaVoiceController {
         clearEndReason: true,
       ),
     );
+    _stats.value = const NexaVoiceCallStats();
     _diagnostics.record('voice.start', {
       'language': _languageTag,
       'muted': _options.startMuted,
@@ -319,11 +326,25 @@ final class NexaVoiceController {
         final want = _micWanted!;
         _micWanted = null;
         if (want == _transport.isMicrophoneEnabled) continue;
-        await _transport.setMicrophoneEnabled(enabled: want);
+        await _timedMic(want);
       }
     } finally {
       _micBusy = false;
     }
+  }
+
+  /// Toggles the published microphone and records how long the engine took
+  /// (the unmute budget is 1 s; the first unmute of a call that started
+  /// muted also publishes the track and is the slow case).
+  Future<void> _timedMic(bool enabled) async {
+    final watch = Stopwatch()..start();
+    await _transport.setMicrophoneEnabled(enabled: enabled);
+    final ms = watch.elapsedMilliseconds;
+    _diagnostics.record('voice.mic_applied', {'enabled': enabled, 'ms': ms});
+    if (_disposed) return;
+    _stats.value = enabled
+        ? _stats.value.copyWith(unmuteMs: ms)
+        : _stats.value.copyWith(muteMs: ms);
   }
 
   Future<void> dispose() async {
@@ -338,6 +359,7 @@ final class NexaVoiceController {
     await _toolEvents.close();
     _state.dispose();
     _levels.dispose();
+    _stats.dispose();
   }
 
   // --------------------------------------------------------------- engine
@@ -419,7 +441,7 @@ final class NexaVoiceController {
             rethrow;
           }
         case StartCapture():
-          await _transport.setMicrophoneEnabled(enabled: !_state.value.muted);
+          await _timedMic(!_state.value.muted);
           if (_state.value.muted) {
             _dispatch(const VoiceMuteToggled(muted: true));
           }
@@ -628,6 +650,9 @@ final class NexaVoiceController {
           agent: agent,
         );
       case RealtimeUserSpeechStarted():
+        _stats.value = _stats.value.copyWith(
+          speechStarts: _stats.value.speechStarts + 1,
+        );
         _dispatch(const VoiceUserSpeechStarted());
       case RealtimeUserSpeechEnded():
         _dispatch(const VoiceUserSpeechEnded());
@@ -661,6 +686,9 @@ final class NexaVoiceController {
       case RealtimeAssistantSpeakingEnded():
         _dispatch(const VoiceAssistantTurnEnded());
       case RealtimeInterrupted():
+        _stats.value = _stats.value.copyWith(
+          interruptions: _stats.value.interruptions + 1,
+        );
         final wasBargeIn = _state.value.phase == VoiceState.bargeIn;
         _dispatch(const VoiceInterruptAcknowledged());
         if (wasBargeIn && _state.value.phase == VoiceState.userSpeaking) {

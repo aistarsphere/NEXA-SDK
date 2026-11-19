@@ -523,6 +523,19 @@ void main() {
       expect(v.state.value.mutePending, isFalse);
     });
 
+    test('default: mute while the user speaks closes the mic at once '
+        '(owner decision 2026-11-19)', () async {
+      final v = await voice();
+      await v.start();
+      await phase(v, VoiceState.listening);
+      transport.emit(const RealtimeUserSpeechStarted());
+      await phase(v, VoiceState.userSpeaking);
+      await v.toggleMute();
+      await waitFor(() => !transport.isMicrophoneEnabled, reason: 'muted');
+      expect(v.state.value.mutePending, isFalse);
+      expect(v.stats.value.muteMs, isNotNull);
+    });
+
     test('muteGrace zero restores the immediate mute', () async {
       final v = await voice(
         options: const NexaVoiceOptions(muteGrace: Duration.zero),
@@ -603,6 +616,49 @@ void main() {
         expect(provisioner.ended, isEmpty, reason: 'call continues');
       },
     );
+
+    test('a muted call stays muted through an engine reconnect', () async {
+      final v = await voice();
+      await v.start();
+      await phase(v, VoiceState.listening);
+      await v.toggleMute();
+      await phase(v, VoiceState.muted);
+      await transport.simulateDrop();
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      expect(v.state.value.muted, isTrue);
+      expect(transport.isMicrophoneEnabled, isFalse);
+    });
+
+    test('a muted call stays muted through a full rejoin', () async {
+      final v = await voice();
+      await v.start();
+      await phase(v, VoiceState.listening);
+      await v.toggleMute();
+      await phase(v, VoiceState.muted);
+      transport.simulateRoomDeleted();
+      await waitFor(() => transport.grants.length == 2, reason: 'rejoined');
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      expect(v.state.value.muted, isTrue);
+      expect(transport.isMicrophoneEnabled, isFalse);
+      await v.toggleMute();
+      await waitFor(() => transport.isMicrophoneEnabled, reason: 'unmuted');
+    });
+
+    test('stats count server speech starts and interruptions', () async {
+      final v = await voice();
+      await v.start();
+      await phase(v, VoiceState.listening);
+      transport
+        ..emit(const RealtimeAssistantThinking())
+        ..emit(const RealtimeAssistantSpeakingStarted());
+      await phase(v, VoiceState.aiSpeaking);
+      transport
+        ..emit(const RealtimeUserSpeechStarted())
+        ..emit(const RealtimeInterrupted());
+      await waitFor(() => v.stats.value.interruptions == 1, reason: 'counted');
+      expect(v.stats.value.speechStarts, 1);
+      expect(v.stats.value.unmuteMs, isNotNull, reason: 'capture start');
+    });
 
     test('refresh refused (410 / budget) → session treated as over', () async {
       final v = await voice();

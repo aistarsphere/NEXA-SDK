@@ -14,6 +14,42 @@ final class NexaVoiceLevels {
   final double agent;
 }
 
+/// Audio-quality counters of the current call, for QA and the debug panel
+/// (see [NexaVoiceController.stats]). Reset when a call starts. No content.
+@immutable
+final class NexaVoiceCallStats {
+  const NexaVoiceCallStats({
+    this.interruptions = 0,
+    this.speechStarts = 0,
+    this.unmuteMs,
+    this.muteMs,
+  });
+
+  /// Server-confirmed interruptions (`interrupted`) of the assistant. In
+  /// echo test T1 the user is silent, so every one is a self-interruption.
+  final int interruptions;
+
+  /// `user_speech_started` events from the server (the server heard
+  /// "speech"; while the user is silent, that is echo or noise).
+  final int speechStarts;
+
+  /// How long the last microphone enable / disable took in the engine.
+  final int? unmuteMs;
+  final int? muteMs;
+
+  NexaVoiceCallStats copyWith({
+    int? interruptions,
+    int? speechStarts,
+    int? unmuteMs,
+    int? muteMs,
+  }) => NexaVoiceCallStats(
+    interruptions: interruptions ?? this.interruptions,
+    speechStarts: speechStarts ?? this.speechStarts,
+    unmuteMs: unmuteMs ?? this.unmuteMs,
+    muteMs: muteMs ?? this.muteMs,
+  );
+}
+
 /// Snapshot of the live voice session exposed to hosts and to the capsule.
 @immutable
 final class NexaVoiceState {
@@ -184,7 +220,7 @@ final class NexaVoiceOptions {
     this.maxTranscriptEntries = 50,
     this.allowLegacyHmac = false,
     this.restartOnVoiceActivation = true,
-    this.muteGrace = const Duration(milliseconds: 1200),
+    this.muteGrace = Duration.zero,
     this.backgroundGrace = const Duration(seconds: 25),
     this.postCallReconcileDelays = const [
       Duration(milliseconds: 500),
@@ -196,7 +232,9 @@ final class NexaVoiceOptions {
   /// speaking, so the server hears the trailing silence and commits the
   /// turn (a muted track sends nothing, so the reply otherwise waits until
   /// the user unmutes: device test T-M07-01). Ends early when the reply
-  /// starts. [Duration.zero] mutes at once.
+  /// starts. The default, [Duration.zero], mutes at once: Mute must stop
+  /// the agent hearing anything (owner decision 2026-11-19); closing the
+  /// cut-off sentence is the server's job (listening control).
   final Duration muteGrace;
 
   /// After `voice.profile.activate` succeeds during a call, end it and
