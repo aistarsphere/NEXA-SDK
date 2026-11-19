@@ -120,12 +120,15 @@ void main() {
   }
 
   /// Lets real file I/O started by the UI progress step by step.
-  Future<void> io(WidgetTester tester) async {
-    for (var i = 0; i < 10; i++) {
+  /// Real file I/O runs outside fake time. Waits at least ~300 ms, and with
+  /// [until] keeps waiting (up to ~5 s real time) for slow CI runners.
+  Future<void> io(WidgetTester tester, {bool Function()? until}) async {
+    for (var i = 0; i < 160; i++) {
       await tester.runAsync(
         () => Future<void>.delayed(const Duration(milliseconds: 30)),
       );
       await tester.pump(const Duration(milliseconds: 50));
+      if (i >= 9 && (until == null || until())) return;
     }
   }
 
@@ -316,7 +319,8 @@ void main() {
     await tester.tap(find.byKey(const Key('nexa_camera_shutter')));
     await frames(tester);
     await tester.tap(find.byKey(const Key('nexa_camera_use')));
-    await io(tester); // importing the photo is real file I/O
+    // Importing the photo is real file I/O.
+    await io(tester, until: () => client.media.attachments.isNotEmpty);
     await frames(tester);
 
     // Back on the voice page, the call is still running.
