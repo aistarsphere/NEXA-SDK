@@ -86,7 +86,15 @@ final class NexaVoiceController {
     send: _transport.sendSignal,
     diagnostics: _diagnostics,
   );
-  final VoiceSessionMachine _machine = const VoiceSessionMachine();
+  late final VoiceSessionMachine _machine = VoiceSessionMachine(
+    waitForInterruptConfirmation: _options.waitForInterruptConfirmation,
+  );
+  Timer? _speakingWatchdog;
+  bool _agentSilent = true;
+  // The agent's audio was heard in this "speaking" stretch: the watchdog
+  // counts only silence after real audio, never a reply whose level
+  // updates have not arrived yet.
+  bool _agentHeard = false;
 
   final ValueNotifier<NexaVoiceState> _state = ValueNotifier(
     const NexaVoiceState(),
@@ -390,6 +398,35 @@ final class NexaVoiceController {
     _sendClientInfo();
   }
 
+  /// While "speaking", once the agent's audio was heard and then went
+  /// silent, a timer returns the call to "listening" unless a server event
+  /// or agent audio comes first (a lost `assistant_turn_ended` or
+  /// `interrupted` must not leave the UI stuck on "speaking").
+  void _armSpeakingWatchdog() {
+    final timeout = _options.speakingSilenceTimeout;
+    if (_disposed ||
+        timeout <= Duration.zero ||
+        _state.value.phase != VoiceState.aiSpeaking ||
+        !_agentHeard ||
+        !_agentSilent) {
+      _speakingWatchdog?.cancel();
+      _speakingWatchdog = null;
+      return;
+    }
+    _speakingWatchdog ??= Timer(timeout, () {
+      _speakingWatchdog = null;
+      if (_disposed ||
+          !_agentSilent ||
+          _state.value.phase != VoiceState.aiSpeaking) {
+        return;
+      }
+      _diagnostics.record('voice.speaking_timeout', {
+        'ms': timeout.inMilliseconds,
+      });
+      _dispatch(const VoiceAssistantTurnEnded());
+    });
+  }
+
   String _micOffReason() => _phoneHold ? 'phone_call' : 'mute';
 
   /// The call is over (any path): stop polling platform audio, forget the
@@ -476,6 +513,7 @@ final class NexaVoiceController {
   Future<void> dispose() async {
     if (_disposed) return;
     _muteGrace?.cancel();
+    _speakingWatchdog?.cancel();
     if (_voiceSessionId != null) await _teardown();
     _disposed = true;
     _backgroundTimer?.cancel();
@@ -527,6 +565,8 @@ final class NexaVoiceController {
         ),
       );
       if (!_state.value.isActive) _callAudioOff();
+      if (transition.state == VoiceState.aiSpeaking) _agentHeard = false;
+      _armSpeakingWatchdog();
       _emit(
         NexaVoicePhaseChanged(clock.now(), from: before, to: transition.state),
       );
@@ -726,6 +766,12 @@ final class NexaVoiceController {
 
   void _onTransportEvent(RealtimeVoiceEvent e) {
     if (_disposed) return;
+    if (e is! RealtimeAudioLevels && _speakingWatchdog != null) {
+      // A server event: the silence timer restarts from it.
+      _speakingWatchdog!.cancel();
+      _speakingWatchdog = null;
+      scheduleMicrotask(_armSpeakingWatchdog);
+    }
     switch (e) {
       case RealtimeConnected():
         _diagnostics.record('voice.handshake_done');
@@ -790,6 +836,9 @@ final class NexaVoiceController {
           local: _state.value.muted ? 0 : local,
           agent: agent,
         );
+        _agentSilent = agent < 0.01;
+        if (!_agentSilent) _agentHeard = true;
+        _armSpeakingWatchdog();
       case RealtimeUserSpeechStarted():
         _stats.value = _stats.value.copyWith(
           speechStarts: _stats.value.speechStarts + 1,

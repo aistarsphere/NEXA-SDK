@@ -29,7 +29,12 @@ final class VoiceTransition {
 /// Mute is modelled as a state that remembers it was listening; unmuting
 /// resumes `listening`.
 final class VoiceSessionMachine {
-  const VoiceSessionMachine();
+  const VoiceSessionMachine({this.waitForInterruptConfirmation = true});
+
+  /// True (default): speech during a reply leaves `aiSpeaking` only when the
+  /// server confirms with `interrupted`. False: the earlier behaviour, where
+  /// speech enters `bargeIn` at once (playback stop + local interrupt).
+  final bool waitForInterruptConfirmation;
 
   /// Computes the next state and the commands to execute.
   VoiceTransition transition(VoiceState state, VoiceEvent event) {
@@ -172,7 +177,13 @@ final class VoiceSessionMachine {
       VoiceState.aiSpeaking => switch (event) {
         // The server heard speech; whether it interrupts is its decision
         // (noise or echo must not). The reply keeps playing until then.
-        VoiceUserSpeechStarted() => VoiceTransition(state),
+        VoiceUserSpeechStarted() =>
+          waitForInterruptConfirmation
+              ? VoiceTransition(state)
+              : const VoiceTransition(VoiceState.bargeIn, [
+                  StopPlayback(),
+                  SendInterrupt(),
+                ]),
         VoiceInterruptAcknowledged() => const VoiceTransition(
           VoiceState.userSpeaking,
           [StopPlayback()],

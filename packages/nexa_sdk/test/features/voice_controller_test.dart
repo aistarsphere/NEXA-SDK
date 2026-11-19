@@ -619,6 +619,82 @@ void main() {
       expect(v.stats.value.speechStarts, 1);
     });
 
+    Future<NexaVoiceController> speakingWith(NexaVoiceOptions o) async {
+      final v = await voice(options: o);
+      await v.start();
+      await phase(v, VoiceState.listening);
+      transport
+        ..emit(const RealtimeAssistantThinking())
+        ..emit(const RealtimeAssistantSpeakingStarted());
+      await phase(v, VoiceState.aiSpeaking);
+      return v;
+    }
+
+    test(
+      'safety: agent audio stopped and no event arrives -> listening',
+      () async {
+        final v = await speakingWith(
+          const NexaVoiceOptions(
+            speakingSilenceTimeout: Duration(milliseconds: 150),
+          ),
+        );
+        transport
+          ..emit(const RealtimeAudioLevels(local: 0, agent: 0.6))
+          ..emit(const RealtimeUserSpeechStarted()) // echo: not confirmed
+          ..emit(const RealtimeAudioLevels(local: 0, agent: 0));
+        await Future<void>.delayed(const Duration(milliseconds: 60));
+        expect(v.state.value.phase, VoiceState.aiSpeaking, reason: 'not yet');
+        await phase(v, VoiceState.listening);
+      },
+    );
+
+    test('safety: never fires while the agent is audible or before any '
+        'agent audio was heard', () async {
+      final v = await speakingWith(
+        const NexaVoiceOptions(
+          speakingSilenceTimeout: Duration(milliseconds: 100),
+        ),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 250));
+      expect(
+        v.state.value.phase,
+        VoiceState.aiSpeaking,
+        reason: 'no level update yet',
+      );
+      transport.emit(const RealtimeAudioLevels(local: 0, agent: 0.5));
+      await Future<void>.delayed(const Duration(milliseconds: 250));
+      expect(v.state.value.phase, VoiceState.aiSpeaking, reason: 'audible');
+    });
+
+    test('safety: a server event restarts the timer', () async {
+      final v = await speakingWith(
+        const NexaVoiceOptions(
+          speakingSilenceTimeout: Duration(milliseconds: 200),
+        ),
+      );
+      transport
+        ..emit(const RealtimeAudioLevels(local: 0, agent: 0.6))
+        ..emit(const RealtimeAudioLevels(local: 0, agent: 0));
+      await Future<void>.delayed(const Duration(milliseconds: 120));
+      transport.emit(const RealtimeUserSpeechStarted());
+      await Future<void>.delayed(const Duration(milliseconds: 120));
+      expect(
+        v.state.value.phase,
+        VoiceState.aiSpeaking,
+        reason: '240 ms total, but only 120 ms since the last event',
+      );
+      await phase(v, VoiceState.listening);
+    });
+
+    test('flag off: speech during a reply shows bargeIn at once (earlier '
+        'behaviour)', () async {
+      final v = await speakingWith(
+        const NexaVoiceOptions(waitForInterruptConfirmation: false),
+      );
+      transport.emit(const RealtimeUserSpeechStarted());
+      await phase(v, VoiceState.bargeIn);
+    });
+
     test('a new turn without an interrupted event leaves speaking', () async {
       final v = await voice();
       await v.start();

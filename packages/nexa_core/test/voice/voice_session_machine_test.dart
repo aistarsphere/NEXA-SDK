@@ -88,6 +88,16 @@ void main() {
       expect(ack.commands, const [StopPlayback()]);
     });
 
+    test('waitForInterruptConfirmation false restores immediate bargeIn', () {
+      const old = VoiceSessionMachine(waitForInterruptConfirmation: false);
+      final t = old.transition(
+        VoiceState.aiSpeaking,
+        const VoiceUserSpeechStarted(),
+      );
+      expect(t.state, VoiceState.bargeIn);
+      expect(t.commands, const [StopPlayback(), SendInterrupt()]);
+    });
+
     test('speech while thinking enters bargeIn and sends interrupt', () {
       final t = m.transition(
         VoiceState.thinking,

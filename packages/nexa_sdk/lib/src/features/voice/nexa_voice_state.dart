@@ -230,6 +230,8 @@ final class NexaVoiceOptions {
     this.muteGrace = Duration.zero,
     this.backgroundGrace = const Duration(seconds: 25),
     this.holdOnPhoneCall = true,
+    this.waitForInterruptConfirmation = true,
+    this.speakingSilenceTimeout = const Duration(milliseconds: 2500),
     this.postCallReconcileDelays = const [
       Duration(milliseconds: 500),
       Duration(milliseconds: 2500),
@@ -259,6 +261,18 @@ final class NexaVoiceOptions {
   /// from the platform audio mode on Android, CallKit on iOS) and back on
   /// afterwards. Off: phone calls are left to the OS.
   final bool holdOnPhoneCall;
+
+  /// True (default): while the assistant speaks, the UI keeps "speaking"
+  /// until the server confirms an interruption (`interrupted`); echo and
+  /// noise do not look like one. False: speech shows "listening to you" at
+  /// once (the earlier behaviour).
+  final bool waitForInterruptConfirmation;
+
+  /// Safety net for "speaking": when the assistant's audio has been silent
+  /// this long and no server event arrived meanwhile, the call returns to
+  /// "listening" (a lost `assistant_turn_ended` or `interrupted` must not
+  /// leave the UI stuck). [Duration.zero] disables it.
+  final Duration speakingSilenceTimeout;
 
   /// After a call ends the open chat refetches the conversation at each of
   /// these delays, so the spoken turns the gateway recorded show up (the

@@ -353,6 +353,17 @@ final class LiveKitVoiceTransport implements RealtimeVoiceTransport {
             participant.identity == grant?.agentIdentity) {
           _emit(const RealtimeAgentAudioTrack(subscribed: false));
         }
+      case lk.ActiveSpeakersChangedEvent(:final speakers):
+        // Always (not only with diagnostics): the controller uses the
+        // agent's level to notice a reply that went silent.
+        double level(bool Function(lk.Participant) who) =>
+            speakers.where(who).firstOrNull?.audioLevel ?? 0;
+        _emit(
+          RealtimeAudioLevels(
+            local: level((p) => p is lk.LocalParticipant),
+            agent: level((p) => p.identity == grant?.agentIdentity),
+          ),
+        );
       case lk.DataReceivedEvent(:final data, :final topic):
         if (grant == null || topic != grant.eventsTopic) return;
         final String text;
@@ -417,14 +428,6 @@ final class LiveKitVoiceTransport implements RealtimeVoiceTransport {
           'agent': speakers.any(isAgent),
           'local': speakers.any((p) => p is lk.LocalParticipant),
         });
-        double level(bool Function(lk.Participant) who) =>
-            speakers.where(who).firstOrNull?.audioLevel ?? 0;
-        _emit(
-          RealtimeAudioLevels(
-            local: level((p) => p is lk.LocalParticipant),
-            agent: level(isAgent),
-          ),
-        );
       case lk.ParticipantConnectionQualityUpdatedEvent(
         :final participant,
         :final connectionQuality,
