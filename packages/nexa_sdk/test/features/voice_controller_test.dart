@@ -35,6 +35,17 @@ final class _AudioPlatform implements NexaCallAudioPlatform {
   };
   int reasserts = 0;
   @override
+  Future<bool> acquireFocus() async {
+    focusAcquired++;
+    facts['focus'] = 'held';
+    return true;
+  }
+
+  @override
+  Future<void> releaseFocus() async => focusReleased++;
+  int focusAcquired = 0;
+  int focusReleased = 0;
+  @override
   Future<Map<String, Object?>?> state() async => Map.of(facts);
   @override
   Future<String?> reassertCommunicationMode() async {
@@ -891,6 +902,53 @@ void main() {
       await v.callAudio!.refresh();
       v.callAudio!.state.removeListener(count);
       expect(notified, 0);
+    });
+
+    test('Android: another app takes audio focus for a while (WhatsApp '
+        'call): mic off, "paused", then back', () async {
+      final v = await voice(callAudio: audio());
+      await v.start();
+      await phase(v, VoiceState.listening);
+      await waitFor(() => platform.focusAcquired == 1, reason: 'observer');
+      platform.facts['focus'] = 'lost_transient';
+      await v.callAudio!.refresh();
+      await waitFor(() => !transport.isMicrophoneEnabled, reason: 'held');
+      expect(v.state.value.hold, NexaVoiceHold.otherApp);
+      expect(v.state.value.muted, isFalse);
+      platform.facts['focus'] = 'held';
+      await v.callAudio!.refresh();
+      await waitFor(() => transport.isMicrophoneEnabled, reason: 'back');
+      expect(v.state.value.hold, isNull);
+    });
+
+    test('Android: permanent focus loss waits for the user; Resume takes '
+        'the audio back', () async {
+      final v = await voice(callAudio: audio());
+      await v.start();
+      await phase(v, VoiceState.listening);
+      await waitFor(() => platform.focusAcquired == 1, reason: 'observer');
+      platform.facts['focus'] = 'lost';
+      await v.callAudio!.refresh();
+      await waitFor(
+        () => v.state.value.hold == NexaVoiceHold.otherApp,
+        reason: 'held',
+      );
+      await v.resumeAudio();
+      await waitFor(() => transport.isMicrophoneEnabled, reason: 'resumed');
+      expect(platform.focusAcquired, 2);
+      expect(v.state.value.hold, isNull);
+    });
+
+    test('focus changes while the room connects are not another app', () async {
+      final a = audio();
+      await a.beginCall();
+      a.connecting();
+      platform.facts['focus'] = 'lost';
+      await a.refresh();
+      expect(a.state.value.hold, isNull);
+      await a.endCall();
+      expect(platform.focusReleased, 1);
+      await a.dispose();
     });
 
     test('ending the call stops call audio', () async {

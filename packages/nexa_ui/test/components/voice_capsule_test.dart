@@ -31,7 +31,8 @@ void main() {
     bool reducedMotion = false,
     NexaVoiceOutput? output,
     VoidCallback? onToggleOutput,
-    bool phoneCallHold = false,
+    NexaVoiceHold? hold,
+    VoidCallback? onResume,
   }) => harness(
     SizedBox(
       width: 360,
@@ -51,7 +52,8 @@ void main() {
         onOpenSettings: onOpenSettings,
         output: output,
         onToggleOutput: onToggleOutput,
-        phoneCallHold: phoneCallHold,
+        hold: hold,
+        onResume: onResume,
       ),
     ),
     locale: locale,
@@ -100,13 +102,28 @@ void main() {
       await tester.pumpWidget(
         capsule(
           state: VoiceState.listening,
-          phoneCallHold: true,
+          hold: NexaVoiceHold.phoneCall,
           locale: const Locale('ar'),
         ),
       );
       await tester.pumpAndSettle();
       expect(find.text('متوقف بسبب مكالمة هاتفية'), findsOneWidget);
     });
+  });
+
+  testWidgets('another app holding the audio offers Resume', (tester) async {
+    var resumed = 0;
+    await tester.pumpWidget(
+      capsule(
+        state: VoiceState.listening,
+        hold: NexaVoiceHold.otherApp,
+        onResume: () => resumed++,
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Paused: another app is using the audio'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('nexa_voice_resume')));
+    expect(resumed, 1);
   });
 
   group('error banners say what happened', () {

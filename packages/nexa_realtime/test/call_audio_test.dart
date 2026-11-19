@@ -14,6 +14,16 @@ final class _FakePlatform implements NexaCallAudioPlatform {
     'bluetoothPermissionNeeded': false,
   };
   int reasserts = 0;
+  @override
+  Future<bool> acquireFocus() async {
+    focusAcquired++;
+    return true;
+  }
+
+  @override
+  Future<void> releaseFocus() async => focusReleased++;
+  int focusAcquired = 0;
+  int focusReleased = 0;
 
   @override
   Future<Map<String, Object?>?> state() async => Map.of(facts);
@@ -88,8 +98,8 @@ void main() {
 
   test('phone call start and end are reported once each; recovery '
       'reasserts the communication mode and the choice', () async {
-    final calls = <bool>[];
-    final sub = audio.phoneCallChanges.listen(calls.add);
+    final calls = <NexaCallHold?>[];
+    final sub = audio.holdChanges.listen(calls.add);
     await audio.beginCall();
     await audio.setSpeakerPreferred(false);
     platform.facts
@@ -102,7 +112,7 @@ void main() {
       ..['mode'] = 'normal';
     await audio.refresh();
     await Future<void>.delayed(Duration.zero);
-    expect(calls, [true, false]);
+    expect(calls, [NexaCallHold.phoneCall, null]);
     await audio.recoverAfterPhoneCall();
     expect(platform.reasserts, 1);
     expect(audio.state.value.mode, 'in_communication');

@@ -3,7 +3,9 @@ package com.nexa.realtime
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
+import android.media.AudioAttributes
 import android.media.AudioDeviceInfo
+import android.media.AudioFocusRequest
 import android.media.AudioManager
 import android.media.audiofx.AcousticEchoCanceler
 import android.media.audiofx.AutomaticGainControl
@@ -20,10 +22,31 @@ import io.flutter.plugin.common.MethodChannel
  * focus, routing); this plugin only reads it, plus one repair:
  * [reassertCommunicationMode] after a phone call left the mode changed.
  * No audio, no permissions requested here.
+ *
+ * Audio focus: LiveKit requests focus with an empty listener, so focus
+ * changes never reach the app. While a call runs this plugin holds its own
+ * voice-communication focus request (taken after LiveKit's; LiveKit ignores
+ * the change) only to *observe* other apps: a WhatsApp or other VoIP call,
+ * a ringtone. The state is read by the Dart poll as `focus`.
  */
 class NexaRealtimePlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
     private lateinit var channel: MethodChannel
     private lateinit var context: Context
+
+    @Volatile private var focus = "none"
+    private var focusRequest: AudioFocusRequest? = null
+    private val focusListener = AudioManager.OnAudioFocusChangeListener { change ->
+        focus = when (change) {
+            AudioManager.AUDIOFOCUS_GAIN,
+            AudioManager.AUDIOFOCUS_GAIN_TRANSIENT,
+            AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK -> "held"
+            // A notification sound: keep listening.
+            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> "held"
+            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> "lost_transient"
+            AudioManager.AUDIOFOCUS_LOSS -> "lost"
+            else -> focus
+        }
+    }
 
     override fun onAttachedToEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         context = binding.applicationContext
@@ -33,12 +56,18 @@ class NexaRealtimePlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
 
     override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         channel.setMethodCallHandler(null)
+        releaseFocus()
     }
 
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
         when (call.method) {
             "state" -> result.success(state())
             "reassertCommunicationMode" -> result.success(reassertCommunicationMode())
+            "acquireFocus" -> result.success(acquireFocus())
+            "releaseFocus" -> {
+                releaseFocus()
+                result.success(null)
+            }
             else -> result.notImplemented()
         }
     }
@@ -61,7 +90,46 @@ class NexaRealtimePlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
             "aecAvailable" to AcousticEchoCanceler.isAvailable(),
             "nsAvailable" to NoiseSuppressor.isAvailable(),
             "agcAvailable" to AutomaticGainControl.isAvailable(),
+            "focus" to focus,
         )
+    }
+
+    /** Takes (or takes back) voice-communication focus; true when granted. */
+    private fun acquireFocus(): Boolean {
+        val am = audio
+        val granted = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val request = focusRequest ?: AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
+                .setAudioAttributes(
+                    AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_VOICE_COMMUNICATION)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                        .build(),
+                )
+                .setOnAudioFocusChangeListener(focusListener)
+                .build()
+                .also { focusRequest = it }
+            am.requestAudioFocus(request)
+        } else {
+            @Suppress("DEPRECATION")
+            am.requestAudioFocus(
+                focusListener,
+                AudioManager.STREAM_VOICE_CALL,
+                AudioManager.AUDIOFOCUS_GAIN,
+            )
+        } == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+        if (granted) focus = "held"
+        return granted
+    }
+
+    private fun releaseFocus() {
+        val am = audio
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            focusRequest?.let { am.abandonAudioFocusRequest(it) }
+        } else {
+            @Suppress("DEPRECATION")
+            am.abandonAudioFocus(focusListener)
+        }
+        focus = "none"
     }
 
     /** After a phone call, Android may leave the mode at NORMAL; without

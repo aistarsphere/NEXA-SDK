@@ -2647,6 +2647,18 @@ abstract class NexaLocalizations {
   /// In en, this message translates to:
   /// **'Paused for a phone call'**
   String get voicePhoneCallHold;
+
+  /// No description provided for @voiceOtherAppHold.
+  ///
+  /// In en, this message translates to:
+  /// **'Paused: another app is using the audio'**
+  String get voiceOtherAppHold;
+
+  /// No description provided for @voiceResume.
+  ///
+  /// In en, this message translates to:
+  /// **'Resume'**
+  String get voiceResume;
 }
 
 class _NexaLocalizationsDelegate

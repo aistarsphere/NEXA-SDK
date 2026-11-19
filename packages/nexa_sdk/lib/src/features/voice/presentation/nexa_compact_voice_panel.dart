@@ -234,8 +234,8 @@ class _NexaCompactVoicePanelState extends State<NexaCompactVoicePanel> {
               '${approval != null ? l10n.panelNeedsApproval : l10n.panelOpenToContinue}'
         : tool != null
         ? '${l10n.panelWorking} ${labeebToolTitle(l10n, tool.call.tool)}'
-        : state.phoneCallHold && state.isActive
-        ? l10n.voicePhoneCallHold
+        : state.hold != null && state.isActive
+        ? nexaVoiceHoldLabel(l10n, state.hold!)
         : NexaVoiceCapsule.voiceStateLabel(
             l10n,
             state.phase,
@@ -404,6 +404,13 @@ class _NexaCompactVoicePanelState extends State<NexaCompactVoicePanel> {
         selected: state.muted,
         onPressed: state.isActive ? _voice.toggleMute : null,
       ),
+      if (state.isActive && state.hold == NexaVoiceHold.otherApp)
+        _PanelButton(
+          key: const Key('nexa_panel_resume'),
+          icon: Icons.play_arrow_rounded,
+          label: l10n.voiceResume,
+          onPressed: _voice.resumeAudio,
+        ),
       if (output != null)
         _PanelButton(
           key: const Key('nexa_panel_output'),

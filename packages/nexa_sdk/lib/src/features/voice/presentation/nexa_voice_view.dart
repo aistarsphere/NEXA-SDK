@@ -178,7 +178,8 @@ class _VoiceBodyState extends State<_VoiceBody> {
                 onToggleOutput: widget.controller.callAudio == null
                     ? null
                     : () => nexaToggleVoiceOutput(widget.controller.callAudio!),
-                phoneCallHold: s.phoneCallHold,
+                hold: s.hold,
+                onResume: widget.controller.resumeAudio,
                 onRetry: widget.controller.start,
                 onOpenSettings: widget.onOpenSettings,
               ),

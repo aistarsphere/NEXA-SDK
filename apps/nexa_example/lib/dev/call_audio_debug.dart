@@ -99,7 +99,8 @@ List<(String, String)> callAudioDebugRows(NexaVoiceController v) {
     ('phase', s.phase.name),
     ('muted (user)', '${s.muted}'),
     ('mic sending', '${v.microphoneEnabled}'),
-    ('phone call hold', '${s.phoneCallHold}'),
+    ('hold', s.hold?.name ?? 'none'),
+    ('focus', a?.focus ?? 'n/a'),
     ('route', a?.route.name ?? 'n/a'),
     (
       'choice',

@@ -1375,4 +1375,10 @@ class NexaLocalizationsAr extends NexaLocalizations {
 
   @override
   String get voicePhoneCallHold => 'متوقف بسبب مكالمة هاتفية';
+
+  @override
+  String get voiceOtherAppHold => 'متوقف: تطبيق آخر يستخدم الصوت';
+
+  @override
+  String get voiceResume => 'استئناف';
 }

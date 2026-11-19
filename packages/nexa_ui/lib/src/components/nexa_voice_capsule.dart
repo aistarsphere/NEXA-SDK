@@ -24,6 +24,16 @@ import 'package:nexa_ui/src/theme/nexa_motion.dart';
 /// (loudspeaker / earpiece) or a connected headset, which takes priority.
 enum NexaVoiceOutput { speaker, earpiece, headset }
 
+/// Why the platform holds the call's microphone off.
+enum NexaVoiceHold {
+  /// A phone call.
+  phoneCall,
+
+  /// Another app took the audio (a WhatsApp or other VoIP call, a
+  /// ringtone). It may not give it back by itself: offer Resume.
+  otherApp,
+}
+
 class NexaVoiceCapsule extends StatefulWidget {
   const NexaVoiceCapsule({
     required this.state,
@@ -42,7 +52,8 @@ class NexaVoiceCapsule extends StatefulWidget {
     this.onOpenSettings,
     this.output,
     this.onToggleOutput,
-    this.phoneCallHold = false,
+    this.hold,
+    this.onResume,
     super.key,
   });
 
@@ -54,8 +65,11 @@ class NexaVoiceCapsule extends StatefulWidget {
   /// Switches loudspeaker ⇄ earpiece.
   final VoidCallback? onToggleOutput;
 
-  /// A phone call holds the audio; the label says so.
-  final bool phoneCallHold;
+  /// The platform holds the audio; the label says why.
+  final NexaVoiceHold? hold;
+
+  /// Takes the audio back after [NexaVoiceHold.otherApp].
+  final VoidCallback? onResume;
   final List<VoiceTranscriptEntry> transcript;
   final bool muted;
 
@@ -259,7 +273,8 @@ class _NexaVoiceCapsuleState extends State<NexaVoiceCapsule> {
             onToggleCaptions: () => setState(() => _captions = !_captions),
             output: widget.output,
             onToggleOutput: widget.onToggleOutput,
-            phoneCallHold: widget.phoneCallHold,
+            hold: widget.hold,
+            onResume: widget.onResume,
           ),
         ],
       ),
@@ -405,12 +420,14 @@ class _Panel extends StatelessWidget {
     this.onToggleMute,
     this.output,
     this.onToggleOutput,
-    this.phoneCallHold = false,
+    this.hold,
+    this.onResume,
   });
 
   final NexaVoiceOutput? output;
   final VoidCallback? onToggleOutput;
-  final bool phoneCallHold;
+  final NexaVoiceHold? hold;
+  final VoidCallback? onResume;
   final bool interruptConfirmed;
   final String? toolLabel;
   final VoiceState state;
@@ -436,8 +453,9 @@ class _Panel extends StatelessWidget {
         state != VoiceState.aiSpeaking &&
         state != VoiceState.userSpeaking &&
         state != VoiceState.bargeIn;
-    final label = phoneCallHold && inCall
-        ? l10n.voicePhoneCallHold
+    final held = inCall ? hold : null;
+    final label = held != null
+        ? nexaVoiceHoldLabel(l10n, held)
         : showTool
         ? toolLabel!
         : NexaVoiceCapsule.voiceStateLabel(
@@ -546,6 +564,16 @@ class _Panel extends StatelessWidget {
                   ],
                 ),
               ),
+              if (held == NexaVoiceHold.otherApp && onResume != null)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: FilledButton.tonalIcon(
+                    key: const Key('nexa_voice_resume'),
+                    onPressed: onResume,
+                    icon: const Icon(Icons.play_arrow_rounded),
+                    label: Text(l10n.voiceResume),
+                  ),
+                ),
               const SizedBox(height: 6),
               _Controls(
                 inCall: inCall,
@@ -1152,4 +1180,11 @@ String nexaVoiceOutputLabel(NexaLocalizations l10n, NexaVoiceOutput output) =>
       NexaVoiceOutput.speaker => l10n.voiceOutputSpeaker,
       NexaVoiceOutput.earpiece => l10n.voiceOutputEarpiece,
       NexaVoiceOutput.headset => l10n.voiceOutputHeadset,
+    };
+
+/// Label while the platform holds the microphone off.
+String nexaVoiceHoldLabel(NexaLocalizations l10n, NexaVoiceHold hold) =>
+    switch (hold) {
+      NexaVoiceHold.phoneCall => l10n.voicePhoneCallHold,
+      NexaVoiceHold.otherApp => l10n.voiceOtherAppHold,
     };

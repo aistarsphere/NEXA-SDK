@@ -17,9 +17,17 @@ export 'package:nexa_realtime/nexa_realtime.dart'
         NexaAudioRoute,
         NexaCallAudio,
         NexaCallAudioPlatform,
+        NexaCallHold,
         NexaCallAudioState;
 export 'package:nexa_ui/nexa_ui.dart'
-    show NexaColors, NexaLocale, NexaMotion, NexaTheme, NexaThemeOverrides;
+    show
+        NexaColors,
+        NexaLocale,
+        NexaMotion,
+        NexaTheme,
+        NexaThemeOverrides,
+        NexaVoiceHold,
+        NexaVoiceOutput;
 
 export 'src/data/labeeb/labeeb_sdk_client.dart';
 export 'src/data/network/error_mapper.dart'

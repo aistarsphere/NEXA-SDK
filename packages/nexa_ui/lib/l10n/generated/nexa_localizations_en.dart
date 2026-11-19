@@ -1391,4 +1391,10 @@ class NexaLocalizationsEn extends NexaLocalizations {
 
   @override
   String get voicePhoneCallHold => 'Paused for a phone call';
+
+  @override
+  String get voiceOtherAppHold => 'Paused: another app is using the audio';
+
+  @override
+  String get voiceResume => 'Resume';
 }

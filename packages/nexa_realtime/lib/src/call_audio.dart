@@ -12,6 +12,17 @@ import 'package:nexa_core/nexa_core.dart';
 /// Where call audio is playing.
 enum NexaAudioRoute { speaker, earpiece, wired, bluetooth, usb, other, unknown }
 
+/// Why the call's microphone is held off by the platform.
+enum NexaCallHold {
+  /// A phone call (Android audio mode, iOS CallKit; on iOS this includes
+  /// VoIP apps that use CallKit, e.g. WhatsApp).
+  phoneCall,
+
+  /// Android: another app took audio focus (a VoIP call such as WhatsApp,
+  /// a ringtone, a recorder).
+  otherApp,
+}
+
 /// Platform audio during a call, as read from the OS (no content).
 @immutable
 final class NexaCallAudioState {
@@ -28,6 +39,8 @@ final class NexaCallAudioState {
     this.osVersion,
     this.model,
     this.processing = const {},
+    this.focus,
+    this.hold,
   });
 
   /// A call is running.
@@ -64,6 +77,13 @@ final class NexaCallAudioState {
   /// applied by the engine (`platform`, `software`, `disabled`, ...).
   final Map<String, String> processing;
 
+  /// Android: `held`, `lost_transient`, `lost` or `none` (our observer
+  /// focus request); null elsewhere.
+  final String? focus;
+
+  /// Why the platform holds the microphone off, if it does.
+  final NexaCallHold? hold;
+
   @override
   bool operator ==(Object other) =>
       other is NexaCallAudioState &&
@@ -78,6 +98,8 @@ final class NexaCallAudioState {
       other.platform == platform &&
       other.osVersion == osVersion &&
       other.model == model &&
+      other.focus == focus &&
+      other.hold == hold &&
       mapEquals(other.processing, processing);
 
   @override
@@ -93,6 +115,8 @@ final class NexaCallAudioState {
     platform,
     osVersion,
     model,
+    focus,
+    hold,
     Object.hashAllUnordered(
       processing.entries.map((e) => '${e.key}=${e.value}'),
     ),
@@ -116,6 +140,9 @@ final class NexaCallAudioState {
     String? osVersion,
     String? model,
     Map<String, String>? processing,
+    String? focus,
+    NexaCallHold? hold,
+    bool clearHold = false,
   }) => NexaCallAudioState(
     active: active ?? this.active,
     speakerPreferred: speakerPreferred ?? this.speakerPreferred,
@@ -130,6 +157,8 @@ final class NexaCallAudioState {
     osVersion: osVersion ?? this.osVersion,
     model: model ?? this.model,
     processing: processing ?? this.processing,
+    focus: focus ?? this.focus,
+    hold: clearHold ? null : (hold ?? this.hold),
   );
 }
 
@@ -141,6 +170,12 @@ abstract interface class NexaCallAudioPlatform {
   /// Android: puts the mode back to communication after a phone call left
   /// it changed (the platform echo canceller needs it). Returns the mode.
   Future<String?> reassertCommunicationMode();
+
+  /// Android: takes the observer audio-focus request; true when granted.
+  Future<bool> acquireFocus();
+
+  /// Android: gives it back (call ended).
+  Future<void> releaseFocus();
 }
 
 final class MethodChannelCallAudioPlatform implements NexaCallAudioPlatform {
@@ -164,6 +199,24 @@ final class MethodChannelCallAudioPlatform implements NexaCallAudioPlatform {
       return await _channel.invokeMethod<String>('reassertCommunicationMode');
     } on Object {
       return null;
+    }
+  }
+
+  @override
+  Future<bool> acquireFocus() async {
+    try {
+      return await _channel.invokeMethod<bool>('acquireFocus') ?? false;
+    } on Object {
+      return false; // iOS / no plugin: no focus model
+    }
+  }
+
+  @override
+  Future<void> releaseFocus() async {
+    try {
+      await _channel.invokeMethod<void>('releaseFocus');
+    } on Object {
+      // nothing to release
     }
   }
 }
@@ -201,15 +254,19 @@ final class NexaCallAudio {
   final ValueNotifier<NexaCallAudioState> _state = ValueNotifier(
     const NexaCallAudioState(),
   );
-  final StreamController<bool> _phoneCalls = StreamController.broadcast();
+  final StreamController<NexaCallHold?> _holds = StreamController.broadcast();
+  // Focus changes while the room (re)connects are LiveKit's own focus
+  // request, not another app.
+  bool _ignoreFocus = true;
   final StreamController<void> _changes = StreamController.broadcast();
   Timer? _poll;
   bool _reading = false;
 
   ValueListenable<NexaCallAudioState> get state => _state;
 
-  /// Emits true when a phone call takes the audio and false when it ends.
-  Stream<bool> get phoneCallChanges => _phoneCalls.stream;
+  /// Emits the hold reason when the platform takes the audio, null when it
+  /// gives it back.
+  Stream<NexaCallHold?> get holdChanges => _holds.stream;
 
   /// Emits when the route, mode or speaker choice changed (for client info).
   Stream<void> get changes => _changes.stream;
@@ -219,8 +276,12 @@ final class NexaCallAudio {
   String? _requestedMode(bool speaker) =>
       _isIos ? (speaker ? 'videoChat' : 'voiceChat') : null;
 
+  /// The room is about to (re)connect: LiveKit will request focus itself.
+  void connecting() => _ignoreFocus = true;
+
   /// A call starts: loudspeaker by default (owner decision), polling on.
   Future<void> beginCall() async {
+    _ignoreFocus = true;
     _state.value = NexaCallAudioState(
       active: true,
       requestedMode: _requestedMode(true),
@@ -236,6 +297,10 @@ final class NexaCallAudio {
   Future<void> afterConnect() async {
     if (!_state.value.active) return;
     await _applySpeaker(_state.value.speakerPreferred);
+    // After LiveKit's own request, so this observer request is the newest.
+    final granted = await _platform.acquireFocus();
+    _ignoreFocus = false;
+    _diagnostics.record('voice.audio_focus', {'granted': granted});
     Map<String, String> processing = const {};
     try {
       processing = await _readProcessing();
@@ -278,10 +343,28 @@ final class NexaCallAudio {
     await refresh();
   }
 
+  /// The user wants the call back after another app took focus for good
+  /// (Android does not return a permanent loss by itself).
+  Future<bool> reacquireFocus() async {
+    final granted = await _platform.acquireFocus();
+    _diagnostics.record('voice.audio_focus', {
+      'granted': granted,
+      'cause': 'user',
+    });
+    await refresh();
+    return granted;
+  }
+
   Future<void> endCall() async {
     _poll?.cancel();
     _poll = null;
-    _state.value = _state.value.copyWith(active: false, phoneCall: false);
+    _ignoreFocus = true;
+    await _platform.releaseFocus();
+    _state.value = _state.value.copyWith(
+      active: false,
+      phoneCall: false,
+      clearHold: true,
+    );
   }
 
   /// Reads the platform once and reports changes.
@@ -292,10 +375,20 @@ final class NexaCallAudio {
       final m = await _platform.state();
       if (m == null) return;
       final before = _state.value;
+      final focus = m['focus'] as String?;
+      final phoneCall = m['phoneCall'] == true;
+      final focusLost =
+          !_ignoreFocus && (focus == 'lost' || focus == 'lost_transient');
+      final hold = phoneCall
+          ? NexaCallHold.phoneCall
+          : (focusLost ? NexaCallHold.otherApp : null);
       final next = before.copyWith(
+        focus: focus,
+        hold: hold,
+        clearHold: hold == null,
         route: _route(m['route']),
         mode: m['mode'] as String?,
-        phoneCall: m['phoneCall'] == true,
+        phoneCall: phoneCall,
         bluetoothPresent: m['bluetoothPresent'] == true,
         bluetoothPermissionNeeded: m['bluetoothPermissionNeeded'] == true,
         platform: m['platform'] as String?,
@@ -311,9 +404,12 @@ final class NexaCallAudio {
         });
         _changes.add(null);
       }
-      if (next.phoneCall != before.phoneCall) {
-        _diagnostics.record('voice.phone_call', {'active': next.phoneCall});
-        _phoneCalls.add(next.phoneCall);
+      if (next.hold != before.hold) {
+        _diagnostics.record('voice.audio_hold', {
+          'hold': next.hold?.name,
+          'focus': focus,
+        });
+        _holds.add(next.hold);
       }
     } finally {
       _reading = false;
@@ -332,7 +428,7 @@ final class NexaCallAudio {
 
   Future<void> dispose() async {
     _poll?.cancel();
-    await _phoneCalls.close();
+    await _holds.close();
     await _changes.close();
     _state.dispose();
   }

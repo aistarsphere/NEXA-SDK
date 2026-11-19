@@ -424,5 +424,7 @@
   "voiceOutputSpeakerTooltip": "السماعة الخارجية مشغّلة. اضغط لاستخدام سماعة الهاتف",
   "voiceOutputEarpieceTooltip": "سماعة الهاتف. اضغط لاستخدام السماعة الخارجية",
   "voiceOutputHeadsetTooltip": "سماعة الرأس موصولة. اضغط لتغيير سماعة الهاتف عند فصلها",
-  "voicePhoneCallHold": "متوقف بسبب مكالمة هاتفية"
+  "voicePhoneCallHold": "متوقف بسبب مكالمة هاتفية",
+  "voiceOtherAppHold": "متوقف: تطبيق آخر يستخدم الصوت",
+  "voiceResume": "استئناف"
 }

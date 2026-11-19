@@ -656,5 +656,7 @@
   "voiceOutputSpeakerTooltip": "Speaker on. Tap to use the phone earpiece",
   "voiceOutputEarpieceTooltip": "Phone earpiece. Tap to use the speaker",
   "voiceOutputHeadsetTooltip": "Headset connected. Tap to change the phone output for when it is removed",
-  "voicePhoneCallHold": "Paused for a phone call"
+  "voicePhoneCallHold": "Paused for a phone call",
+  "voiceOtherAppHold": "Paused: another app is using the audio",
+  "voiceResume": "Resume"
 }

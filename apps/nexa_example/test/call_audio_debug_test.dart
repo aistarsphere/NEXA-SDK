@@ -23,6 +23,10 @@ final class _Platform implements NexaCallAudioPlatform {
   };
   @override
   Future<String?> reassertCommunicationMode() async => 'in_communication';
+  @override
+  Future<bool> acquireFocus() async => true;
+  @override
+  Future<void> releaseFocus() async {}
 }
 
 void main() {

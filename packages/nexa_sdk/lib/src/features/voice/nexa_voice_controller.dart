@@ -8,6 +8,7 @@ import 'package:nexa_sdk/src/features/voice/nexa_voice_signals.dart';
 import 'package:nexa_sdk/src/features/voice/nexa_voice_state.dart';
 import 'package:nexa_sdk/src/permissions/nexa_permission_handler.dart';
 import 'package:nexa_sdk/src/session/session_manager.dart';
+import 'package:nexa_ui/nexa_ui.dart' show NexaVoiceHold;
 
 /// Orchestrates one live voice session against contract `nexa.voice.v1`
 /// (backend handoff 1.0.0).
@@ -56,7 +57,7 @@ final class NexaVoiceController {
     final audio = callAudio;
     if (audio != null) {
       _audioSubs
-        ..add(audio.phoneCallChanges.listen(_onPhoneCall))
+        ..add(audio.holdChanges.listen(_onHold))
         ..add(
           audio.changes.listen((_) {
             _onAudioChanged();
@@ -79,7 +80,8 @@ final class NexaVoiceController {
   final NexaVoiceOptions _options;
   final NexaCallAudio? _callAudio;
   final List<StreamSubscription<Object?>> _audioSubs = [];
-  bool _phoneHold = false;
+  NexaCallHold? _holdReason;
+  bool get _phoneHold => _holdReason != null;
   bool _phoneReleasing = false;
   bool _bluetoothAsked = false;
   late final NexaVoiceSignals _signals = NexaVoiceSignals(
@@ -376,12 +378,31 @@ final class NexaVoiceController {
   /// A phone call took the audio (true) or ended (false). The microphone is
   /// off during it whatever the mute button says; afterwards the user's
   /// choice applies again and the communication mode is restored.
-  Future<void> _onPhoneCall(bool active) async {
-    if (_disposed || _phoneHold == active) return;
+  Future<void> _onHold(NexaCallHold? reason) async {
+    if (_disposed || _holdReason == reason) return;
     if (!_options.holdOnPhoneCall) return;
-    _phoneHold = active;
-    _set(_state.value.copyWith(phoneCallHold: active));
-    _diagnostics.record('voice.phone_hold', {'active': active});
+    final wasHeld = _phoneHold;
+    _holdReason = reason;
+    final active = reason != null;
+    _set(
+      _state.value.copyWith(
+        hold: switch (reason) {
+          NexaCallHold.phoneCall => NexaVoiceHold.phoneCall,
+          NexaCallHold.otherApp => NexaVoiceHold.otherApp,
+          null => null,
+        },
+        clearHold: reason == null,
+      ),
+    );
+    _diagnostics.record('voice.phone_hold', {
+      'active': active,
+      'reason': reason?.name,
+    });
+    if (active && wasHeld) {
+      // Only the reason changed (e.g. ringing → phone call): mic stays off.
+      _signals.listening(listening: false, reason: _micOffReason());
+      return;
+    }
     if (!_state.value.isActive) return;
     if (active) {
       await _setMic(false);
@@ -427,7 +448,19 @@ final class NexaVoiceController {
     });
   }
 
-  String _micOffReason() => _phoneHold ? 'phone_call' : 'mute';
+  String _micOffReason() => switch (_holdReason) {
+    NexaCallHold.phoneCall => 'phone_call',
+    NexaCallHold.otherApp => 'other_app',
+    null => 'mute',
+  };
+
+  /// After another app took the audio for good (Android permanent focus
+  /// loss), the user takes it back. No-op otherwise.
+  Future<void> resumeAudio() async {
+    if (_holdReason != NexaCallHold.otherApp) return;
+    _diagnostics.record('voice.resume_requested');
+    await _callAudio?.reacquireFocus();
+  }
 
   /// The call is over (any path): stop polling platform audio, forget the
   /// agent's signal configuration and any phone-call hold.
@@ -437,8 +470,8 @@ final class NexaVoiceController {
     }
     _signals.reset();
     if (_phoneHold) {
-      _phoneHold = false;
-      _set(_state.value.copyWith(phoneCallHold: false));
+      _holdReason = null;
+      _set(_state.value.copyWith(clearHold: true));
     }
   }
 
@@ -459,7 +492,8 @@ final class NexaVoiceController {
       'audio_mode': audio?.mode,
       'muted': _state.value.muted,
       'microphone_on': _transport.isMicrophoneEnabled,
-      'phone_call': _phoneHold,
+      'phone_call': _holdReason == NexaCallHold.phoneCall,
+      'other_app_audio': _holdReason == NexaCallHold.otherApp,
     });
   }
 
@@ -745,6 +779,7 @@ final class NexaVoiceController {
     await _subscription?.cancel();
     _subscription = _transport.events.listen(_onTransportEvent);
     await _callAudio?.beginCall();
+    _callAudio?.connecting();
     await _transport.connect(grant);
     unawaited(_callAudio?.afterConnect());
   }
@@ -1020,6 +1055,7 @@ final class NexaVoiceController {
       }
       if (_state.value.phase != VoiceState.reconnecting) return;
       _grant = fresh;
+      _callAudio?.connecting();
       await _transport.connect(fresh); // handshake → RealtimeConnected
       unawaited(_callAudio?.afterConnect());
       outcome = 'rejoined';

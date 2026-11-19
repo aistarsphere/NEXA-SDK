@@ -1,5 +1,6 @@
 import 'package:meta/meta.dart';
 import 'package:nexa_core/nexa_core.dart';
+import 'package:nexa_ui/nexa_ui.dart' show NexaVoiceHold;
 
 /// Speaking levels during a call, each 0..1 (see [NexaVoiceController.levels]).
 @immutable
@@ -68,7 +69,7 @@ final class NexaVoiceState {
     this.switchingVoice = false,
     this.interruptConfirmed = false,
     this.mutePending = false,
-    this.phoneCallHold = false,
+    this.hold,
   });
 
   /// The voice of this call as the gateway reported it at start (null when
@@ -100,9 +101,13 @@ final class NexaVoiceState {
   /// close that turn, then closes. [muted] already reads true.
   final bool mutePending;
 
-  /// A phone call holds the audio: the microphone is off until it ends,
-  /// then the user's own mute choice applies again.
-  final bool phoneCallHold;
+  /// The platform holds the audio (a phone call, or on Android another app
+  /// such as a WhatsApp call): the microphone is off until it ends, then
+  /// the user's own mute choice applies again. Null when not held.
+  final NexaVoiceHold? hold;
+
+  /// Whether any platform hold is active.
+  bool get phoneCallHold => hold != null;
 
   /// True while a remote audio track from the assistant is subscribed, i.e.
   /// agent audio is actually being received and played by the engine.
@@ -147,7 +152,8 @@ final class NexaVoiceState {
     bool? switchingVoice,
     bool? interruptConfirmed,
     bool? mutePending,
-    bool? phoneCallHold,
+    NexaVoiceHold? hold,
+    bool clearHold = false,
   }) => NexaVoiceState(
     phase: phase ?? this.phase,
     muted: muted ?? this.muted,
@@ -165,7 +171,7 @@ final class NexaVoiceState {
     switchingVoice: switchingVoice ?? this.switchingVoice,
     interruptConfirmed: interruptConfirmed ?? this.interruptConfirmed,
     mutePending: mutePending ?? this.mutePending,
-    phoneCallHold: phoneCallHold ?? this.phoneCallHold,
+    hold: clearHold ? null : (hold ?? this.hold),
   );
 }
 
