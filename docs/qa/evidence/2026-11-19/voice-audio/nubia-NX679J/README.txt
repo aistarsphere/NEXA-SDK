@@ -32,3 +32,11 @@ Not tested here (manual sheet rows remain NOT TESTED): T1 echo (10 runs per
 route), T2 with speech/noise while muted, T3 wired/Bluetooth, T4 phone call /
 WhatsApp call / background / network drop, T5 10-minute performance (needs a
 profile build), T6 across all of these. iPhone and a low-end Android: no device.
+
+INCIDENT (my error), 2026-11-19 18:45:45 device clock:
+  A second `adb install -r` (debug build with the panel LTR fix) killed a call
+  that was running in the app. dumpsys audio: setMode(MODE_IN_COMMUNICATION)
+  from com.nexa.nexa_example pid 27154 at 18:44:54, then setMode(MODE_NORMAL)
+  from package=android at 18:45:45 (process killed by the install). The
+  pre-install mode check printed MODE_IN_COMMUNICATION but did not gate the
+  install. Rule going forward: install only when the audio mode is NORMAL.
