@@ -17,9 +17,12 @@ final class VoiceTransition {
 /// transport interfaces and feeds the outcomes back as events.
 ///
 /// Interruption semantics:
-/// * While `aiSpeaking`, `VoiceUserSpeechStarted` enters `bargeIn`: playback
-///   stops locally **immediately** and `SendInterrupt` is issued. On
-///   `VoiceInterruptAcknowledged` the machine returns to `userSpeaking`.
+/// * While `aiSpeaking`, `VoiceUserSpeechStarted` changes nothing: the
+///   server decides whether speech interrupts (echo and noise must not), and
+///   the UI keeps showing "speaking" until it does. `VoiceInterruptAcknowledged`
+///   (`interrupted`) moves to `userSpeaking`.
+/// * While `thinking`, `VoiceUserSpeechStarted` enters `bargeIn` (no reply
+///   audio yet; shown as "listening to you") and `SendInterrupt` is issued.
 /// * `VoiceEndRequested` from any non-terminal state stops capture and
 ///   playback and disconnects.
 ///
@@ -167,10 +170,18 @@ final class VoiceSessionMachine {
         _ => VoiceTransition(state),
       },
       VoiceState.aiSpeaking => switch (event) {
-        VoiceUserSpeechStarted() => const VoiceTransition(VoiceState.bargeIn, [
-          StopPlayback(),
-          SendInterrupt(),
-        ]),
+        // The server heard speech; whether it interrupts is its decision
+        // (noise or echo must not). The reply keeps playing until then.
+        VoiceUserSpeechStarted() => VoiceTransition(state),
+        VoiceInterruptAcknowledged() => const VoiceTransition(
+          VoiceState.userSpeaking,
+          [StopPlayback()],
+        ),
+        // A new turn began without an interruption event.
+        VoiceAssistantThinking() => const VoiceTransition(
+          VoiceState.thinking,
+          [StopPlayback()],
+        ),
         VoiceAssistantTurnEnded() => const VoiceTransition(
           VoiceState.listening,
           [StopPlayback()],

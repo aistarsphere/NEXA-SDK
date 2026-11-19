@@ -211,7 +211,12 @@ void main() {
         await phase(v, VoiceState.aiSpeaking);
 
         transport.emit(const RealtimeUserSpeechStarted());
-        await phase(v, VoiceState.bargeIn);
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+        expect(
+          v.state.value.phase,
+          VoiceState.aiSpeaking,
+          reason: 'still speaking until the server confirms',
+        );
         expect(v.state.value.interruptConfirmed, isFalse);
 
         transport.emit(const RealtimeInterrupted());
@@ -399,8 +404,8 @@ void main() {
         transport.emit(const RealtimeAssistantSpeakingStarted());
         await phase(v, VoiceState.aiSpeaking);
         transport.emit(const RealtimeUserSpeechStarted());
-        await phase(v, VoiceState.bargeIn);
-        expect(transport.interrupts, 1, reason: 'local stop only');
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+        expect(v.state.value.phase, VoiceState.aiSpeaking);
         transport.emit(const RealtimeInterrupted());
         await phase(v, VoiceState.userSpeaking);
         // the interrupted turn's turn_ended is filtered by the pipeline; even
@@ -566,6 +571,40 @@ void main() {
         expect(transport.microphoneCalls.length - before, lessThanOrEqualTo(3));
       },
     );
+  });
+
+  group('agent state follows the server (T6)', () {
+    test('speech during a reply that the server does not confirm (echo, '
+        'noise) keeps the reply speaking; the turn ends normally', () async {
+      final v = await voice();
+      await v.start();
+      await phase(v, VoiceState.listening);
+      transport
+        ..emit(const RealtimeAssistantThinking())
+        ..emit(const RealtimeAssistantSpeakingStarted());
+      await phase(v, VoiceState.aiSpeaking);
+      transport
+        ..emit(const RealtimeUserSpeechStarted())
+        ..emit(const RealtimeUserSpeechEnded());
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+      expect(v.state.value.phase, VoiceState.aiSpeaking);
+      transport.emit(const RealtimeAssistantSpeakingEnded());
+      await phase(v, VoiceState.listening);
+      expect(v.stats.value.interruptions, 0);
+      expect(v.stats.value.speechStarts, 1);
+    });
+
+    test('a new turn without an interrupted event leaves speaking', () async {
+      final v = await voice();
+      await v.start();
+      await phase(v, VoiceState.listening);
+      transport
+        ..emit(const RealtimeAssistantThinking())
+        ..emit(const RealtimeAssistantSpeakingStarted());
+      await phase(v, VoiceState.aiSpeaking);
+      transport.emit(const RealtimeAssistantThinking());
+      await phase(v, VoiceState.thinking);
+    });
   });
 
   group('mute and network', () {

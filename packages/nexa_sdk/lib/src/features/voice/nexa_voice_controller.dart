@@ -653,6 +653,11 @@ final class NexaVoiceController {
         _stats.value = _stats.value.copyWith(
           speechStarts: _stats.value.speechStarts + 1,
         );
+        if (_state.value.phase == VoiceState.aiSpeaking) {
+          // Barge-in attempt (QA analysis); the reply keeps playing until
+          // the server confirms with `interrupted`.
+          _diagnostics.record('voice.speech_during_reply');
+        }
         _dispatch(const VoiceUserSpeechStarted());
       case RealtimeUserSpeechEnded():
         _dispatch(const VoiceUserSpeechEnded());
@@ -689,7 +694,9 @@ final class NexaVoiceController {
         _stats.value = _stats.value.copyWith(
           interruptions: _stats.value.interruptions + 1,
         );
-        final wasBargeIn = _state.value.phase == VoiceState.bargeIn;
+        final from = _state.value.phase;
+        final wasBargeIn =
+            from == VoiceState.bargeIn || from == VoiceState.aiSpeaking;
         _dispatch(const VoiceInterruptAcknowledged());
         if (wasBargeIn && _state.value.phase == VoiceState.userSpeaking) {
           _set(_state.value.copyWith(interruptConfirmed: true));

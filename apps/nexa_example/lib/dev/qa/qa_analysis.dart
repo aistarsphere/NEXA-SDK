@@ -340,13 +340,7 @@ final class QaAnalysis {
     _voiceTurns();
 
     // Interruptions, reconnects, network.
-    final bargeAttempts = _named('voice.phase')
-        .where(
-          (l) =>
-              l['to'] == 'bargeIn' ||
-              (l['from'] == 'aiSpeaking' && l['to'] == 'userSpeaking'),
-        )
-        .length;
+    final bargeAttempts = _bargeAttempts().length;
     final interrupted = _agent('interrupted').length;
     metrics['barge_in_attempts'] = bargeAttempts;
     metrics['interruptions_confirmed'] = interrupted;
@@ -422,15 +416,20 @@ final class QaAnalysis {
   /// that followed before the next attempt. Facts only: ids, whether the
   /// reply audio had started, how far into the reply the user spoke, and how
   /// long the agent took to confirm. Nothing is gated or hidden.
+  /// Barge-in attempts: the client entered `bargeIn` (older builds, and
+  /// speech while thinking) or logged speech during a reply.
+  List<QaLine> _bargeAttempts() => [
+    ..._named('voice.phase').where(
+      (l) =>
+          l['to'] == 'bargeIn' ||
+          (l['from'] == 'aiSpeaking' && l['to'] == 'userSpeaking'),
+    ),
+    ..._named('voice.speech_during_reply'),
+  ]..sort((a, b) => a.tMs.compareTo(b.tMs));
+
   void _bargeIns() {
     final audioStarts = _agent('assistant_audio_started').toList();
-    final attempts = _named('voice.phase')
-        .where(
-          (l) =>
-              l['to'] == 'bargeIn' ||
-              (l['from'] == 'aiSpeaking' && l['to'] == 'userSpeaking'),
-        )
-        .toList();
+    final attempts = _bargeAttempts();
     final interrupts = _agent('interrupted').toList();
     final used = <QaLine>{};
 

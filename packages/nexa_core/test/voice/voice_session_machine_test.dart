@@ -76,15 +76,25 @@ void main() {
       expect(m.transition(s, const VoiceReset()).state, VoiceState.idle);
     });
 
-    test('barge-in stops playback immediately and sends interrupt', () {
+    test('speech during a reply waits for the server to interrupt', () {
       final t = m.transition(
         VoiceState.aiSpeaking,
         const VoiceUserSpeechStarted(),
       );
-      expect(t.state, VoiceState.bargeIn);
-      expect(t.commands, const [StopPlayback(), SendInterrupt()]);
+      expect(t.state, VoiceState.aiSpeaking);
+      expect(t.commands, isEmpty);
       final ack = m.transition(t.state, const VoiceInterruptAcknowledged());
       expect(ack.state, VoiceState.userSpeaking);
+      expect(ack.commands, const [StopPlayback()]);
+    });
+
+    test('speech while thinking enters bargeIn and sends interrupt', () {
+      final t = m.transition(
+        VoiceState.thinking,
+        const VoiceUserSpeechStarted(),
+      );
+      expect(t.state, VoiceState.bargeIn);
+      expect(t.commands, const [SendInterrupt()]);
     });
 
     test('mute remembers listening and resumes', () {
