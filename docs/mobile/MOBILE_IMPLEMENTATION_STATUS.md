@@ -1,0 +1,129 @@
+# LABEEB Beta Mobile — Implementation Status
+
+Updated 2026-11-03 (plan v1.0). The implementing session updates this file at the end of every task: state, commit hash, evidence path. States: `NOT STARTED`, `IN PROGRESS`, `BLOCKED_BACKEND (G-xx)`, `DONE`, `DONE (device pending)`.
+
+## Reconciliation 2026-11-04 (read first)
+
+The authoritative state is `AMEER_CURRENT_IMPLEMENTATION_STATUS.md`. Corrections to the rows below, nothing deleted:
+
+* **V-01 FIXED (2026-11-04, device-verified)**; the next bullet describes the situation before the fix. **D-01, D-02, C-03** were `DONE` for unit tests but **could not work in a real voice call**: the voice event validator
+  rejects every tool/UI event (`unknownType`), so these code paths never receive real traffic (defect **V-01**, Flutter,
+  P0; device evidence in `docs/qa/evidence/2026-11-04/tool_calling_trace.md`). The typed (chat) flow works end to end on
+  the Nubia.
+* **A-03** has device evidence (Nubia, 2026-11-04); the others marked "device pending" still have none.
+* New defects: V-01..V-05 (see the report §6); empty conversations left by failed call starts; notification badge shows the
+  Flutter logo on the Nubia; unexplained slow first call start.
+* Wake phrase «يا أمير» is **not implemented** (detector is for «يا لبيب» and failed real voices).
+
+Order is the execution order of `MOBILE_MASTER_IMPLEMENTATION_PLAN.md`. Do not start a task whose dependencies are not `DONE`.
+
+| # | Task | Req | Depends on | State | Commit | Evidence (tests / device) |
+|---|---|---|---|---|---|---|
+| 0 | F-01 Commit wake-word benchmark (uncommitted files) | M-10 | — | DONE | 9156df7 | Q1 clean; nexa_assistant 6 + app 28 Dart tests; Kotlin testDebugUnitTest green (2026-11-03) |
+| 1 | A-01 ConversationCoordinator | M-01, M-02, M-04 | F-01 | DONE (device pending) | 3bc1a0e | unit: conversation_coordinator_test (8) + conversation_session_test (5, incl. cold-start guard mutation-checked); `tool/check.sh` green on rerun; device T-M01-01 (offline → online → one conversation) pending |
+| 2 | A-02 Route graph owned by the app | M-02 | A-01 | DONE (device pending) | d8e2c2c | SDK `assistant_navigation_test` (4; guard + home-flow mutation-checked), app `router_test` (3); `tool/check.sh` green (sdk 265, app 31). Device T-M02-01..04 pending. Scope notes: `/` stays the chat root until B-01; history/settings pushes are still SDK/app-internal; call route uses `MaterialPage(fullscreenDialog)`, not the custom fade transition |
+| 3 | A-03 In-call foreground service | M-12.2, M-03.5 | A-02 | DONE (device pending) | d6075bd | plugin Dart tests (10, 4 new), app `device_assistant_test` (3 new; 34 total), Kotlin compile + `testDebugUnitTest` green, debug APK builds and the merged manifest declares `CallForegroundService`. Device T-M12-02 (2-minute backgrounded call, `dumpsys activity services`, End call → DELETE 200) pending. Deviations: type `microphone` only (no `mediaPlayback`; not needed to hold capture, avoids an extra permission); no `NexaAssistantOptions.callForegroundService` flag (the bridge lives in the app; rollback = remove the `_startCallService` call); `onTaskRemoved` sends `end_requested/task_removed` **Device (Nubia, 2026-11-04):** call survived 40 s in the background with the service running and the mic capturing; End call from the notification sent DELETE and stopped the service (`docs/qa/evidence/2026-11-04/`). Still open: 2-minute run, two-way audio, Android 14+, Xiaomi; the notification icon badge showed the Flutter logo on this phone. |
+| 4 | A-04 App lifecycle hooks for calls | M-02.5, M-12 | A-03 | DONE (device pending) | 60fe48f | SDK `voice_lifecycle_test` (5; hold, early resume and recover each mutation-checked), app `device_assistant_test` (+1, 12 total); `tool/check.sh` green. Device T-M02-05..07 pending. Deviation: the plan's "refresh `isMicrophoneEnabled` into state on resume" is left to E-02 (`micOpen`); `NexaVoiceController.microphoneEnabled` already reads it live. The panel holds the call (not only the service), otherwise a panel call over another app would be ended after 25 s |
+| 5 | B-01 Conversation list root | M-01.1 | A-01, A-02 | DONE (device pending) | 944766e | SDK `conversation_list_test` (8: list, open, empty, New/Call, error+Retry, infinite scroll, pull-to-refresh, 48 dp/semantics, Arabic RTL at 2x text), app `router_test` (6; list root, New → `/c/new`, open → `/c/:id` resume, Call list→chat→call); `tool/check.sh` green (sdk 278, app 38). Device T-M01-03/05 pending. Notes: LABEEB defaults to `NexaLaunchMode.list` (needs `history` configured, else the chat); with the list as root the chat header drops the history button and shows the name only (a pushed page left ~30 px for the title and overflowed); `/c/:id` always resumes on mount (a remounted chat needs its history), the call route does not; "cached entries greyed while loading" not done (controller already merges cache and server) |
+| 6 | B-02 Cache keyed by conv_* + account | M-01.5, M-15.2 | A-01 | DONE (device pending) | eb300f6 | SDK `history_scope_test` (9; voice-row guard and legacy migration mutation-checked); `tool/check.sh` green (sdk 287, app 38). Device T-M01-06/T-M15-02 pending. Design deltas: account scoping is `JsonFileHistoryStore.forAccount(dir, key)` (file `history_<sha256 first 8>.json`) instead of a `NexaHistoryOptions.accountKey` field; no `NexaClient.clearLocalData` (the existing `localCache` deletion scope clears the active account's store; switching account = re-initialise with that account's store); `NexaHistoryEntry.conversationId` added as the name of `sessionId` (kept, not deprecated, to avoid churn); the app removes the old unscoped `history.json` once (cache only; otherwise "Clear all" would miss it); the app account key is the constant `default` until sign-in exists (backend B2) |
+| 7 | B-03 Older message pages | M-01.2 | B-01 | DONE (device pending) | 686731e | bloc `chat_history_paging_test` (5), widget `chat_history_paging_view_test` (1; position preservation mutation-checked); `tool/check.sh` green. Device scroll check pending. Design: `SessionManager.historyLoader` now returns `ChatHistoryPage(messages, nextBefore)` and takes `beforeSeq`; `ChatState.olderBefore/loadingOlder`; first page 100; failure keeps the cursor (retry on the next scroll); older pages also feed `toolCalls.restore` |
+| 8 | C-01 Post-call reconciliation | M-04.2 | A-01, B-02 | DONE (device pending) | 2b8881b | core `merge_persisted_test` (9, pure reducer), SDK `chat_reconcile_test` (3: coordinator → bloc, call end → fetch → turns in the open chat, no conversation → no fetch), `chat_reconcile_view_test` (1, spoken mark); `tool/check.sh` green (sdk 297, core 112). Device T-M04-01..05 (3-turn call → 6 bubbles once, within 2 s) pending. Deltas: `MessageOrigin` on `ChatMessage` (freezed regenerated; `nexa_config.freezed.dart` doc-comment sync came with it); the merge lives in `ConversationReducer.mergePersisted`; fetch is the newest 100-message page via the existing loader (no `after_seq`, gap G-01 still open, so `lastKnownSeq` is not used for filtering yet); fetched at +0.5 s and +2.5 s after the call ends (`NexaVoiceOptions.postCallReconcileDelays`) because the last turn is persisted around the `DELETE`; nothing is scheduled without a server conversation; not triggered on app resume yet; the reference gateway does not record voice turns, so no gateway integration test (dev-infra task left open); ARB `messageSpoken` |
+| 9 | C-02 Live voice turn card in chat (optional) | M-04 | C-01 | NOT STARTED (optional, deferred: C-01 already shows the turns when the call ends) | | widget |
+| 10 | C-03 Tool stage in full capsule | M-03.3 | — | DONE (device pending) | 4671655 | SDK `voice_view_test` (+1: running tool → "Working on it… <title>", back to the state label afterwards); shared `labeebWorkingLabel` (same rule as the compact panel); committed together with C-04 (their edits overlap in the capsule and view). Device T-M03-08 pending. The orb/pill mode for a running tool is not changed in the full capsule (label only) |
+| 11 | C-04 Honest barge-in label | M-08.2 | — | DONE (device pending) | 4671655 | capsule tests (+4: "Listening to you…" before confirmation, never "Interrupting…"; "Interrupted" after; Arabic), controller tests (+2: `interruptConfirmed` set only after `interrupted` from `bargeIn`, cleared on the next phase change); `tool/check.sh` green (sdk 300, ui 34, device 66). Device T-M08-01 pending. The machine is unchanged (still enters `bargeIn` to send `StopPlayback`/`SendInterrupt`); ARB `voiceStateBargeIn` reworded, `voiceStateInterrupted` added |
+| 12 | C-05 Reconnect/background polish | M-02.5, M-03.5 | A-03, A-04 | DONE (device pending) | e8dad07 | capsule tests (+2: one connection banner for weak and reconnecting; none when healthy), SDK `voice_view_test` (+1: "Reconnected" live region once after a reconnect, gone after 4 s); `tool/check.sh` green. Device T-M03-05 pending. Already delivered by A-04: immediate `_recover()` on resume and `endReason: background`. ARB `voiceReconnected` |
+| 13 | D-01 Pending tool state persistence | M-06 | B-02 | DONE (device pending) | 9b3f488 | SDK `labeeb_pending_store_test` (7: round trip, restart, 50-call and 7-day bounds, unreadable file, per-account hashed file, no arguments/results written), `labeeb_tool_calls_test` group (+5: a voice-raised call is approved in its persisted tools session after a restart and waits for the user's tap, finished calls dropped, half-filled form survives, nothing written without a conversation, only JSON-safe values); `tool/check.sh` green (sdk 313). Device T-M06-01/02/04 pending. Design: `LabeebPendingStore` (`InMemoryPendingStore`, `JsonFilePendingStore.forAccount`), `Nexa.initialize(pendingStore:)` (null = off), written after each event (microtask-coalesced, not a 500 ms timer, so widget tests stay timer-free), `importPending` before `restore` on the first history page; a restored `awaiting_approval` call becomes decidable again and an allow lets its device step run once. Not verified on device: that the server still accepts the approval and what happens to a client tool whose voice call is long gone (it can only expire). G-06 would replace this file when it exists |
+| 14 | D-02 ui_event in-flight guard + voice sink | M-05.3 | A-01 | DONE (device pending) | ca40de4 | SDK `labeeb_tool_calls_test` (+4: second tap on one component sends nothing and returns `in_flight`, other components independent, failing sink frees the component, the card shows progress and sends once; guard mutation-checked), `ui_event_fallback_test` (3: no chat open → event posted on the chat session with its own `client_message_id`; the chat view takes the sender while mounted and releases it); `tool/check.sh` green. Device T-M05-03/05/07 pending. Design: guard in `LabeebToolCallController.sendUiEvent` keyed `ui_id:component_id` (a tap and its event are one); `fallbackUiEventSink` set by `NexaClient` (`SessionManager.start()` + `transport.sendMessage` with `ui_event`); the chat view clears its own sender on dispose. UNVERIFIED: whether the gateway accepts a `ui_event` on the chat session while a voice call runs (T-M05-05); a refusal code (e.g. `409 voice_session`) goes back to the card unchanged and would become BLOCKED_BACKEND, with "Show options → expand" as the workaround. The reply to such an event arrives on the chat session stream, which no view listens to in a voice-only call |
+| 15 | D-03 Fallback / expired / loading states | M-05.4 | D-02 | DONE (device pending) | ca4274d | core (+2: an unknown root type is kept as a root-less document with `fallback_text`; a missing/malformed root still throws), SDK `labeeb_tool_calls_test` (+5: fallback text, per-language fallback, "cannot be shown" without fallback, truncated voice document still Loading, stale → greyed + disabled + shared across cards, network failure → Retry → cleared); `tool/check.sh` green (core 114, sdk 326). Device T-M05-01/04 pending. Deltas: the parser change is what makes a skipped root reach the card (before, such a document was dropped and nothing showed); no new ARB strings (`duiStale`, `duiNotDelivered`, `duiUnsupported`, `retry` reused); per-component progress already existed on buttons/inputs (`busy`), not changed; the Arabic fallback is covered by the parser test, not on device |
+| 16 | D-04 Theme picker → nexa.ui/1, remove legacy surfaces | M-05 | D-03 | NOT STARTED (deferred 2026-11-04) | | dynamic_ui tests Reason: nexa.ui/1 documents emit `ui_event`s to the server, but the picker's preview/apply/cancel/reset are local host actions. Migrating needs a local-action channel for host documents plus a port of the legacy renderer's tests (`dynamic_ui_test`, `labeeb_theme_test`) before ~3.3 k lines (`nexa_surface_*`, `dynamic_surface.dart`, the chat/assistant companions) can go; removing first would break the picker. Next step when scheduled: design the local-action path (ADR), then port, then delete. |
+| 17 | T-M07-01 device evidence run (prerequisite of E-01) | M-07 | C-01 | NOT STARTED (needs a person on a device) | | docs/qa/evidence/<date>/T-M07-01 |
+| 18 | E-01 Mute finalisation | M-07 | C-01, #17 | NOT STARTED (gated by #17) | | T-M07-00..06 |
+| 19 | E-02 Mute debounce + track honesty | M-07.6 | E-01 | NOT STARTED (depends on E-01) | | T-M07-03 |
+| 20 | E-03 Bluetooth / route / focus | M-12.1, M-12.3 | A-03 | NOT STARTED | | T-M12-03, T-M12-04 |
+| 21 | E-04 Barge-in evidence + G-03 request | M-08 | C-04 | DONE (evidence pending) | e736be2 | app `qa_analysis_test` (+4: confirmed interruption with `cancel_id`/`by_turn_id`/`audio_started`, ms into the reply and confirm delay; an unconfirmed attempt reported as such with a hypothesis; what the record cannot show; none when none); CLI report section; `docs/qa/barge-in-evidence.md` (collection steps, six scenarios, results table, request to AWS). No evidence collected: T-M08-02/03 need a person and a device. The record does not sample the local microphone level (listed under "missing" in every report that has an attempt); `audio_started` and `by_turn_id` were added to the recorded agent-event fields (core). This request is the backend gap G-03 and has NOT been sent to AWS |
+| 22 | F-02 Wake engine interface + Porcupine spike | M-10 | F-01 | NOT STARTED | | T-M10-01..03 |
+| 23 | F-03 Speech-embedding classifier spike | M-10 | F-02 | NOT STARTED | | T-M10-02 |
+| 24 | F-04 Speaker verification calibration + consent | M-11 | F-02 | NOT STARTED | | T-M11-01, T-M11-02 |
+| 25 | F-05 Assistant cold-start conversation policy | M-09.2 | A-01 | DONE (device pending) | 4ff53b1 | app `activation_policy_test` (4: create when none and creatable, join an open one, keep a running call's, nothing without server conversations); `tool/check.sh` green (app 51). Device T-M09-07/T-M02-04 pending. `DeviceAssistant._requestVoice` now starts `ensureConversation(reason: 'assistant')` early (stable `client_ref`; failure is not fatal, the call runs without tools). Not done: the panel header showing the conversation title after the first turn (UI, needs the server title) and a wiring test against a real coordinator (a client with server conversations needs the real gateway; only the policy function is unit-tested) |
+| 26 | G-01 Performance baseline | M-13 | A–E | NOT STARTED | | T-M13-01..04 |
+| 27 | G-02 Accessibility device pass | M-14 | B-01, C-03 | NOT STARTED | | T-M14-01, T-M14-02 |
+| 28 | G-03 Release hardening | M-12.7, M-15 | — | DONE (device pending) | b853ea4 | Verified on built artifacts, not on a device: unsigned release refused with a clear error; `NEXA_DEBUG_SIGN=1 flutter build apk --release --split-per-abi` builds (arm64 96.7 MB, armeabi-v7a 79.8 MB, x86_64 108.5 MB); release manifest `usesCleartextTraffic=false`, debug `true`; `mapping.txt` produced; `CallForegroundService` in the merged manifest. See `docs/mobile/RELEASE.md`. NOT done: a signed `appbundle` (no release key exists), a run of the release build on the Xiaomi/Nubia (R8 keep rules for WebRTC/ORT are unproven: T-M12-06), a `production` environment policy (product decision) |
+| 29 | G-04 Crash / diagnostics hook | M-13 | — | DONE | dc7618e | app `crash_sink_test` (5: framework and async errors reach the sink by type and stack only, never the message; `NexaException` by code; earlier handlers still run; a failing sink never throws; installing twice reports once); `tool/check.sh` green (app 47). `CrashSink` interface, `NoopCrashSink`, `DebugPrintCrashSink`, `installCrashHandlers` in `apps/nexa_example/lib/crash/`; installed first thing in `main()`. No vendor chosen: release builds report nothing until a host plugs one in; QA recording stays opt-in. Also fixed a misplaced doc comment on `main()` left by B-02 |
+| 30 | G-05 CI gate script | all | — | DONE | c411d74 | `tool/ci.sh` run locally: exit 0 (check.sh, generated files in sync, `flutter build apk --debug`, Kotlin `testDebugUnitTest`). `.github/workflows/ci.yml` written, NOT pushed and not enabled (actions are tagged, not SHA-pinned: pin before enabling). Also fixed: `tool/check.sh` did not run the `nexa_device` (18) and `nexa_assistant` (10) package tests |
+
+## Backend gaps to raise with AWS (from the audit §4)
+
+| Gap | Blocks | Raised | Answer |
+|---|---|---|---|
+| G-01 `after_seq` / voice message notification | C-01 (partial workaround exists) | NOT RAISED | |
+| G-02 turn commit on `TrackMuted` | E-01 (client grace exists) | NOT RAISED | |
+| G-03 barge-in tuning, `interrupted` confidence | M-08 | NOT RAISED | |
+| G-04 `voice_identity` documented | M-03 | NOT RAISED | |
+| G-05 `client_tools` ≤ 8, id prefixes | M-05 | known (matrix) | |
+| G-06 open tool calls per conversation | D-01 (file workaround) | NOT RAISED | |
+| G-07 background call policy | A-04 | NOT RAISED | |
+| G-08 `client_turn_id` charset | M-04 | known (matrix) | |
+| G-09 audio upload media type | M-05 | known (matrix) | |
+
+## Device acceptance rows still open from the 2026-10-30 QA log
+
+Live «غيّرلي شكل التطبيق» (T-M05-05) · six noise scenarios (T-M08-02) · owner/stranger voice test (T-M11-02) · wake phrase in four app states (T-M10-03) · lock-screen gate (T-M09-03) · Expand (T-M09-04) · reboot notification (T-M09-05) · Xiaomi background policy (T-M09-06).
+
+## Defects found that were not in the audit
+
+| Date | Defect | Evidence | State |
+|---|---|---|---|
+| 2026-11-03 | `reference_gateway_integration_test` "server-side expiry ends the chat with reason expired" is timing-flaky under full-suite load (`waitFor` timeout) | baseline `flutter test` in `packages/nexa_sdk`: 1 failure in 3 runs; passes alone; same on A-01 | FIXED 2026-11-04: root cause was the test, not a timing race in the product. Since labeeb.sdk/1 a server-owned conversation outlives its session, so on server-side expiry `ChatBloc` renews the session (`_restartAfterExpiry`) and the `ended` phase the test polled for is transient. The test now asserts the real behaviour (a new session on the same conversation, or `ended` when there is no conversation). 6 full-suite runs and 4 file runs stable |
+| 2026-11-03 | `chat_bloc.dart:81` and `dio_factory.dart:39` use a non-injectable `static const Uuid()` | source | OPEN (convention; fix when those files are touched) |
+| 2026-11-03 | go_router `GoRouter.routerDelegate.currentConfiguration.uri` ignores imperatively pushed routes; use `router.state.uri` to know the top route | go_router 18.1 `match.dart:532` | NOTE (applied in `labeeb_router.dart`) |
+| 2026-11-03 | The flaky gateway test fails about 1 in 3 even when its own file runs alone (2 of 3 full-suite runs during B-01); it was the 410 restart racing the transient `ended` phase | `reference_gateway_integration_test.dart:351` | FIXED 2026-11-04 (commit `6c76d99`, see the row above) |
+| 2026-11-04 | `tool/check.sh` skipped the `nexa_device` and `nexa_assistant` tests, so 28 tests never ran in the gate | `tool/check.sh` | FIXED with G-05 |
+
+### V-06 (2026-11-04) — empty conversations, call button, resume log
+- List hides conversations with 0 messages and no title (failed call starts); 2 new widget tests.
+- `openLabeebCall` waits at most 1.5 s for `ensureConversation`, then opens the call anyway (voice start creates it via the same coordinator).
+- `resume RPC failed` now logs `RpcError <code> <message>`.
+- Device (Nubia): list shows 4 non-empty rows, call screen opens at once. Evidence: `docs/qa/evidence/2026-11-04/v06_*.png`. The resume RPC failure did not occur in this run, so its cause is still open.
+
+## 2026-11-04 — session summary (all local commits, nothing pushed)
+
+| Item | State | Evidence |
+|---|---|---|
+| V-06 empty conversations / call button / resume log | DONE, verified on Nubia | `6d225a8`, evidence `v06_*.png` |
+| Tool calling, every declared type | Tested on Nubia (location, directions, URL, theme, file/photo/camera up to the picker; microphone sample consent sheet only) | `docs/qa/evidence/2026-11-04/tool_calling_all_types.md` |
+| Choice sheet hid the Apply card (approval expired) | FIXED + device re-verified | `3d432c0` |
+| Photo/file/camera tools silently did nothing | FIXED (stale presenter restored by the call page), device re-verified | `6d3c1db` |
+| Upload (photo/file) | BLOCKED: dev token has no `assets:write` (403). Needs a scoped Beta credential from the owner/AWS; do not widen production tokens | tool_calling_all_types.md |
+| E-01 mute finalisation | DONE, verified on Nubia (grace 1.2 s keeps capture until the reply starts) | `mute_T-M07-01.md` |
+| E-02 rapid toggles | DONE (unit test); not separately device-tested | `voice_controller_test.dart` |
+| G-02 (server: commit turn on `TrackMuted`) | NOT RAISED — would let `muteGrace` be 0; send after owner approval | mute_T-M07-01.md |
+| F-02 «يا أمير» acoustic detector | IMPLEMENTED + unit tests + running on Nubia; **recall not usable** (5/12 live on an unseen TTS voice; synthetic-only training). Needs owner clips | `docs/qa/wake-word-yaameer.md` |
+| F-03 configurable phrase | Catalog + `setWakePhrase` API implemented (only installed acoustic models selectable). No picker UI yet; only one phrase ships | wake-word-yaameer.md |
+| F-04 owner verification calibration | NOT DONE (needs owner recordings and consent). Pipeline (wake -> CAM++ check -> decision) is wired in `NeuralWakeEngine`, fail-closed | NeuralWakeTest |
+| G-03 barge-in evidence | NOT RUN (needs the six scenarios + server logs). Handoff template: `docs/qa/barge-in-evidence.md` | |
+| Server profile | Header now shows «أمير» (the dashboard profile changed) | screenshot-less; seen on Nubia |
+
+## 2026-11-04 evening — voice-assistant enrollment workflow
+| Item | State |
+|---|---|
+| Consent-gated guided voice setup (Android plugin + Flutter screen) | IMPLEMENTED, Kotlin + Dart + widget tests pass; not shown on the phone (device disconnected) |
+| Identity enrollment separate from the wake phrase; calibrated threshold (owner-only vs with guests) | IMPLEMENTED + tests; **no owner data yet** |
+| Secure deletion + re-enrollment (recordings, profile, Keystore key, calibration, consent) | IMPLEMENTED + tests |
+| Held-out evaluators (wake, speaker) and model comparison | IMPLEMENTED; run on synthetic stand-in only |
+| Detector re-evaluation with separate training/held-out owner clips | BLOCKED on the owner session |
+| G-02 mute and barge-in requests to AWS | WRITTEN (read-only investigations), **NOT SENT** (no channel from here): `docs/handoff/aws-technical-investigations-2026-11-04.md` |
+| Scoped Beta `assets:write` credential | REQUEST WRITTEN, **NOT SENT**: `docs/handoff/beta-assets-write-credential-request.md` |
+
+## 2026-11-04 night — native assistant, wake phrases, lock screen
+Platform decisions and evidence: `docs/qa/assistant-platform-matrix.md`. Assistant role: not app-requestable on Android 13 (logged by the system) → wizard opens the assistant picker and re-reads the system on every resume; verification only from system state/evidence. Wake phrases «يا أمير», «أمير», «عباس» ship as **experimental** acoustic heads (synthetic data). Lock-screen activation by gesture and by wake phrase verified on the Nubia (lock gate, nothing private shown). Wake accuracy on real voices and non-Nubia devices: **not measured**.
+
+## 2026-11-04 late — quick voice setup replaces the multi-sample journey
+`docs/qa/quick-voice-setup.md`. Default journey: consent → one sentence → a different sentence to verify → one more only if inconclusive → wake try-out. Two recordings in the normal case; decision rule from `enroll_policy_benchmark.py` (real speech, English). Provisional status only. The 15-take protocol and other engineering tools are developer-only. Owner calibration (Iraqi Arabic) still required.
+
+## 2026-11-18 — full QA, benchmarks and fix plan
+
+See `docs/mobile/FULL_QA_AND_FIX_PLAN_2026-11-18.md` (evidence in `docs/qa/evidence/2026-11-18/`).
+Voice calls were blocked by the backend (503, GPU Realtime plan failed). No code was changed.
+
+Round 2 the same day: `docs/mobile/ENGINEERING_QA_REPORT_2026-11-18.md` is the current assessment (feature matrix, defect register, plan).
+Voice was still blocked (503 `voice_model_preparing`, ten admission requests 14:10–14:39, both request shapes). Commits: `9289ec6` (tap-to-talk fix), `8133f01` (test + simulation).

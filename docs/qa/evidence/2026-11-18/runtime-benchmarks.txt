@@ -1,0 +1,40 @@
+# Nubia NX679J, profile build, 2026-11-18 13:05:38
+## cold start x3
+LaunchState: WARM
+TotalTime: 354
+WaitTime: 356
+LaunchState: WARM
+TotalTime: 377
+WaitTime: 384
+LaunchState: WARM
+TotalTime: 370
+WaitTime: 371
+## warm start
+LaunchState: HOT
+TotalTime: 104
+## meminfo foreground
+  Native Heap    68988    68960        0        6    71648    84964    77703     7260
+  Dalvik Heap    66300    66244        0       31    71628    28477     3901    24576
+        TOTAL   314423   266944    37728       43   442940   113441    81604    31836
+         Native Heap:    ٦٨٩٦٠                          ٧١٦٤٨
+           TOTAL PSS:   ٣١٤٤٢٣            TOTAL RSS:   442940       TOTAL SWAP PSS:       ٤٣
+## wake service state
+  * ServiceRecord{8d98445 u0 com.nexa.nexa_example/com.nexa.assistant.WakeListenerService}
+    isForeground=true foregroundId=20032 foregroundNoti=Notification(channel=nexa_assistant_listening shortcut=null contentView=null vibrate=null sound=null defaults=0x0 flags=0x62 color=0x00000000 actions=1 vis=PRIVATE)
+  * ServiceRecord{2912cbc u0 com.nexa.nexa_example/com.baseflow.geolocator.GeolocatorLocationService}
+  * ServiceRecord{ec42fcc u0 com.nexa.nexa_example/com.nexa.assistant.NexaVoiceInteractionService}
+## threads (top -H, 3 samples, screen on, app idle)
+  TID USER         PR  NI VIRT  RES  SHR S[%CPU] %MEM     TIME+ THREAD          PROCESS
+12036 u0_a1333     20   0  77G 302M 145M S 25.0   2.0   0:03.47 nexa-wake       com.nexa.nexa_example
+12047 u0_a1333     20   0  77G 302M 145M S  0.0   2.0   0:00.01 nexa-wake       com.nexa.nexa_example
+12039 u0_a1333     20   0  77G 302M 145M S  0.0   2.0   0:00.00 nexa-wake       com.nexa.nexa_example
+12012 u0_a1333     15  -5  77G 302M 145M S  0.0   2.0   0:00.08 1.raster        com.nexa.nexa_example
+  TID USER         PR  NI VIRT  RES  SHR S[%CPU] %MEM     TIME+ THREAD          PROCESS
+12036 u0_a1333     20   0  77G 302M 145M S 29.0   2.0   0:03.54 nexa-wake       com.nexa.nexa_example
+12047 u0_a1333     20   0  77G 302M 145M S  0.0   2.0   0:00.01 nexa-wake       com.nexa.nexa_example
+12039 u0_a1333     20   0  77G 302M 145M S  0.0   2.0   0:00.00 nexa-wake       com.nexa.nexa_example
+12012 u0_a1333     15  -5  77G 302M 145M S  0.0   2.0   0:00.08 1.raster        com.nexa.nexa_example
+  TID USER         PR  NI VIRT  RES  SHR S[%CPU] %MEM     TIME+ THREAD          PROCESS
+12036 u0_a1333     20   0  77G 299M 145M S 31.5   1.9   0:04.12 nexa-wake       com.nexa.nexa_example
+12047 u0_a1333     20   0  77G 299M 145M S  0.0   1.9   0:00.01 nexa-wake       com.nexa.nexa_example
+12039 u0_a1333     20   0  77G 299M 145M S  0.0   1.9   0:00.00 nexa-wake       com.nexa.nexa_example

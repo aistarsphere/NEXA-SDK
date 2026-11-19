@@ -1,0 +1,13 @@
+Round 4, 2026-11-19 (local +03). Direct gateway probes with the developer token; token, ids and text not recorded.
+
+01:20:44 POST /v1/sdk/voice/sessions (minimal body) -> 201 in 2.3 s (contract nexa.voice.v1, sealed events, max 600 s); DELETE -> 200.
+
+Chat isolation, one message per fresh session (event types only):
+ capabilities granted            message   result
+ textChat                        hello     assistant_message_completed (+1.9 s at 01:14, +5.5 s at 01:22)
+ textChat                        weather   assistant_message_completed (+2.4 s)
+ textChat + toolCalling          hello     message_failed inference_failed, retryable false (+0.3 s)
+ textChat + toolCalling          weather   message_failed inference_failed, retryable false (+2.1 s)
+Conclusion: every chat turn in a session with toolCalling granted fails; the app always requests toolCalling.
+
+In the app (Nubia NX679J) 01:21:05: weather question in a new chat; after 60 s only the user's bubble, no error row, no retry (COR-13). Screenshot chat-toolcalling-no-reply.png.

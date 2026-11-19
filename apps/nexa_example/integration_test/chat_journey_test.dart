@@ -82,7 +82,9 @@ void main() {
     final lifecycle = <NexaLifecycleEvent>[];
     client.lifecycle.listen(lifecycle.add);
 
-    await tester.pumpWidget(ExampleApp(client: client, auth: auth));
+    await tester.pumpWidget(
+      ExampleApp(client: client, auth: auth, initialLocation: '/dev'),
+    );
     await _until(tester, find.textContaining('reachable'));
 
     // 1-4: open the modal chat -> session is created with a host token.

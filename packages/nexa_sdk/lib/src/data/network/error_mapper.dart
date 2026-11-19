@@ -101,12 +101,40 @@ NexaException _mapResponse(DioException e) {
     case 422:
       return ContractViolationException(message, cause: e);
     default:
+      final retryAfter =
+          body?.retryAfterSeconds ??
+          int.tryParse(response?.headers.value('retry-after') ?? '');
       return ServerException(
         statusCode: status,
         message: message,
         serverCode: body?.code,
+        retryAfter: retryAfter == null ? null : Duration(seconds: retryAfter),
         retryable: body?.retryable ?? status >= 500,
         cause: e,
       );
   }
+}
+
+/// The gateway's stable `error.code` behind [error] (any status), or null.
+/// Contract rule: switch on `code`, never on `message`.
+String? gatewayErrorCode(Object error) {
+  if (error is ServerException && error.serverCode != null) {
+    return error.serverCode;
+  }
+  final cause = error is NexaException ? error.cause : error;
+  if (cause is DioException) {
+    final data = cause.response?.data;
+    if (data is Map && data['error'] is Map) {
+      final code = (data['error'] as Map)['code'];
+      if (code is String) return code;
+    }
+  }
+  return null;
+}
+
+/// HTTP status behind [error], when it came from a response.
+int? gatewayStatus(Object error) {
+  if (error is ServerException) return error.statusCode;
+  final cause = error is NexaException ? error.cause : error;
+  return cause is DioException ? cause.response?.statusCode : null;
 }

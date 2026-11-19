@@ -19,6 +19,30 @@ void main() {
   }
 
   group('VoiceSessionMachine', () {
+    test('mute reaches the microphone in every live state', () {
+      for (final state in const [
+        VoiceState.listening,
+        VoiceState.userSpeaking,
+        VoiceState.transcribing,
+        VoiceState.thinking,
+        VoiceState.aiSpeaking,
+        VoiceState.bargeIn,
+        VoiceState.weakNetwork,
+        VoiceState.modelBusy,
+      ]) {
+        final cmds = <VoiceCommand>[];
+        final s = run(state, const [VoiceMuteToggled(muted: true)], cmds);
+        expect(s, VoiceState.muted, reason: '$state');
+        expect(cmds.whereType<SetTransportMuted>().single.muted, isTrue);
+      }
+      final cmds = <VoiceCommand>[];
+      final s = run(VoiceState.muted, const [
+        VoiceMuteToggled(muted: false),
+      ], cmds);
+      expect(s, VoiceState.listening);
+      expect(cmds.whereType<SetTransportMuted>().single.muted, isFalse);
+    });
+
     test(
       'happy path: start -> permission -> connect -> listen -> speak -> reply',
       () {
@@ -52,15 +76,35 @@ void main() {
       expect(m.transition(s, const VoiceReset()).state, VoiceState.idle);
     });
 
-    test('barge-in stops playback immediately and sends interrupt', () {
+    test('speech during a reply waits for the server to interrupt', () {
       final t = m.transition(
+        VoiceState.aiSpeaking,
+        const VoiceUserSpeechStarted(),
+      );
+      expect(t.state, VoiceState.aiSpeaking);
+      expect(t.commands, isEmpty);
+      final ack = m.transition(t.state, const VoiceInterruptAcknowledged());
+      expect(ack.state, VoiceState.userSpeaking);
+      expect(ack.commands, const [StopPlayback()]);
+    });
+
+    test('waitForInterruptConfirmation false restores immediate bargeIn', () {
+      const old = VoiceSessionMachine(waitForInterruptConfirmation: false);
+      final t = old.transition(
         VoiceState.aiSpeaking,
         const VoiceUserSpeechStarted(),
       );
       expect(t.state, VoiceState.bargeIn);
       expect(t.commands, const [StopPlayback(), SendInterrupt()]);
-      final ack = m.transition(t.state, const VoiceInterruptAcknowledged());
-      expect(ack.state, VoiceState.userSpeaking);
+    });
+
+    test('speech while thinking enters bargeIn and sends interrupt', () {
+      final t = m.transition(
+        VoiceState.thinking,
+        const VoiceUserSpeechStarted(),
+      );
+      expect(t.state, VoiceState.bargeIn);
+      expect(t.commands, const [SendInterrupt()]);
     });
 
     test('mute remembers listening and resumes', () {

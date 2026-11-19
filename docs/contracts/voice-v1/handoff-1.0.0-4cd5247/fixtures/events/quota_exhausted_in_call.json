@@ -1,0 +1,54 @@
+{
+  "ordered_types_excluding_session_state_and_network_quality": [
+    "agent_ready",
+    "quota_exceeded",
+    "session_ended"
+  ],
+  "quota_exceeded": {
+    "v": "nexa.voice.v1",
+    "type": "quota_exceeded",
+    "seq": 5,
+    "event_id": "vev_<id>",
+    "voice_session_id": "vs_<id>",
+    "occurred_at": "<iso8601-utc>",
+    "mono_ms": "<number>",
+    "quota_kind": "voice_seconds"
+  },
+  "session_ended": {
+    "v": "nexa.voice.v1",
+    "type": "session_ended",
+    "seq": 6,
+    "event_id": "vev_<id>",
+    "voice_session_id": "vs_<id>",
+    "occurred_at": "<iso8601-utc>",
+    "mono_ms": "<number>",
+    "reason": "quota_exceeded"
+  },
+  "GET_after_session_ended_event": {
+    "status": 200,
+    "body": {
+      "voice_session_id": "vs_<id>",
+      "status": "active",
+      "end_reason": null,
+      "max_seconds": 4,
+      "reserved_seconds": 4,
+      "used_seconds": null,
+      "language_tag": "en",
+      "agent_state": "joined",
+      "remaining_seconds": "<number>"
+    }
+  },
+  "DELETE_after_session_ended_event": {
+    "status": 200,
+    "body": {
+      "voice_session_id": "vs_<id>",
+      "status": "ended",
+      "end_reason": "user_ended",
+      "max_seconds": 4,
+      "reserved_seconds": 4,
+      "used_seconds": "<number>",
+      "language_tag": "en",
+      "agent_state": "ended"
+    }
+  }
+}

@@ -1,0 +1,5 @@
+.dart_tool/
+build/
+*.iml
+# On-device models are fetched by tool/fetch_models.sh (SHA-256 pinned), not committed.
+android/src/main/assets/nexa_assistant/*.onnx

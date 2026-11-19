@@ -1,0 +1,7 @@
+14:09:11 DELETE /v1/sdk/conversations/conv_2dvsyxqi0w1ky -> 500 (simulated)
+14:09:19 GET /v1/sdk/conversations -> 200
+14:12:18 DELETE /v1/sdk/conversations -> 500 (simulated)
+14:12:18 DELETE /v1/sdk/sessions/ses_2_ja740esncqxi -> 500 (simulated)
+14:12:26 GET /v1/sdk/conversations -> 200
+14:12:56 DELETE /v1/sdk/conversations -> 200
+14:13:04 GET /v1/sdk/conversations -> 200

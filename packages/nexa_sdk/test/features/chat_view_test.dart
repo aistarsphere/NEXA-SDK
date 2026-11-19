@@ -17,10 +17,11 @@ void main() {
     testWidgets('renders inside a host without NEXA localisation setup', (
       tester,
     ) async {
+      client.setThemeSource(NexaThemeSource.builtIn);
       await tester.pumpWidget(host(client.chatView()));
       await tester.pumpAndSettle();
       expect(find.byKey(const Key('nexa_composer_field')), findsOneWidget);
-      // Theme applied only within the SDK subtree.
+      // Built-in theme applied only within the SDK subtree.
       final field = tester.element(
         find.byKey(const Key('nexa_composer_field')),
       );
@@ -46,6 +47,7 @@ void main() {
     });
 
     testWidgets('switches to Arabic + RTL at runtime', (tester) async {
+      client.setThemeSource(NexaThemeSource.builtIn);
       await tester.pumpWidget(host(client.chatView()));
       await tester.pumpAndSettle();
       client.setLanguage('ar');
@@ -61,7 +63,30 @@ void main() {
       );
     });
 
+    testWidgets('inherits the host theme by default', (tester) async {
+      final hostTheme = ThemeData(
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.teal),
+        fontFamily: 'HostFont',
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: hostTheme,
+          home: Scaffold(body: client.chatView()),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final field = tester.element(
+        find.byKey(const Key('nexa_composer_field')),
+      );
+      final theme = Theme.of(field);
+      expect(theme.colorScheme.primary, hostTheme.colorScheme.primary);
+      expect(theme.textTheme.bodyLarge!.fontFamily, 'HostFont');
+      // SDK roles are derived from the host scheme when not supplied.
+      expect(NexaColors.of(field).userBubble, hostTheme.colorScheme.primary);
+    });
+
     testWidgets('dark mode override and brand seed apply', (tester) async {
+      client.setThemeSource(NexaThemeSource.builtIn);
       await tester.pumpWidget(host(client.chatView()));
       await tester.pumpAndSettle();
       client

@@ -222,6 +222,7 @@ void main() {
       tester,
     ) async {
       client = await initMockClient();
+      client.setThemeSource(NexaThemeSource.builtIn);
       await tester.pumpWidget(host(client.chatView()));
       await tester.pumpAndSettle();
       await send(tester, 'hello');

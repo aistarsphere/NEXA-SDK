@@ -1,0 +1,11 @@
+{
+  "status": 402,
+  "body": {
+    "error": {
+      "code": "quota_exceeded",
+      "message": "Voice quota exhausted.",
+      "retryable": false,
+      "quota_kind": "voice_seconds"
+    }
+  }
+}

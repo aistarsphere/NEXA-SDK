@@ -1,0 +1,7 @@
+{
+  "phrases": [
+    {"id": "yaameer", "label": "يا أمير", "head": "yaameer.bin", "threshold": 0.9, "hits": 2, "syllables": 4, "status": "experimental"},
+    {"id": "amir", "label": "أمير", "head": "amir.bin", "threshold": 0.95, "hits": 3, "syllables": 2, "status": "experimental"},
+    {"id": "abbas", "label": "عباس", "head": "abbas.bin", "threshold": 0.9, "hits": 2, "syllables": 2, "status": "experimental"}
+  ]
+}

@@ -348,14 +348,31 @@ void main() {
       },
     );
 
-    test('server-side expiry ends the chat with reason expired', () async {
+    test('server-side expiry: the chat ends (no conversation) or renews its '
+        'session on the same conversation', () async {
       final bloc = await start();
+      final first = client!.currentSession!.sessionId;
+      final hasConversation = client!.conversationId != null;
       bloc.add(const ChatMessageSent('expire'));
-      await waitFor(
-        () => bloc.state.conversation.phase == ConversationPhase.ended,
-      );
-      expect(bloc.state.conversation.endReason, SessionEndReason.expired);
-      expect(client!.currentSession, isNull);
+      if (hasConversation) {
+        // labeeb.sdk/1: a server-owned conversation outlives its session,
+        // so the chat continues in a new session (the `ended` state is only
+        // transient and must not be polled for).
+        await waitFor(
+          () =>
+              bloc.state.conversation.sessionId != first &&
+              bloc.state.conversation.phase == ConversationPhase.active &&
+              bloc.state.connection == ChatConnection.connected,
+          reason: 'a new session on the same conversation',
+        );
+        expect(bloc.state.error, isNull);
+      } else {
+        await waitFor(
+          () => bloc.state.conversation.phase == ConversationPhase.ended,
+        );
+        expect(bloc.state.conversation.endReason, SessionEndReason.expired);
+        expect(client!.currentSession, isNull);
+      }
       await bloc.close();
     });
   });

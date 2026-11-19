@@ -1,0 +1,4 @@
+    NotificationRecord(0x04398599: pkg=com.nexa.nexa_example user=UserHandle{0} id=٢٠٠٣٣ tag=null importance=٢ key=0|com.nexa.nexa_example|20033|null|11333: Notification(channel=nexa_call shortcut=null contentView=null vibrate=null sound=null defaults=0x0 flags=0x62 color=0x00000000 category=call actions=1 vis=PRIVATE))
+      icon=Icon(typ=RESOURCE pkg=com.nexa.nexa_example id=0x7f060020)
+      flags=0x62
+            actions={

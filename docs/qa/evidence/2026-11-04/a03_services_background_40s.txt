@@ -1,0 +1,3 @@
+  * ServiceRecord{1c40f5b u0 com.nexa.nexa_example/com.nexa.assistant.CallForegroundService}
+    intent={act=com.nexa.assistant.call.START cmp=com.nexa.nexa_example/com.nexa.assistant.CallForegroundService}
+    infoAllowStartForeground=[callingPackage: com.nexa.nexa_example; callingUid: 11333; uidState: TOP ; intent: Intent { act=com.nexa.assistant.call.START cmp=com.nexa.nexa_example/com.nexa.assistant.CallForegroundService (has extras) }; code:PROC_STATE_TOP; tempAllowListReason:<null>; targetSdkVersion:36; callerTargetSdkVersion:36; startForegroundCount:0; bindFromPackage:null]

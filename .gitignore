@@ -17,3 +17,8 @@ apps/nexa_example/ios/Flutter/ephemeral/
 apps/nexa_example/android/.gradle/
 apps/nexa_example/android/local.properties
 apps/nexa_example/.flutter-plugins*
+
+# Development secrets for the example app (--dart-define-from-file).
+# Only the *.example.json template is committed.
+apps/nexa_example/config/*.json
+!apps/nexa_example/config/*.example.json

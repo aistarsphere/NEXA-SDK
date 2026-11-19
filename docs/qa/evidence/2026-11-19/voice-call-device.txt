@@ -1,0 +1,11 @@
+Round 4, 2026-11-19 01:22–01:30 local, Nubia NX679J (Android 13), profile build of 2026-11-18. Three calls started from the chat header.
+Speech: the phone microphone picked up people talking in the room (not recorded here), plus two sentences from the Mac's synthetic Arabic voice. Transcript text is not kept in this file.
+
+Call 1 (01:22:45): "listening" with a running timer within 3 s of the tap. States seen: listening, speaking, understood, interrupted (barge-in). User and assistant transcripts shown.
+ During the call: CallForegroundService running; one active recording only, source VOICE_COMMUNICATION with echo canceller and noise suppression (the wake listener had released the microphone).
+ End call: call recording still active at +2.0 s, gone at +2.8 s; wake listener recording (VOICE_RECOGNITION) active again at +2.8 s; CallForegroundService stopped. Screen: "call ended", with a button labelled "try again".
+Call 2: spoken weather question -> "web results" panel (server tool web.search) within 4 s, assistant answered by voice. Screenshot call-web-search-tool.png. The model chose web.search, not weather.forecast.
+ Mute: label changed to "microphone muted"; unmute restored it. After End + close, the chat behind showed the call's turns, a "web search - done" card and the results.
+Call 3, started about 10 s after call 2 ended: page showed "disconnected" + "try again" for about 15 s with no reason, then connected by itself (timer 00:04 at +20 s). The web-results panel of call 2 was still shown in the new call.
+ Spoken request to open a website: assistant answered by voice; no approval card appeared (one attempt). Client-tool approval inside a call: NOT TESTED.
+Not exercised: network loss / reconnect, backgrounding, Bluetooth, 10-minute limit, owner's own scripted conversation.

@@ -1,0 +1,26 @@
+name: nexa_assistant
+description: Android default-assistant integration for NEXA hosts - system assistant role, an on-device wake phrase and optional owner-voice check. Nothing is sent to a server; the host opens its voice session after a local activation.
+version: 0.1.0
+publish_to: none
+resolution: workspace
+
+environment:
+  sdk: ^3.12.0
+  flutter: ">=3.44.0"
+
+dependencies:
+  characters: ^1.4.0
+  flutter:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_lints: ^6.0.0
+  flutter_test:
+    sdk: flutter
+
+flutter:
+  plugin:
+    platforms:
+      android:
+        package: com.nexa.assistant
+        pluginClass: NexaAssistantPlugin

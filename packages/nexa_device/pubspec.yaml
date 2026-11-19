@@ -1,0 +1,30 @@
+name: nexa_device
+description: NEXA client device tools (location, camera, photo library) and their capture UI. Separate from nexa_core so hosts that disable device tools do not pay for the native plugins.
+version: 0.1.0
+publish_to: none
+resolution: workspace
+
+environment:
+  sdk: ^3.12.0
+  flutter: ">=3.44.0"
+
+dependencies:
+  camera: ^0.12.2
+  connectivity_plus: ^7.3.2
+  file_picker: ^13.3.0
+  flutter:
+    sdk: flutter
+  geolocator: ^14.0.1
+  image_picker: ^1.2.4
+  network_info_plus: ^8.2.2
+  nexa_core: ^0.1.0
+  nexa_ui: ^0.1.0
+  path_provider: ^2.1.6
+  record: ^7.1.2
+  share_plus: ^13.3.1
+  url_launcher: ^6.3.3
+
+dev_dependencies:
+  flutter_lints: ^6.0.0
+  flutter_test:
+    sdk: flutter

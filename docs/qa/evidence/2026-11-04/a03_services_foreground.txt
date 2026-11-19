@@ -1,0 +1,3 @@
+  * ServiceRecord{60828ac u0 com.nexa.nexa_example/com.baseflow.geolocator.GeolocatorLocationService}
+  * ServiceRecord{1c40f5b u0 com.nexa.nexa_example/com.nexa.assistant.CallForegroundService}
+    isForeground=true foregroundId=20033 foregroundNoti=Notification(channel=nexa_call shortcut=null contentView=null vibrate=null sound=null defaults=0x0 flags=0x62 color=0x00000000 category=call actions=1 vis=PRIVATE)

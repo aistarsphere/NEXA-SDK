@@ -1,0 +1,51 @@
+Delete a conversation from the list — device check
+Date: 2026-11-19, 13:18–13:21 (local). Device: Nubia NX679J, Android 13 (the only device).
+Build for steps 1-4: profile, commit d212b3e, --dart-define-from-file + NEXA_DEV_TOOLS=true.
+Data: two conversations created for this test through the API, titled
+"QA delete test A" and "QA delete test B". No conversation of the owner was
+opened or deleted. Row titles of other conversations were not recorded.
+Screen state was read with `uiautomator dump` (labels and bounds only).
+
+Setup (API)
+13:18:25 POST /v1/sdk/conversations -> 201 | PATCH title -> 200
+13:18:26 POST /v1/sdk/conversations -> 201 | PATCH title -> 200
+13:18:27 GET /v1/sdk/conversations -> 200 | total 44 | test rows present: A, B
+
+1. Row menu -> delete -> confirm                                    PASS
+   List row "QA delete test B" has a menu button labelled "حذف هذه المحادثة".
+   Menu item "حذف هذه المحادثة" -> sheet with "إلغاء" / "حذف".
+   13:20:38 tap "حذف" -> sheet shows "حُذف من هذا الجهاز" and "حُذف من الخادم".
+   13:20:43 GET /v1/sdk/conversations -> 200 | total 43 | test rows present: A
+   After "تم": the list shows row A, not row B.
+
+2. Long press -> cancel keeps the row                               PASS
+   Long press on row A opens the same sheet. "إلغاء" -> row A still listed.
+   13:21:06 GET /v1/sdk/conversations -> 200 | total 43 | test rows present: A
+
+3. Long press -> confirm                                            PASS
+   Sheet shows "حُذف من هذا الجهاز" and "حُذف من الخادم"; no test row in the list.
+   13:21:18 GET /v1/sdk/conversations -> 200 | total 42 | test rows present: none
+
+4. Settings tiles present                                           PASS (presence only)
+   "حذف كل المحادثات" and "مسح الذاكرة المؤقتة" are shown under Conversations.
+
+5. Confirm, then close the sheet by tapping outside it               PASS
+   Build: profile, commit 030c988 (installed 13:26). Two new test rows
+   created through the API at 13:26:40.
+   13:27:05 tap "حذف" on row B -> "حُذف من هذا الجهاز" / "حُذف من الخادم".
+   Tap outside the sheet: the sheet closes, the list shows row A only.
+   13:27:15 GET /v1/sdk/conversations -> 200 | total 43 | test rows present: A
+   13:27:15 DELETE (API) of the remaining test row -> 200. No test row is left.
+
+NOT TESTED on the device
+- "Delete all conversations": it would delete the owner's real history.
+- "Clear cache": it removes the owner's local images and QA diagnostics.
+- Deleting the conversation that is currently open in the chat page.
+- Server failure during deletion (covered by widget tests only).
+- Any other device, Android version or iOS.
+
+Noted
+- The sheet title ends with a Latin "?" in Arabic ("حذف هذه المحادثة?");
+  the sheet existed before this change.
+- An earlier install at 13:17 was built without NEXA_DEV_TOOLS and showed
+  "المساعد غير متصل"; it was replaced by the build above before testing.

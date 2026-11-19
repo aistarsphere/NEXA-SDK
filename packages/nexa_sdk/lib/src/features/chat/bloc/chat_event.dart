@@ -11,10 +11,26 @@ final class ChatStarted extends ChatEvent {
   const ChatStarted();
 }
 
+/// The user scrolled to the top of a resumed conversation: load the next
+/// older page.
+final class ChatOlderRequested extends ChatEvent {
+  const ChatOlderRequested();
+}
+
+/// Messages persisted by the server (e.g. the turns of a call) to merge
+/// into the conversation.
+final class ChatHistoryMerged extends ChatEvent {
+  const ChatHistoryMerged(this.messages);
+  final List<ChatMessage> messages;
+}
+
 /// User submitted text.
 final class ChatMessageSent extends ChatEvent {
-  const ChatMessageSent(this.text);
+  const ChatMessageSent(this.text, {this.attachments = const []});
   final String text;
+
+  /// Uploaded asset ids (`ast_*`, up to 4) sent with the text.
+  final List<String> attachments;
 }
 
 /// User asked to retry a failed message.

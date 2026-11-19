@@ -24,55 +24,96 @@ class NexaStatusBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final colors = NexaColors.of(context);
-    final (bg, fg, icon) = switch (tone) {
+    // Design: a tonal container, a coloured icon, body text in onSurface.
+    final (bg, iconColor, icon) = switch (tone) {
       NexaBannerTone.info => (
         scheme.surfaceContainerHigh,
-        scheme.onSurface,
-        Icons.info_outline,
+        colors.info,
+        Icons.info_rounded,
       ),
       NexaBannerTone.warning => (
+        colors.warningContainer,
         colors.warning,
-        colors.onWarning,
-        Icons.warning_amber,
+        Icons.warning_rounded,
       ),
       NexaBannerTone.error => (
         scheme.errorContainer,
-        scheme.onErrorContainer,
-        Icons.error_outline,
+        scheme.error,
+        Icons.error_rounded,
       ),
       NexaBannerTone.success => (
+        colors.successContainer,
         colors.success,
-        colors.onSuccess,
-        Icons.check_circle_outline,
+        Icons.check_circle_rounded,
       ),
     };
+    final fg = tone == NexaBannerTone.error
+        ? scheme.onErrorContainer
+        : scheme.onSurface;
     return Semantics(
       liveRegion: true,
       child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(color: bg, borderRadius: NexaShapes.card),
-        child: Row(
-          children: [
-            Icon(icon, color: fg, size: 20),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                message,
-                style: Theme.of(
-                  context,
-                ).textTheme.bodyMedium?.copyWith(color: fg),
-              ),
-            ),
-            if (actionLabel != null && onAction != null)
-              TextButton(
-                onPressed: onAction,
-                style: TextButton.styleFrom(foregroundColor: fg),
-                child: Text(actionLabel!),
-              ),
-          ],
+        margin: const EdgeInsets.fromLTRB(10, 4, 10, 6),
+        padding: const EdgeInsetsDirectional.fromSTEB(12, 10, 8, 10),
+        decoration: BoxDecoration(
+          color: bg,
+          borderRadius: BorderRadius.circular(NexaShapes.large),
+        ),
+        child: _layout(
+          context,
+          icon: Icon(icon, color: iconColor, size: 20),
+          text: Text(
+            message,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: fg),
+          ),
+          action: actionLabel != null && onAction != null
+              ? TextButton(
+                  onPressed: onAction,
+                  style: TextButton.styleFrom(
+                    foregroundColor: tone == NexaBannerTone.error
+                        ? scheme.error
+                        : scheme.primary,
+                  ),
+                  child: Text(actionLabel!),
+                )
+              : null,
         ),
       ),
+    );
+  }
+
+  /// One line (icon, message, action) normally; at large text the action
+  /// moves under the message so nothing overflows.
+  Widget _layout(
+    BuildContext context, {
+    required Widget icon,
+    required Widget text,
+    Widget? action,
+  }) {
+    final large = MediaQuery.textScalerOf(context).scale(10) >= 13;
+    if (!large || action == null) {
+      return Row(
+        children: [
+          icon,
+          const SizedBox(width: 10),
+          Expanded(child: text),
+          ?action,
+        ],
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            icon,
+            const SizedBox(width: 10),
+            Expanded(child: text),
+          ],
+        ),
+        Align(alignment: AlignmentDirectional.centerEnd, child: action),
+      ],
     );
   }
 }

@@ -1,0 +1,74 @@
+{
+  "NOTE": "TEST KEY ONLY. The seed is public and protects nothing; real sessions get a fresh key.",
+  "algorithm": "ed25519",
+  "signed_bytes": "UTF8(b'nexa.voice.v1\\x00') + UTF8(envelope.e)  (the exact string inside 'e')",
+  "signature_encoding": "lowercase hex of the 64-byte Ed25519 signature",
+  "test_seed_base64url": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8",
+  "public_key_base64url": "A6EHv_POEL4dcN0Y50vAmWfk1jCbpQ1fHdyGZBJVMbg",
+  "voice_session_id": "vs_TESTVECTOR0001",
+  "valid_envelopes": [
+    "{\"e\":\"{\\\"v\\\":\\\"nexa.voice.v1\\\",\\\"voice_session_id\\\":\\\"vs_TESTVECTOR0001\\\",\\\"type\\\":\\\"session_state\\\",\\\"seq\\\":1,\\\"event_id\\\":\\\"vev_testvector01\\\",\\\"occurred_at\\\":\\\"2026-01-01T00:00:00.000Z\\\",\\\"mono_ms\\\":1000,\\\"state\\\":\\\"listening\\\",\\\"current_turn_id\\\":null,\\\"last_seq\\\":1,\\\"elapsed_s\\\":0.0,\\\"max_seconds\\\":60}\",\"sig\":\"def24dc33dd83ed97f2973c3ae28d62e0fc97b744f447ed91827ced55b286834895185da2cdedbefac09fd704e1ec0bec18499d10419f0d135028585124a710d\",\"alg\":\"ed25519\"}",
+    "{\"e\":\"{\\\"v\\\":\\\"nexa.voice.v1\\\",\\\"voice_session_id\\\":\\\"vs_TESTVECTOR0001\\\",\\\"type\\\":\\\"transcript\\\",\\\"seq\\\":2,\\\"event_id\\\":\\\"vev_testvector02\\\",\\\"occurred_at\\\":\\\"2026-01-01T00:00:01.000Z\\\",\\\"mono_ms\\\":2000,\\\"turn_id\\\":\\\"turn_1\\\",\\\"text\\\":\\\"مرحبا hello\\\",\\\"is_final\\\":true,\\\"language\\\":\\\"en\\\"}\",\"sig\":\"781d4c9583095c7d640e44995bae6fda669d732621f2a0dd07c17b5866e6f5d347eb439ea23a26ddef9c37973053006a1b5f6ddb571f043ae8472127d39b320a\",\"alg\":\"ed25519\"}"
+  ],
+  "events_after_verification": [
+    {
+      "v": "nexa.voice.v1",
+      "voice_session_id": "vs_TESTVECTOR0001",
+      "type": "session_state",
+      "seq": 1,
+      "event_id": "vev_testvector01",
+      "occurred_at": "2026-01-01T00:00:00.000Z",
+      "mono_ms": 1000,
+      "state": "listening",
+      "current_turn_id": null,
+      "last_seq": 1,
+      "elapsed_s": 0.0,
+      "max_seconds": 60
+    },
+    {
+      "v": "nexa.voice.v1",
+      "voice_session_id": "vs_TESTVECTOR0001",
+      "type": "transcript",
+      "seq": 2,
+      "event_id": "vev_testvector02",
+      "occurred_at": "2026-01-01T00:00:01.000Z",
+      "mono_ms": 2000,
+      "turn_id": "turn_1",
+      "text": "مرحبا hello",
+      "is_final": true,
+      "language": "en"
+    }
+  ],
+  "must_reject": [
+    {
+      "name": "tampered_body",
+      "envelope": "{\"e\":\"{\\\"v\\\":\\\"nexa.voice.v1\\\",\\\"voice_session_id\\\":\\\"vs_TESTVECTOR0001\\\",\\\"type\\\":\\\"transcript\\\",\\\"seq\\\":2,\\\"event_id\\\":\\\"vev_testvector02\\\",\\\"occurred_at\\\":\\\"2026-01-01T00:00:01.000Z\\\",\\\"mono_ms\\\":2000,\\\"turn_id\\\":\\\"turn_1\\\",\\\"text\\\":\\\"مرحبا HELLO\\\",\\\"is_final\\\":true,\\\"language\\\":\\\"en\\\"}\",\"sig\":\"781d4c9583095c7d640e44995bae6fda669d732621f2a0dd07c17b5866e6f5d347eb439ea23a26ddef9c37973053006a1b5f6ddb571f043ae8472127d39b320a\",\"alg\":\"ed25519\"}",
+      "backend_error": "bad signature"
+    },
+    {
+      "name": "algorithm_substitution",
+      "envelope": "{\"e\":\"{\\\"v\\\":\\\"nexa.voice.v1\\\",\\\"voice_session_id\\\":\\\"vs_TESTVECTOR0001\\\",\\\"type\\\":\\\"transcript\\\",\\\"seq\\\":2,\\\"event_id\\\":\\\"vev_testvector02\\\",\\\"occurred_at\\\":\\\"2026-01-01T00:00:01.000Z\\\",\\\"mono_ms\\\":2000,\\\"turn_id\\\":\\\"turn_1\\\",\\\"text\\\":\\\"\\u0645\\u0631\\u062d\\u0628\\u0627 hello\\\",\\\"is_final\\\":true,\\\"language\\\":\\\"en\\\"}\",\"sig\":\"781d4c9583095c7d640e44995bae6fda669d732621f2a0dd07c17b5866e6f5d347eb439ea23a26ddef9c37973053006a1b5f6ddb571f043ae8472127d39b320a\",\"alg\":\"hmac-sha256\"}",
+      "backend_error": "algorithm mismatch"
+    },
+    {
+      "name": "signed_by_another_key",
+      "envelope": "{\"e\":\"{\\\"v\\\":\\\"nexa.voice.v1\\\",\\\"voice_session_id\\\":\\\"vs_TESTVECTOR0001\\\",\\\"type\\\":\\\"transcript\\\",\\\"seq\\\":2,\\\"event_id\\\":\\\"vev_testvector02\\\",\\\"occurred_at\\\":\\\"2026-01-01T00:00:01.000Z\\\",\\\"mono_ms\\\":2000,\\\"turn_id\\\":\\\"turn_1\\\",\\\"text\\\":\\\"مرحبا hello\\\",\\\"is_final\\\":true,\\\"language\\\":\\\"en\\\"}\",\"sig\":\"0ea6a7996f33a8f49ce58d88d2fac5f1e478350cfdbda543fae99bcbaa8d89643d4fa6a39bfb0302cfa93db99ae0dbcf858fde6bd185906fb3ff6cb8dad2b800\",\"alg\":\"ed25519\"}",
+      "backend_error": "bad signature"
+    },
+    {
+      "name": "not_json",
+      "envelope": "}{",
+      "backend_error": "malformed envelope"
+    }
+  ],
+  "replay_rule_results": {
+    "first_delivery": [
+      true,
+      true
+    ],
+    "duplicate_delivery": [
+      false,
+      false
+    ]
+  }
+}

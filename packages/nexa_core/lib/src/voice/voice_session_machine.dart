@@ -17,16 +17,24 @@ final class VoiceTransition {
 /// transport interfaces and feeds the outcomes back as events.
 ///
 /// Interruption semantics:
-/// * While `aiSpeaking`, `VoiceUserSpeechStarted` enters `bargeIn`: playback
-///   stops locally **immediately** and `SendInterrupt` is issued. On
-///   `VoiceInterruptAcknowledged` the machine returns to `userSpeaking`.
+/// * While `aiSpeaking`, `VoiceUserSpeechStarted` changes nothing: the
+///   server decides whether speech interrupts (echo and noise must not), and
+///   the UI keeps showing "speaking" until it does. `VoiceInterruptAcknowledged`
+///   (`interrupted`) moves to `userSpeaking`.
+/// * While `thinking`, `VoiceUserSpeechStarted` enters `bargeIn` (no reply
+///   audio yet; shown as "listening to you") and `SendInterrupt` is issued.
 /// * `VoiceEndRequested` from any non-terminal state stops capture and
 ///   playback and disconnects.
 ///
 /// Mute is modelled as a state that remembers it was listening; unmuting
 /// resumes `listening`.
 final class VoiceSessionMachine {
-  const VoiceSessionMachine();
+  const VoiceSessionMachine({this.waitForInterruptConfirmation = true});
+
+  /// True (default): speech during a reply leaves `aiSpeaking` only when the
+  /// server confirms with `interrupted`. False: the earlier behaviour, where
+  /// speech enters `bargeIn` at once (playback stop + local interrupt).
+  final bool waitForInterruptConfirmation;
 
   /// Computes the next state and the commands to execute.
   VoiceTransition transition(VoiceState state, VoiceEvent event) {
@@ -66,6 +74,33 @@ final class VoiceSessionMachine {
         ]);
       default:
         break;
+    }
+
+    // Mute is a privacy control: it must reach the microphone in every
+    // live state, including while the assistant transcribes, thinks or is
+    // being interrupted. (Connecting / reconnecting apply it on connect.)
+    if (event case VoiceMuteToggled(:final muted)) {
+      switch (state) {
+        case VoiceState.listening ||
+            VoiceState.userSpeaking ||
+            VoiceState.transcribing ||
+            VoiceState.thinking ||
+            VoiceState.aiSpeaking ||
+            VoiceState.bargeIn ||
+            VoiceState.weakNetwork ||
+            VoiceState.modelBusy:
+          return muted
+              ? const VoiceTransition(VoiceState.muted, [
+                  SetTransportMuted(muted: true),
+                ])
+              : VoiceTransition(state, const [SetTransportMuted(muted: false)]);
+        case VoiceState.muted when !muted:
+          return const VoiceTransition(VoiceState.listening, [
+            SetTransportMuted(muted: false),
+          ]);
+        default:
+          break;
+      }
     }
 
     return switch (state) {
@@ -140,9 +175,22 @@ final class VoiceSessionMachine {
         _ => VoiceTransition(state),
       },
       VoiceState.aiSpeaking => switch (event) {
-        VoiceUserSpeechStarted() => const VoiceTransition(VoiceState.bargeIn, [
+        // The server heard speech; whether it interrupts is its decision
+        // (noise or echo must not). The reply keeps playing until then.
+        VoiceUserSpeechStarted() =>
+          waitForInterruptConfirmation
+              ? VoiceTransition(state)
+              : const VoiceTransition(VoiceState.bargeIn, [
+                  StopPlayback(),
+                  SendInterrupt(),
+                ]),
+        VoiceInterruptAcknowledged() => const VoiceTransition(
+          VoiceState.userSpeaking,
+          [StopPlayback()],
+        ),
+        // A new turn began without an interruption event.
+        VoiceAssistantThinking() => const VoiceTransition(VoiceState.thinking, [
           StopPlayback(),
-          SendInterrupt(),
         ]),
         VoiceAssistantTurnEnded() => const VoiceTransition(
           VoiceState.listening,

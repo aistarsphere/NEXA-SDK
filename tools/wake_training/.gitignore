@@ -1,0 +1,6 @@
+.venv/
+data/
+*.wav
+voices/
+models/
+__pycache__/

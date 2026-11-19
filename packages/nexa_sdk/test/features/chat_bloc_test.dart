@@ -175,6 +175,7 @@ void main() {
           const DenyAllPermissionHandler(),
           const NoopNexaLogger(),
           testConfig(),
+          const NoopNexaDiagnostics(),
         );
       },
       setUp: () async => transport.dispose(),

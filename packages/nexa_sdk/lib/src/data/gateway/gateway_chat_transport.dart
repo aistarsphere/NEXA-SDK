@@ -56,6 +56,8 @@ final class GatewayChatTransport implements ChatTransport {
     required Set<NexaCapability> requestedCapabilities,
     required String languageTag,
     Map<String, String> clientMetadata = const {},
+    List<String> clientTools = const [],
+    String? conversationId,
   }) async {
     _checkDisposed();
     try {
@@ -69,6 +71,8 @@ final class GatewayChatTransport implements ChatTransport {
           clientMetadata: clientMetadata,
           sdkVersion: nexaSdkVersion,
           platform: _platformName(),
+          clientTools: clientTools.isEmpty ? null : clientTools,
+          conversationId: conversationId,
         ),
       );
       return SessionHandle(
@@ -79,6 +83,7 @@ final class GatewayChatTransport implements ChatTransport {
             .whereType<NexaCapability>()
             .toSet(),
         lastSequence: dto.lastSequence,
+        conversationId: dto.conversationId,
       );
     } on Object catch (e) {
       throw mapError(e);
@@ -256,6 +261,10 @@ final class GatewayChatTransport implements ChatTransport {
             clientMessageId: message.clientMessageId.value,
             text: message.text,
             languageTag: message.languageTag,
+            attachments: message.attachments.isEmpty
+                ? null
+                : message.attachments,
+            uiEvent: message.uiEvent,
           ),
           message.clientMessageId.value,
         ),

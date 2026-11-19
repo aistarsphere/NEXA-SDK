@@ -4,6 +4,7 @@ import 'package:bloc/bloc.dart';
 import 'package:clock/clock.dart';
 import 'package:injectable/injectable.dart';
 import 'package:nexa_core/nexa_core.dart';
+import 'package:nexa_sdk/src/data/network/error_mapper.dart';
 import 'package:nexa_sdk/src/features/chat/bloc/chat_event.dart';
 import 'package:nexa_sdk/src/features/chat/bloc/chat_state.dart';
 import 'package:nexa_sdk/src/permissions/nexa_permission_handler.dart';
@@ -35,6 +36,7 @@ final class ChatBloc extends Bloc<ChatEvent, ChatState> {
     this._permissions,
     this._logger,
     NexaConfig config,
+    this._diagnostics,
   ) : _config = config,
       _languageTag = config.languageTag,
       super(const ChatState()) {
@@ -43,6 +45,8 @@ final class ChatBloc extends Bloc<ChatEvent, ChatState> {
     // round-trip is the exception because it awaits a host dialog.
     on<ChatStarted>(_onStarted, transformer: _sequential());
     on<ChatMessageSent>(_onSent, transformer: _sequential());
+    on<ChatOlderRequested>(_onOlder, transformer: _sequential());
+    on<ChatHistoryMerged>(_onHistoryMerged, transformer: _sequential());
     on<ChatMessageRetried>(_onRetried, transformer: _sequential());
     on<ChatGenerationCancelled>(_onCancelled, transformer: _sequential());
     on<ChatToolActionSubmitted>(_onToolAction, transformer: _sequential());
@@ -73,6 +77,7 @@ final class ChatBloc extends Bloc<ChatEvent, ChatState> {
   final ConversationReducer _reducer;
   final NexaPermissionHandler _permissions;
   final NexaLogger _logger;
+  final NexaDiagnostics _diagnostics;
   final NexaConfig _config;
   final EventSequencer _sequencer = EventSequencer();
   static const _uuid = Uuid();
@@ -83,6 +88,63 @@ final class ChatBloc extends Bloc<ChatEvent, ChatState> {
   SessionId? _sessionId;
   Timer? _reconnectTimer;
   int _reconnectAttempts = 0;
+  DateTime? _expiryRestartAt;
+
+  /// Text deltas applied per assistant message (diagnostics: first token
+  /// and delta count).
+  final Map<MessageId, int> _deltas = {};
+
+  /// Attachments per message, so a retry resends them.
+  final Map<ClientMessageId, List<String>> _attachments = {};
+
+  final StreamController<ConversationEvent> _toolEvents =
+      StreamController<ConversationEvent>.broadcast();
+
+  /// labeeb.sdk/1 tool, job, asset and UI events, in sequence order, for
+  /// the tool-call controller.
+  Stream<ConversationEvent> get toolEvents => _toolEvents.stream;
+
+  /// Capabilities the backend granted for this session.
+  Set<NexaCapability> get grantedCapabilities =>
+      _sessions.current?.grantedCapabilities ?? const {};
+
+  /// The active session (tool-call answers are scoped to it).
+  SessionId? get sessionId => _sessionId;
+
+  /// The server conversation of this chat (null without server history).
+  String? get conversationId => _sessions.conversationId;
+
+  /// Sends a `nexa.ui/1` touch event as `ui_event` on `POST /messages`.
+  /// Returns the gateway error code when it was refused (e.g. a stale
+  /// document answers `unknown_ui_component`), null when accepted.
+  Future<String?> sendUiEvent(NexaUiEvent event) async {
+    final id = _sessionId;
+    if (id == null) return 'session_not_found';
+    final clientId = ClientMessageId(_uuid.v4());
+    try {
+      await _sessions.transport.sendMessage(
+        id,
+        OutgoingMessage(
+          clientMessageId: clientId,
+          languageTag: _languageTag,
+          uiEvent: event.toJson(),
+        ),
+      );
+      _diagnostics.record('chat.ui_event', {
+        'ui_id': event.uiId,
+        'component_id': event.componentId,
+        'event': event.event,
+      });
+      return null;
+    } on NexaException catch (e) {
+      final code = gatewayErrorCode(e) ?? e.code.name;
+      _diagnostics.record('chat.ui_event_failed', {
+        ...nexaErrorFields(e),
+        'gateway_code': code,
+      });
+      return code;
+    }
+  }
 
   /// Updates the language hint sent with messages.
   set languageTag(String tag) => _languageTag = tag;
@@ -94,6 +156,10 @@ final class ChatBloc extends Bloc<ChatEvent, ChatState> {
       return;
     }
     _cancelReconnect();
+    // Turns of a call recorded by the gateway (see the coordinator).
+    _persistedSub ??= _sessions.coordinator?.persistedMessages.listen((m) {
+      if (!isClosed) add(ChatHistoryMerged(m));
+    });
     emit(
       state.copyWith(connection: ChatConnection.connecting, clearError: true),
     );
@@ -121,8 +187,85 @@ final class ChatBloc extends Bloc<ChatEvent, ChatState> {
         ),
       );
       _subscribe(handle.sessionId, after);
+      await _loadResumedHistory(emit);
     } on NexaException catch (e) {
       emit(state.copyWith(connection: ChatConnection.disconnected, error: e));
+    }
+  }
+
+  /// A resumed server conversation shows its earlier messages first.
+  Future<void> _loadResumedHistory(Emitter<ChatState> emit) async {
+    final cid = _sessions.conversationId;
+    final load = _sessions.historyLoader;
+    if (!_sessions.resumePending || cid == null || load == null) return;
+    _sessions.resumePending = false;
+    try {
+      final page = await load(cid);
+      emit(
+        state.copyWith(
+          conversation: _withOlder(state.conversation, page.messages),
+          olderBefore: page.nextBefore,
+          clearOlderBefore: page.nextBefore == null,
+        ),
+      );
+    } on Object catch (e) {
+      _diagnostics.record('chat.history_load_failed', {
+        'error': e.runtimeType.toString(),
+      });
+    }
+  }
+
+  StreamSubscription<List<ChatMessage>>? _persistedSub;
+
+  void _onHistoryMerged(ChatHistoryMerged event, Emitter<ChatState> emit) {
+    final merged = _reducer.mergePersisted(state.conversation, event.messages);
+    if (merged != state.conversation) {
+      emit(state.copyWith(conversation: merged));
+    }
+  }
+
+  /// [older] messages in front of the conversation, without duplicates.
+  ConversationState _withOlder(
+    ConversationState conversation,
+    List<ChatMessage> older,
+  ) {
+    final known = {for (final m in conversation.messages) m.id};
+    return conversation.copyWith(
+      messages: [
+        for (final m in older)
+          if (!known.contains(m.id)) m,
+        ...conversation.messages,
+      ],
+    );
+  }
+
+  /// Next older page of a resumed conversation (cursor kept on failure).
+  Future<void> _onOlder(
+    ChatOlderRequested event,
+    Emitter<ChatState> emit,
+  ) async {
+    final cid = _sessions.conversationId;
+    final load = _sessions.historyLoader;
+    final before = state.olderBefore;
+    if (cid == null || load == null || before == null || state.loadingOlder) {
+      return;
+    }
+    emit(state.copyWith(loadingOlder: true));
+    try {
+      final page = await load(cid, beforeSeq: before);
+      emit(
+        state.copyWith(
+          conversation: _withOlder(state.conversation, page.messages),
+          olderBefore: page.nextBefore,
+          clearOlderBefore: page.nextBefore == null,
+          loadingOlder: false,
+        ),
+      );
+    } on Object catch (e) {
+      _diagnostics.record('chat.history_older_failed', {
+        'error': e.runtimeType.toString(),
+      });
+      emit(state.copyWith(loadingOlder: false));
     }
   }
 
@@ -132,6 +275,10 @@ final class ChatBloc extends Bloc<ChatEvent, ChatState> {
     // onDone that follows an onError) must not feed the bloc.
     final generation = ++_subscriptionGeneration;
     bool live() => generation == _subscriptionGeneration && !isClosed;
+    _diagnostics.record('chat.stream_subscribe', {
+      'session_id': sessionId.value,
+      'after': after,
+    });
     _subscription = _sessions.transport
         .events(sessionId, afterSequence: after)
         .listen(
@@ -141,16 +288,16 @@ final class ChatBloc extends Bloc<ChatEvent, ChatState> {
           onError: (Object e) {
             if (!live()) return;
             _subscriptionGeneration++; // ignore the trailing onDone
-            add(
-              ChatTransportFailed(
-                e is NexaException
-                    ? e
-                    : UnknownNexaException(e.toString(), cause: e),
-              ),
-            );
+            final error = e is NexaException
+                ? e
+                : UnknownNexaException(e.toString(), cause: e);
+            _diagnostics.record('chat.stream_failed', nexaErrorFields(error));
+            add(ChatTransportFailed(error));
           },
           onDone: () {
-            if (live()) add(const ChatTransportClosed());
+            if (!live()) return;
+            _diagnostics.record('chat.stream_closed');
+            add(const ChatTransportClosed());
           },
         );
   }
@@ -175,6 +322,9 @@ final class ChatBloc extends Bloc<ChatEvent, ChatState> {
       case SequencerVerdict.buffered:
         return;
       case SequencerVerdict.gapSkipped:
+        _diagnostics.record('chat.event_gap', {
+          'last_applied': _sequencer.lastApplied,
+        });
         _logger.log(
           NexaLogLevel.warning,
           'Event gap skipped; resyncing from ${_sequencer.lastApplied}',
@@ -190,12 +340,21 @@ final class ChatBloc extends Bloc<ChatEvent, ChatState> {
   void _applyAll(List<ConversationEvent> events, Emitter<ChatState> emit) {
     var conversation = state.conversation;
     var connection = state.connection;
+    var expired = false;
     for (final e in events) {
       conversation = _reducer.reduce(conversation, e);
+      if (e is ContractToolCallEvent ||
+          e is ToolCallProgressEvent ||
+          e is AssetCreatedEvent ||
+          e is UiPresentedEvent) {
+        if (!_toolEvents.isClosed) _toolEvents.add(e);
+      }
+      if (_diagnostics.enabled) _recordEvent(e, conversation);
       switch (e) {
         case SessionEndedEvent(:final reason, :final sessionId):
           connection = ChatConnection.disconnected;
           _sessions.markEnded(sessionId, reason.name);
+          expired = reason == SessionEndReason.expired;
         case QuotaUpdatedEvent(exceeded: true):
           _logger.log(NexaLogLevel.info, 'Quota exceeded for session');
         default:
@@ -203,6 +362,79 @@ final class ChatBloc extends Bloc<ChatEvent, ChatState> {
       }
     }
     emit(state.copyWith(conversation: conversation, connection: connection));
+    // An idle session timed out on the server: continue the same
+    // conversation in a new session instead of stopping the chat.
+    if (expired) _restartAfterExpiry(emit);
+  }
+
+  void _recordEvent(ConversationEvent e, ConversationState conversation) {
+    switch (e) {
+      case UserMessageAcceptedEvent(:final clientMessageId, :final messageId):
+        _diagnostics.record('chat.user_accepted', {
+          'client_message_id': clientMessageId.value,
+          'message_id': messageId.value,
+          'seq': e.sequence,
+        });
+      case UserMessageRejectedEvent(:final clientMessageId, :final error):
+        _diagnostics.record('chat.user_rejected', {
+          'client_message_id': clientMessageId.value,
+          'error_code': error.code,
+          'seq': e.sequence,
+        });
+      case AssistantMessageStartedEvent(:final messageId):
+        _deltas[messageId] = 0;
+        _diagnostics.record('chat.assistant_started', {
+          'message_id': messageId.value,
+          'seq': e.sequence,
+        });
+      case AssistantTextDeltaEvent(:final messageId, :final text):
+        final n = (_deltas[messageId] ?? 0) + 1;
+        _deltas[messageId] = n;
+        if (n == 1) {
+          _diagnostics.record('chat.assistant_first_delta', {
+            'message_id': messageId.value,
+            'seq': e.sequence,
+            'text_len': text.length,
+          });
+        }
+      case AssistantMessageCompletedEvent(
+        :final messageId,
+        :final finishReason,
+      ):
+        String? text;
+        for (final m in conversation.messages) {
+          if (m.id == messageId) text = m.text;
+        }
+        _diagnostics.record('chat.assistant_completed', {
+          'message_id': messageId.value,
+          'seq': e.sequence,
+          'finish_reason': finishReason.name,
+          'deltas': _deltas.remove(messageId) ?? 0,
+          'text_len': text?.length,
+          if (_diagnostics.captureContent) 'text': text,
+        });
+      case MessageFailedEvent(:final messageId, :final error):
+        _deltas.remove(messageId);
+        _diagnostics.record('chat.assistant_failed', {
+          'message_id': messageId.value,
+          'error_code': error.code,
+          'retryable': error.retryable,
+          'seq': e.sequence,
+        });
+      case MessageCancelledEvent(:final messageId):
+        _deltas.remove(messageId);
+        _diagnostics.record('chat.assistant_cancelled', {
+          'message_id': messageId.value,
+          'seq': e.sequence,
+        });
+      case SessionEndedEvent(:final reason):
+        _diagnostics.record('chat.session_ended_event', {
+          'reason': reason.name,
+          'seq': e.sequence,
+        });
+      default:
+        break;
+    }
   }
 
   Future<void> _onSent(ChatMessageSent event, Emitter<ChatState> emit) async {
@@ -212,6 +444,9 @@ final class ChatBloc extends Bloc<ChatEvent, ChatState> {
     // connection state; this is the single gate against double submission.
     if (text.isEmpty || sessionId == null || !state.canSend) return;
     final clientId = ClientMessageId(_uuid.v4());
+    if (event.attachments.isNotEmpty) {
+      _attachments[clientId] = event.attachments;
+    }
     await _send(sessionId, clientId, text, emit);
   }
 
@@ -246,6 +481,14 @@ final class ChatBloc extends Bloc<ChatEvent, ChatState> {
         clearError: true,
       ),
     );
+    final watch = Stopwatch()..start();
+    _diagnostics.record('chat.send', {
+      'session_id': sessionId.value,
+      'client_message_id': clientId.value,
+      'language': _languageTag,
+      'text_len': text.length,
+      if (_diagnostics.captureContent) 'text': text,
+    });
     try {
       await _sessions.transport.sendMessage(
         sessionId,
@@ -253,9 +496,20 @@ final class ChatBloc extends Bloc<ChatEvent, ChatState> {
           clientMessageId: clientId,
           text: text,
           languageTag: _languageTag,
+          // Retries resend the same attachments under the same key.
+          attachments: _attachments[clientId] ?? const [],
         ),
       );
+      _diagnostics.record('chat.send_accepted', {
+        'client_message_id': clientId.value,
+        'ms': watch.elapsedMilliseconds,
+      });
     } on NexaException catch (e) {
+      _diagnostics.record('chat.send_failed', {
+        'client_message_id': clientId.value,
+        'ms': watch.elapsedMilliseconds,
+        ...nexaErrorFields(e),
+      });
       final sessionLevel =
           e is QuotaExceededException ||
           e is SessionExpiredException ||
@@ -278,7 +532,26 @@ final class ChatBloc extends Bloc<ChatEvent, ChatState> {
           error: sessionLevel ? e : null,
         ),
       );
+      if (e is SessionExpiredException) _restartAfterExpiry(emit);
     }
+  }
+
+  /// labeeb.sdk/1: a server-owned conversation outlives its session
+  /// (`410 session_ended|session_expired` → "create a new session on the same
+  /// conversation"). At most once a minute, so a refusal cannot loop.
+  bool _restartAfterExpiry(Emitter<ChatState> emit) {
+    if (_sessions.conversationId == null) return false;
+    final now = clock.now();
+    final last = _expiryRestartAt;
+    if (last != null && now.difference(last) < const Duration(minutes: 1)) {
+      return false;
+    }
+    _expiryRestartAt = now;
+    _cancelReconnect();
+    _diagnostics.record('chat.session_renewed', const {});
+    emit(state.copyWith(connection: ChatConnection.disconnected));
+    add(const ChatStarted());
+    return true;
   }
 
   Future<void> _onCancelled(
@@ -393,6 +666,7 @@ final class ChatBloc extends Bloc<ChatEvent, ChatState> {
     if (error is SessionExpiredException) {
       final id = _sessionId;
       if (id != null) _sessions.markEnded(id, 'expired');
+      if (_restartAfterExpiry(emit)) return;
     }
     final automatic =
         error.retryable &&
@@ -435,6 +709,10 @@ final class ChatBloc extends Bloc<ChatEvent, ChatState> {
     if (_reconnectAttempts >= _config.maxReconnectAttempts) return false;
     _reconnectAttempts++;
     final delay = _backoff(_reconnectAttempts);
+    _diagnostics.record('chat.reconnect_scheduled', {
+      'attempt': _reconnectAttempts,
+      'delay_ms': delay.inMilliseconds,
+    });
     _logger.log(
       NexaLogLevel.info,
       'Event stream interrupted; reconnect $_reconnectAttempts/'
@@ -464,7 +742,14 @@ final class ChatBloc extends Bloc<ChatEvent, ChatState> {
         state.conversation.phase == ConversationPhase.ended) {
       return;
     }
-    _subscribe(id, _sequencer.lastApplied);
+    try {
+      _subscribe(id, _sequencer.lastApplied);
+    } on NotInitializedException {
+      // The client was disposed while the retry was pending: stop quietly.
+      _reconnectTimer?.cancel();
+      emit(state.copyWith(connection: ChatConnection.disconnected));
+      return;
+    }
     // Optimistically connected; a failure comes straight back as
     // ChatTransportFailed and the attempt counter keeps climbing until an
     // event is actually received.
@@ -494,6 +779,8 @@ final class ChatBloc extends Bloc<ChatEvent, ChatState> {
     // trip, and `isClosed` must flip immediately so widgets can dispose.
     unawaited(_subscription?.cancel());
     _subscription = null;
+    unawaited(_persistedSub?.cancel());
+    unawaited(_toolEvents.close());
     return super.close();
   }
 }

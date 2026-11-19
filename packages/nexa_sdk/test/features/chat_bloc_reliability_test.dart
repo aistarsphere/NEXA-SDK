@@ -8,6 +8,7 @@ import 'package:nexa_sdk/nexa_sdk.dart';
 import 'package:nexa_sdk/src/features/chat/bloc/chat_bloc.dart';
 import 'package:nexa_sdk/src/features/chat/bloc/chat_event.dart';
 import 'package:nexa_sdk/src/features/chat/bloc/chat_state.dart';
+import 'package:nexa_sdk/src/session/session_manager.dart';
 
 import '../helpers.dart';
 
@@ -21,11 +22,15 @@ final class _FlakyTransport implements ChatTransport {
   int subscriptions = 0;
   int sends = 0;
 
+  /// Like a disposed gateway transport: `events()` throws synchronously.
+  bool disposed = false;
+
   @override
   Stream<ConversationEvent> events(
     SessionId sessionId, {
     int afterSequence = 0,
   }) {
+    if (disposed) throw const NotInitializedException('Transport disposed.');
     final index = subscriptions++;
     final failure = index < scripted.length ? scripted[index] : null;
     if (failure != null) {
@@ -46,6 +51,8 @@ final class _FlakyTransport implements ChatTransport {
     required Set<NexaCapability> requestedCapabilities,
     required String languageTag,
     Map<String, String> clientMetadata = const {},
+    List<String> clientTools = const [],
+    String? conversationId,
   }) => inner.startSession(
     credential: credential,
     requestedCapabilities: requestedCapabilities,
@@ -197,6 +204,61 @@ void main() {
       await bloc.close();
     });
 
+    test(
+      'session expired on a server conversation: a new session continues it',
+      () async {
+        final bloc = await start();
+        final sessions = client.injector<SessionManager>()
+          ..conversationId = 'conv_1';
+        final first = client.currentSession!.sessionId;
+        bloc.add(const ChatTransportFailed(SessionExpiredException()));
+        await waitFor(
+          () =>
+              bloc.state.connection == ChatConnection.connected &&
+              bloc.state.conversation.sessionId != first,
+        );
+        expect(sessions.conversationId, 'conv_1');
+        expect(bloc.state.error, isNull);
+        // A second expiry right away is left to the user (no loop).
+        bloc.add(const ChatTransportFailed(SessionExpiredException()));
+        await waitFor(
+          () => bloc.state.connection == ChatConnection.disconnected,
+        );
+        expect(bloc.state.error, isA<SessionExpiredException>());
+        await bloc.close();
+      },
+    );
+
+    test(
+      'server ends an idle session as expired: a new session continues it',
+      () async {
+        final bloc = await start();
+        final sessions = client.injector<SessionManager>()
+          ..conversationId = 'conv_1';
+        final first = client.currentSession!.sessionId;
+        bloc.add(
+          ChatTransportEventReceived(
+            ConversationEvent.sessionEnded(
+              eventId: const EventId('evt_end'),
+              sessionId: first,
+              sequence: bloc.state.conversation.lastSequence + 1,
+              occurredAt: DateTime.now().toUtc(),
+              reason: SessionEndReason.expired,
+            ),
+          ),
+        );
+        await waitFor(
+          () =>
+              bloc.state.connection == ChatConnection.connected &&
+              bloc.state.conversation.sessionId != first,
+        );
+        expect(bloc.state.conversation.phase, isNot(ConversationPhase.ended));
+        expect(sessions.conversationId, 'conv_1');
+        expect(bloc.state.error, isNull);
+        await bloc.close();
+      },
+    );
+
     test('closing the bloc cancels a pending reconnect timer', () async {
       transport.scripted.addAll([null, const TransportException('x')]);
       final bloc = await start(backoff: const Duration(milliseconds: 100));
@@ -205,6 +267,16 @@ void main() {
       await bloc.close();
       await Future<void>.delayed(const Duration(milliseconds: 200));
       expect(transport.subscriptions, 1, reason: 'no subscribe after close');
+    });
+
+    test('a reconnect pending when the transport is disposed stops '
+        'quietly', () async {
+      final bloc = await start(backoff: const Duration(milliseconds: 50));
+      bloc.add(const ChatTransportFailed(TransportException('0')));
+      await waitFor(() => bloc.state.connection == ChatConnection.reconnecting);
+      transport.disposed = true;
+      await waitFor(() => bloc.state.connection == ChatConnection.disconnected);
+      await bloc.close();
     });
   });
 

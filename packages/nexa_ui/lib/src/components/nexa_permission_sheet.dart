@@ -31,6 +31,11 @@ Future<bool> showNexaPermissionRationale(
       reason ?? '',
       Icons.notifications_none_outlined,
     ),
+    NexaPermission.bluetooth => (
+      permission.name,
+      reason ?? '',
+      Icons.bluetooth_audio_outlined,
+    ),
   };
   final result = await showModalBottomSheet<bool>(
     context: context,

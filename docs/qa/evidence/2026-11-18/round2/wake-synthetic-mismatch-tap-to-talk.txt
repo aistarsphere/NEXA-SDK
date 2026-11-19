@@ -1,0 +1,17 @@
+# Wake phrase with a synthetic voice (macOS 'Majed' TTS through the Mac speaker), Nubia, 14:26, 'only my voice' ON
+# 4 plays of «يا أمير», about 6 s apart. Scores only; no audio is logged.
+11-18 14:26:51.849 I/NexaWake(11958): decision=speaker_mismatch ms=1812 phrase=0.001/0.100 voice=0.07/0.46
+11-18 14:26:57.474 I/NexaWake(11958): score=0.999
+11-18 14:26:57.614 I/NexaWake(11958): decision=speaker_mismatch ms=1812 phrase=0.000/0.100 voice=0.14/0.47
+11-18 14:27:03.371 I/NexaWake(11958): score=0.991
+11-18 14:27:03.515 I/NexaWake(11958): decision=speaker_mismatch ms=1622 phrase=0.001/0.100 voice=0.11/0.45
+11-18 14:27:09.267 I/NexaWake(11958): score=0.909
+11-18 14:27:09.452 I/NexaWake(11958): decision=speaker_mismatch ms=1812 phrase=0.001/0.100 voice=-0.02/0.46
+11-18 14:27:25.750 I/NexaWake(11958): score=0.991
+
+# Notifications of the app right after (id 20033 = tap to talk, id 20032 = listening)
+    pkg=com.nexa.nexa_example user=UserHandle{0} id=٢٠٠٣٣ tag=null importance=٣ key=0|com.nexa.nexa_exam
+    pkg=com.nexa.nexa_example user=UserHandle{0} id=٢٠٠٣٢ tag=null importance=٢ key=0|com.nexa.nexa_exam
+Foreground window stayed MainActivity (no call opened).
+11-18 14:39:59.226 I/NexaWake(11958): decision=speaker_mismatch ms=1812 phrase=0.002/0.100 voice=0.08/0.47
+11-18 14:40:04.980 I/NexaWake(11958): decision=speaker_mismatch ms=1812 phrase=0.000/0.100 voice=0.02/0.46

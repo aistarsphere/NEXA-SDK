@@ -1,0 +1,3753 @@
+{
+ "auth": {
+  "headers": {
+   "Authorization": "Bearer nxs_<sdk session token>",
+   "Idempotency-Key": "required on POST /messages",
+   "X-Nexa-App-Id": "application id (required)",
+   "X-Nexa-Installation-Id": "optional 8-64 chars [A-Za-z0-9._-], random, app-scoped: a correlation hint only, never grants access",
+   "X-Nexa-Sdk-Version": "your SDK version (required)"
+  },
+  "identity": "Ownership is `(tenant, application, subject)`; another user's id is a plain 404.",
+  "scopes": {
+   "assets:write": "opt-in: upload",
+   "chat:read": "read",
+   "chat:write": "write",
+   "sessions:create": "create chat sessions",
+   "tools:use": "opt-in: tools and tool calls",
+   "voice:session": "voice"
+  },
+  "tokens": "The customer's backend mints short-lived `nxs_` tokens with its own `nxk_` key (never in the app). The app never holds an `nxk_` key, a provider key or a GPU address.",
+  "tool_permission_chain": [
+   "operator grant (organization)",
+   "application switch (Portal)",
+   "token scope tools:use",
+   "session capability toolCalling",
+   "device declaration (client_tools)",
+   "user approval (approval_required)"
+  ]
+ },
+ "availability": {
+  "rule": "Use `available` and `unavailable_reason` from GET /tools; never infer support from model names. Only `available` tools are offered to the model; a listed-but-unavailable tool cannot run.",
+  "tool_unavailable_reasons": [
+   "not_granted_to_organization",
+   "not_enabled_for_application",
+   "requires_configuration",
+   "no_model_selected",
+   "no_eligible_model",
+   "model_not_enabled",
+   "model_not_ready",
+   "model_not_installed",
+   "model_license_not_granted",
+   "client_does_not_support",
+   "needs_an_asynchronous_tool",
+   "places_api_not_enabled"
+  ]
+ },
+ "base": {
+  "note": "The technical namespace stays `nexa`; the customer brand is LABEEB. The production host is the current address; keep it configurable.",
+  "public_base": "https://52.58.22.19/nexa/api",
+  "sdk": "/v1/sdk",
+  "voice": "/v1/sdk/voice"
+ },
+ "compatibility": {
+  "closed_sets": [
+   "tool call statuses",
+   "ui actions",
+   "ui events",
+   "ui presentations (additions are additive)",
+   "scopes"
+  ],
+  "detect": "Every /v1/sdk response carries `X-Nexa-Contract-Version: labeeb.sdk/1.0.0`; `GET /v1/sdk/contract` returns this document (ETag). Send your own version in `X-Nexa-Sdk-Version`.",
+  "open_sets": [
+   "tool names",
+   "tool_call_progress.state",
+   "ui categories",
+   "ui component types",
+   "tool error codes",
+   "event types",
+   "error codes"
+  ],
+  "policy": "Within `labeeb.sdk/1` changes are additive only. Clients MUST ignore unknown JSON fields, unknown event types, unknown tool names, unknown component types/categories/presentations and unknown enum values of open sets. A breaking change creates `labeeb.sdk/2` served side by side for at least 6 months."
+ },
+ "contract": "labeeb.sdk",
+ "endpoints": [
+  {
+   "method": "GET",
+   "path": "/v1/sdk/contract",
+   "response": {
+    "...": "the whole document",
+    "contract": "labeeb.sdk",
+    "version": "semver"
+   },
+   "scope": null,
+   "success": 200,
+   "summary": "This document (unauthenticated, ETag, also `X-Nexa-Contract-Version` on every SDK response)."
+  },
+  {
+   "examples": [
+    "conversation_create"
+   ],
+   "feature": "conversations.history",
+   "method": "POST",
+   "path": "/v1/sdk/conversations",
+   "request": {
+    "client_ref?": "string",
+    "kind?": "chat|voice|mixed",
+    "title?": "string"
+   },
+   "response": {
+    "created_at": "iso",
+    "id": "cnv_*",
+    "kind": "string",
+    "last_message_at": "iso|null",
+    "message_count": "int",
+    "title": "string",
+    "title_source": "auto|user",
+    "updated_at": "iso"
+   },
+   "scope": "chat:write",
+   "success": [
+    200,
+    201
+   ],
+   "summary": "Create a conversation (idempotent per `client_ref`: 200 with the original)."
+  },
+  {
+   "examples": [
+    "conversation_list"
+   ],
+   "feature": "conversations.history",
+   "method": "GET",
+   "path": "/v1/sdk/conversations",
+   "request": {
+    "query": "limit, cursor, kind, installation"
+   },
+   "response": {
+    "items": "[conversation]",
+    "next_cursor": "string|null"
+   },
+   "scope": "chat:read",
+   "success": 200,
+   "summary": "List own conversations, newest activity first."
+  },
+  {
+   "feature": "conversations.history",
+   "method": "GET",
+   "path": "/v1/sdk/conversations/{conversation_id}",
+   "scope": "chat:read",
+   "success": 200,
+   "summary": "One conversation plus `sessions:{active,latest}` for resume."
+  },
+  {
+   "feature": "conversations.history",
+   "method": "PATCH",
+   "path": "/v1/sdk/conversations/{conversation_id}",
+   "request": {
+    "title": "string"
+   },
+   "scope": "chat:write",
+   "success": 200,
+   "summary": "Rename (`title_source` becomes `user`)."
+  },
+  {
+   "examples": [
+    "conversation_delete"
+   ],
+   "feature": "conversations.history",
+   "method": "DELETE",
+   "path": "/v1/sdk/conversations/{conversation_id}",
+   "response": {
+    "deleted": {
+     "assets": "int",
+     "conversations": "int",
+     "events": "int",
+     "messages": "int",
+     "tool_calls": "int"
+    }
+   },
+   "scope": "chat:write",
+   "success": 200,
+   "summary": "Delete a conversation and everything it owns."
+  },
+  {
+   "feature": "conversations.history",
+   "method": "DELETE",
+   "path": "/v1/sdk/conversations",
+   "scope": "chat:write",
+   "success": 200,
+   "summary": "Clear own history (optionally `?kind=chat|voice`)."
+  },
+  {
+   "examples": [
+    "messages_page"
+   ],
+   "feature": "conversations.history",
+   "method": "GET",
+   "path": "/v1/sdk/conversations/{conversation_id}/messages",
+   "request": {
+    "query": "limit, before_seq"
+   },
+   "response": {
+    "items": "[message]",
+    "next_before": "int|null"
+   },
+   "scope": "chat:read",
+   "success": 200,
+   "summary": "Chronological page; `next_before` pages to OLDER messages."
+  },
+  {
+   "feature": "voice.transcripts",
+   "method": "POST",
+   "path": "/v1/sdk/conversations/{conversation_id}/voice-turns",
+   "request": {
+    "turns": "[{role, text, client_turn_id}]",
+    "voice_session_id": "string"
+   },
+   "scope": "chat:write",
+   "success": 200,
+   "summary": "Report spoken turns of a call into the shared conversation (idempotent per `client_turn_id`). Answers `server_recorded:true` for tool-enabled calls (the gateway already stored them)."
+  },
+  {
+   "examples": [
+    "attachment_upload"
+   ],
+   "feature": "chat.attachments",
+   "method": "POST",
+   "path": "/v1/sdk/conversations/{conversation_id}/assets",
+   "request": "<raw bytes>",
+   "response": {
+    "conversation_id": "cnv_*",
+    "created_at": "iso",
+    "filename": "string|null",
+    "id": "ast_*",
+    "kind": "image|file",
+    "message_id": "msg_*|null",
+    "mime": "string",
+    "origin": "user|generated|device",
+    "size_bytes": "int"
+   },
+   "scope": "assets:write",
+   "success": 201,
+   "summary": "Upload an attachment: raw body, `Content-Type` image/png|jpeg|webp, application/pdf, text/plain|markdown|csv, application/json; optional `X-Nexa-Filename`. 10 MB, 50 per conversation, magic bytes verified."
+  },
+  {
+   "feature": "chat.attachments",
+   "method": "GET",
+   "path": "/v1/sdk/assets/{asset_id}",
+   "scope": "chat:read",
+   "success": 200,
+   "summary": "Asset metadata (owner only)."
+  },
+  {
+   "feature": "chat.attachments",
+   "method": "GET",
+   "path": "/v1/sdk/assets/{asset_id}/content",
+   "scope": "chat:read",
+   "success": 200,
+   "summary": "Asset bytes (`Cache-Control: private, no-store`, `nosniff`)."
+  },
+  {
+   "feature": "chat.attachments",
+   "method": "DELETE",
+   "path": "/v1/sdk/assets/{asset_id}",
+   "scope": "chat:write",
+   "success": 204,
+   "summary": "Delete an asset (messages keep a `deleted_asset` part)."
+  },
+  {
+   "feature": "preferences",
+   "method": "GET",
+   "path": "/v1/sdk/me/preferences",
+   "response": {
+    "preferences": "{key: string|number|boolean}"
+   },
+   "scope": "chat:read",
+   "success": 200,
+   "summary": "Durable preferences of this user in this app."
+  },
+  {
+   "examples": [
+    "preferences"
+   ],
+   "feature": "preferences",
+   "method": "PUT",
+   "path": "/v1/sdk/me/preferences",
+   "request": {
+    "preferences": "{key: string|number|boolean}"
+   },
+   "scope": "chat:write",
+   "success": 200,
+   "summary": "Replace preferences (flat keys `[a-z][a-z0-9_.]{0,39}`, <=30 keys, strings <=200 chars)."
+  },
+  {
+   "feature": "preferences",
+   "method": "DELETE",
+   "path": "/v1/sdk/me/preferences",
+   "scope": "chat:write",
+   "success": 204,
+   "summary": "Delete preferences."
+  },
+  {
+   "feature": "conversations.history",
+   "method": "DELETE",
+   "path": "/v1/sdk/me/assistant-data",
+   "scope": "chat:write",
+   "success": 200,
+   "summary": "Delete everything this subject owns in this app (conversations, assets, tool state, preferences)."
+  },
+  {
+   "examples": [
+    "session_create"
+   ],
+   "feature": "chat.messages",
+   "method": "POST",
+   "path": "/v1/sdk/sessions",
+   "request": {
+    "application_id": "string",
+    "client_tools?": "[tool names]",
+    "conversation_id?": "cnv_*",
+    "language_tag": "en|ar",
+    "platform": "string",
+    "requested_capabilities": "[textChat, toolCalling, ...]",
+    "sdk_version": "string"
+   },
+   "response": {
+    "...": "additive",
+    "conversation_id": "cnv_*|null",
+    "expires_at": "iso",
+    "granted_capabilities": "[string]",
+    "session_id": "ses_*"
+   },
+   "scope": "sessions:create",
+   "success": 201,
+   "summary": "Create a chat session; with `conversation_id` it joins that conversation; `client_tools` declares the device tools this client can run."
+  },
+  {
+   "feature": "chat.messages",
+   "method": "DELETE",
+   "path": "/v1/sdk/sessions/{session_id}",
+   "scope": "chat:write",
+   "success": 204,
+   "summary": "End the session (cancels open tool calls)."
+  },
+  {
+   "examples": [
+    "chat_plain_reply",
+    "vision_with_attachment",
+    "theme_apply",
+    "error_unknown_ui_component"
+   ],
+   "feature": "chat.messages",
+   "method": "POST",
+   "path": "/v1/sdk/sessions/{session_id}/messages",
+   "request": {
+    "attachments?": "[ast_*]",
+    "client_message_id": "string",
+    "language_tag?": "en|ar",
+    "text?": "string",
+    "ui_event?": {
+     "component_id": "string",
+     "event": "select|confirm|cancel|submit|change|dismiss",
+     "option_ids?": "[string]",
+     "ui_id": "string",
+     "value?": "string|number|boolean"
+    }
+   },
+   "response": {
+    "message_id": "msg_*",
+    "status": "accepted"
+   },
+   "scope": "chat:write",
+   "success": 202,
+   "summary": "Send input. Requires `Idempotency-Key`. `text` and/or `ui_event`; `attachments` up to 4 asset ids."
+  },
+  {
+   "feature": "chat.messages",
+   "method": "POST",
+   "path": "/v1/sdk/sessions/{session_id}/messages/{message_id}/cancel",
+   "scope": "chat:write",
+   "success": 202,
+   "summary": "Cancel the assistant reply in progress (409 `already_finished` if it completed first)."
+  },
+  {
+   "feature": "chat.messages",
+   "method": "GET",
+   "path": "/v1/sdk/sessions/{session_id}/events",
+   "request": {
+    "query": "after, wait_ms"
+   },
+   "response": {
+    "cursor": "int",
+    "events": "[event]"
+   },
+   "scope": "chat:read",
+   "success": 200,
+   "summary": "Long-poll events: `?after=<sequence>&wait_ms=`; returns `{events, cursor}`."
+  },
+  {
+   "feature": "chat.messages",
+   "method": "GET",
+   "path": "/v1/sdk/sessions/{session_id}/events/stream",
+   "scope": "chat:read",
+   "success": 200,
+   "summary": "Server-Sent Events, same events, `?after=`; reconnect with the last `sequence` to replay exactly the missed events."
+  },
+  {
+   "method": "POST",
+   "notes": "Legacy stub from contract 0.2.0; kept only so old clients get a clean error.",
+   "path": "/v1/sdk/sessions/{session_id}/tool-actions",
+   "scope": "chat:write",
+   "success": 409,
+   "summary": "RESERVED. Always answers 409 `not_awaiting_action`. Do not use; the tool lifecycle uses `/tool-calls/...`."
+  },
+  {
+   "method": "POST",
+   "notes": "Legacy stub from contract 0.2.0.",
+   "path": "/v1/sdk/sessions/{session_id}/permissions/{request_id}",
+   "scope": "chat:write",
+   "success": 204,
+   "summary": "RESERVED. Accepted and discarded; the gateway never requests permissions through it. Use tool-call approval instead."
+  },
+  {
+   "examples": [
+    "assistant_profile"
+   ],
+   "feature": "assistant.profile",
+   "method": "GET",
+   "path": "/v1/sdk/assistant",
+   "response": {
+    "application_id": "str",
+    "application_name": "str",
+    "assistant": "{assistant_name, accent_color, logo_url, welcome_message}; unset = null",
+    "environment": "dev|staging|prod"
+   },
+   "scope": "chat:read",
+   "success": 200,
+   "summary": "Identity and appearance the company set for this application: assistant name, accent colour, https logo, welcome message. Data for the host app to render in its own design."
+  },
+  {
+   "examples": [
+    "tools_catalogue"
+   ],
+   "feature": "tools.catalogue",
+   "method": "GET",
+   "path": "/v1/sdk/tools",
+   "response": {
+    "enabled": "bool",
+    "tools": "[tool entry, see `tools`]"
+   },
+   "scope": "tools:use",
+   "success": 200,
+   "summary": "Tool catalogue for this app with `available` and `unavailable_reason` per tool."
+  },
+  {
+   "feature": "tools.catalogue",
+   "method": "GET",
+   "path": "/v1/sdk/sessions/{session_id}/tool-calls/{tool_call_id}",
+   "scope": "tools:use",
+   "success": 200,
+   "summary": "Read one tool call (includes `result.ui` for presented documents)."
+  },
+  {
+   "examples": [
+    "device_tool_roundtrip",
+    "device_tool_denied"
+   ],
+   "feature": "tools.device.location_maps",
+   "method": "POST",
+   "path": "/v1/sdk/sessions/{session_id}/tool-calls/{tool_call_id}/approval",
+   "request": {
+    "granted": "bool"
+   },
+   "response": {
+    "...": "tool call"
+   },
+   "scope": "tools:use",
+   "success": 200,
+   "summary": "The user's decision for an `awaiting_approval` call."
+  },
+  {
+   "examples": [
+    "device_tool_roundtrip",
+    "error_tool_call_closed",
+    "maps_directions"
+   ],
+   "feature": "tools.device.location_maps",
+   "method": "POST",
+   "path": "/v1/sdk/sessions/{session_id}/tool-calls/{tool_call_id}/result",
+   "request": {
+    "error?": {
+     "code": "string",
+     "message?": "string",
+     "retryable?": "bool"
+    },
+    "result?": "object"
+   },
+   "response": {
+    "...": "tool call"
+   },
+   "scope": "tools:use",
+   "success": 200,
+   "summary": "The device's answer, accepted once, only while open, validated against the tool's `result` schema. Send `{result}` or `{error:{code,message?,retryable?}}`."
+  },
+  {
+   "feature": "jobs.status_cancel_resume",
+   "method": "POST",
+   "path": "/v1/sdk/sessions/{session_id}/tool-calls/{tool_call_id}/cancel",
+   "scope": "tools:use",
+   "success": 200,
+   "summary": "Cancel an open call (also cancels the GPU job of a long-running one)."
+  },
+  {
+   "feature": "voice.session",
+   "method": "POST",
+   "notes": "Full voice contract: docs/voice/flutter-integration-contract.md and docs/handoff/voice-contract-v1.md (events are signed and sealed).",
+   "path": "/v1/sdk/voice/sessions",
+   "request": {
+    "chat_session_id?": "ses_*",
+    "client_tools?": "[names]",
+    "conversation_id?": "cnv_*",
+    "language_tag": "en|ar",
+    "tools?": "bool"
+   },
+   "response": {
+    "contract": "nexa.voice.v1",
+    "events": {
+     "alg": "ed25519",
+     "format": "sealed",
+     "public_key": "base64",
+     "resume_rpc": "string",
+     "topic": "nexa.voice.events"
+    },
+    "join_deadline_seconds": "int",
+    "limits": {
+     "max_seconds": "int",
+     "reserved_seconds": "int"
+    },
+    "livekit": {
+     "identity": "string",
+     "room": "string",
+     "token": "jwt",
+     "token_expires_at": "iso",
+     "url": "wss://"
+    },
+    "reconnect": {
+     "grace_seconds": "int",
+     "max_refreshes": "int",
+     "token_refresh_path": "string"
+    },
+    "tools": {
+     "client_tools?": "[names]",
+     "enabled": "bool",
+     "reason?": "not_requested|tools_disabled|scope_missing|conversation_required|no_tools_available",
+     "session_id?": "ses_*",
+     "tools?": "[names]",
+     "voice_path?": "standard"
+    },
+    "voice_path": "realtime|standard",
+    "voice_session_id": "vs_*"
+   },
+   "scope": "voice:session",
+   "success": 201,
+   "summary": "Create a LiveKit voice session. `tools:true` (+ `client_tools`, scope `tools:use`, a `conversation_id`) enables tools; the response says what you got."
+  },
+  {
+   "feature": "voice.session",
+   "method": "GET",
+   "path": "/v1/sdk/voice/sessions/{voice_session_id}",
+   "scope": "voice:session",
+   "success": 200,
+   "summary": "Read the session (`status`, `agent_state`, `end_reason`)."
+  },
+  {
+   "feature": "voice.session",
+   "method": "POST",
+   "path": "/v1/sdk/voice/sessions/{voice_session_id}/token",
+   "scope": "voice:session",
+   "success": 200,
+   "summary": "Reconnect: a fresh join token for the SAME identity while the session is live (410 `voice_session_ended` once over)."
+  },
+  {
+   "feature": "voice.session",
+   "method": "DELETE",
+   "path": "/v1/sdk/voice/sessions/{voice_session_id}",
+   "scope": "voice:session",
+   "success": 200,
+   "summary": "End the call (billing stops)."
+  }
+ ],
+ "errors": {
+  "codes": [
+   {
+    "action": "Missing `X-Nexa-App-Id`, or malformed request: SDK bug.",
+    "code": "bad_request",
+    "http": 400,
+    "retryable": false
+   },
+   {
+    "action": "Missing `X-Nexa-Sdk-Version`: SDK bug.",
+    "code": "missing_sdk_version",
+    "http": 400,
+    "retryable": false
+   },
+   {
+    "action": "`POST /messages` needs `Idempotency-Key`.",
+    "code": "missing_idempotency_key",
+    "http": 400,
+    "retryable": false
+   },
+   {
+    "action": "No bearer token: ask the host app for a session token.",
+    "code": "missing_token",
+    "http": 401,
+    "retryable": false
+   },
+   {
+    "action": "Unknown or revoked token: re-authenticate via the host app.",
+    "code": "invalid_token",
+    "http": 401,
+    "retryable": false
+   },
+   {
+    "action": "Fetch a new token from the tenant backend and retry once.",
+    "code": "token_expired",
+    "http": 401,
+    "retryable": true
+   },
+   {
+    "action": "Monthly allowance used (`quota_kind` says which). Show the limit state.",
+    "code": "quota_exceeded",
+    "http": 402,
+    "retryable": false
+   },
+   {
+    "action": "Missing scope, or tenant/app inactive.",
+    "code": "forbidden",
+    "http": 403,
+    "retryable": false
+   },
+   {
+    "action": "Token belongs to another application.",
+    "code": "application_mismatch",
+    "http": 403,
+    "retryable": false
+   },
+   {
+    "action": "The app has no such capability (e.g. voice).",
+    "code": "capability_not_granted",
+    "http": 403,
+    "retryable": false
+   },
+   {
+    "action": "Tools are off for this deployment.",
+    "code": "tools_disabled",
+    "http": 403,
+    "retryable": false
+   },
+   {
+    "action": "The tool group is not enabled for this app/organization.",
+    "code": "tool_not_enabled",
+    "http": 403,
+    "retryable": false
+   },
+   {
+    "action": "Unknown id or someone else's (indistinguishable on purpose).",
+    "code": "conversation_not_found",
+    "http": 404,
+    "retryable": false
+   },
+   {
+    "action": "Same.",
+    "code": "session_not_found",
+    "http": 404,
+    "retryable": false
+   },
+   {
+    "action": "Same.",
+    "code": "asset_not_found",
+    "http": 404,
+    "retryable": false
+   },
+   {
+    "action": "Same.",
+    "code": "tool_call_not_found",
+    "http": 404,
+    "retryable": false
+   },
+   {
+    "action": "Same.",
+    "code": "voice_session_not_found",
+    "http": 404,
+    "retryable": false
+   },
+   {
+    "action": "A reply is already in progress in this session: wait or cancel.",
+    "code": "assistant_busy",
+    "http": 409,
+    "retryable": false
+   },
+   {
+    "action": "Same `Idempotency-Key`, different body.",
+    "code": "idempotency_conflict",
+    "http": 409,
+    "retryable": false
+   },
+   {
+    "action": "Cancel arrived after completion.",
+    "code": "already_finished",
+    "http": 409,
+    "retryable": false
+   },
+   {
+    "action": "The call is no longer open (answered, expired, cancelled).",
+    "code": "tool_call_closed",
+    "http": 409,
+    "retryable": false
+   },
+   {
+    "action": "Approval sent for a call that is not waiting for one.",
+    "code": "not_awaiting_approval",
+    "http": 409,
+    "retryable": false
+   },
+   {
+    "action": "Tried to answer a server tool.",
+    "code": "not_a_client_tool",
+    "http": 409,
+    "retryable": false
+   },
+   {
+    "action": "This user already has a live voice session: end it first.",
+    "code": "voice_session_active",
+    "http": 409,
+    "retryable": false
+   },
+   {
+    "action": "A message was posted to a hidden voice-tool session.",
+    "code": "voice_session",
+    "http": 409,
+    "retryable": false
+   },
+   {
+    "action": "50 assets per conversation.",
+    "code": "asset_limit_reached",
+    "http": 409,
+    "retryable": false
+   },
+   {
+    "action": "Too many conversations.",
+    "code": "conversation_limit_reached",
+    "http": 409,
+    "retryable": false
+   },
+   {
+    "action": "Create a new session on the same conversation.",
+    "code": "session_ended",
+    "http": 410,
+    "retryable": false
+   },
+   {
+    "action": "Same.",
+    "code": "session_expired",
+    "http": 410,
+    "retryable": false
+   },
+   {
+    "action": "Stop; do not refresh again.",
+    "code": "voice_session_ended",
+    "http": 410,
+    "retryable": false
+   },
+   {
+    "action": "Body over the limit.",
+    "code": "payload_too_large",
+    "http": 413,
+    "retryable": false
+   },
+   {
+    "action": "Attachments are limited to 10 MB.",
+    "code": "asset_too_large",
+    "http": 413,
+    "retryable": false
+   },
+   {
+    "action": "Content type not allowed or not matching the bytes.",
+    "code": "unsupported_media_type",
+    "http": 415,
+    "retryable": false
+   },
+   {
+    "action": "Message names the invalid fields.",
+    "code": "validation_failed",
+    "http": 422,
+    "retryable": false
+   },
+   {
+    "action": "`ui_event` does not match a document the gateway sent (forged or stale).",
+    "code": "unknown_ui_component",
+    "http": 422,
+    "retryable": false
+   },
+   {
+    "action": "Option id not in that document.",
+    "code": "unknown_ui_option",
+    "http": 422,
+    "retryable": false
+   },
+   {
+    "action": "The device result does not match the tool's `result` schema.",
+    "code": "invalid_tool_result",
+    "http": 422,
+    "retryable": false
+   },
+   {
+    "action": "This needs a conversation.",
+    "code": "conversation_required",
+    "http": 422,
+    "retryable": false
+   },
+   {
+    "action": "Wait `retry_after_seconds` / `Retry-After`.",
+    "code": "rate_limited",
+    "http": 429,
+    "retryable": true
+   },
+   {
+    "action": "Bounded retry with backoff.",
+    "code": "internal_error",
+    "http": 500,
+    "retryable": true
+   },
+   {
+    "action": "No voice capacity or voice disabled: retry after `retry_after_seconds`.",
+    "code": "voice_unavailable",
+    "http": 503,
+    "retryable": true
+   },
+   {
+    "action": "Dependency temporarily unavailable.",
+    "code": "unavailable",
+    "http": 503,
+    "retryable": true
+   }
+  ],
+  "envelope": {
+   "error": {
+    "code": "string",
+    "message": "developer text",
+    "quota_kind?": "string",
+    "retry_after_seconds?": "int",
+    "retryable": "bool"
+   }
+  },
+  "rule": "Switch on `code`, never on `message`. Unknown codes: treat by HTTP status."
+ },
+ "events": {
+  "delivery": "Long-poll `GET /events?after=&wait_ms=` or SSE `GET /events/stream?after=`. Reconnect with the last `sequence`: missed events replay exactly. A message ends with exactly one of `assistant_message_completed|message_failed|message_cancelled`.",
+  "envelope": {
+   "event_id": "evt_*",
+   "occurred_at": "iso UTC ms",
+   "sequence": "int (per session, strictly increasing)",
+   "session_id": "ses_*",
+   "type": "string"
+  },
+  "sse": {
+   "asset_created": {
+    "fields": {
+     "asset": "{id, kind, mime, size_bytes, origin}",
+     "message_id": "msg_*",
+     "tool_call_id": "tc_*"
+    }
+   },
+   "assistant_message_completed": {
+    "fields": {
+     "finish_reason": "string",
+     "full_text": "string",
+     "message_id": "msg_*"
+    },
+    "terminal_for": "message"
+   },
+   "assistant_message_started": {
+    "fields": {
+     "in_reply_to": "msg_*",
+     "message_id": "msg_*"
+    }
+   },
+   "message_cancelled": {
+    "fields": {
+     "message_id": "msg_*"
+    },
+    "terminal_for": "message"
+   },
+   "message_failed": {
+    "fields": {
+     "error": "{code, message, retryable}",
+     "message_id": "msg_*"
+    },
+    "terminal_for": "message"
+   },
+   "quota_updated": {
+    "fields": {
+     "exceeded": "bool",
+     "quota": "{kind, remaining, limit}"
+    }
+   },
+   "session_ended": {
+    "fields": {
+     "reason": "string"
+    },
+    "terminal_for": "session"
+   },
+   "session_started": {
+    "fields": {
+     "expires_at": "iso"
+    }
+   },
+   "tool_call_completed": {
+    "fields": {
+     "approval_required": "bool",
+     "arguments": "object",
+     "asynchronous": "bool",
+     "deadline_at": "iso",
+     "error": "{code, message?, retryable}|null",
+     "result": "object|null",
+     "side": "client|server",
+     "status": "tool call status",
+     "tool": "tool name",
+     "tool_call_id": "tc_*"
+    },
+    "terminal_for": "tool_call"
+   },
+   "tool_call_failed": {
+    "fields": {
+     "approval_required": "bool",
+     "arguments": "object",
+     "asynchronous": "bool",
+     "deadline_at": "iso",
+     "error": "{code, message?, retryable}|null",
+     "result": "object|null",
+     "side": "client|server",
+     "status": "tool call status",
+     "tool": "tool name",
+     "tool_call_id": "tc_*"
+    },
+    "terminal_for": "tool_call"
+   },
+   "tool_call_progress": {
+    "fields": {
+     "state": "queued|reserving|running|...",
+     "tool": "string",
+     "tool_call_id": "tc_*",
+     "waited_s": "int"
+    },
+    "notes": "Long jobs only. `state` is an open set."
+   },
+   "tool_call_requested": {
+    "fields": {
+     "approval_required": "bool",
+     "arguments": "object",
+     "asynchronous": "bool",
+     "deadline_at": "iso",
+     "error": "{code, message?, retryable}|null",
+     "result": "object|null",
+     "side": "client|server",
+     "status": "tool call status",
+     "tool": "tool name",
+     "tool_call_id": "tc_*"
+    },
+    "notes": "Client tools: show consent when `status` is `awaiting_approval`, run the tool when `awaiting_client`. Server tools arrive `running`."
+   },
+   "tool_call_updated": {
+    "fields": {
+     "approval_required": "bool",
+     "arguments": "object",
+     "asynchronous": "bool",
+     "deadline_at": "iso",
+     "error": "{code, message?, retryable}|null",
+     "result": "object|null",
+     "side": "client|server",
+     "status": "tool call status",
+     "tool": "tool name",
+     "tool_call_id": "tc_*"
+    }
+   },
+   "ui_presented": {
+    "fields": {
+     "tool_call_id": "tc_*",
+     "ui": "nexa.ui/1 document"
+    }
+   },
+   "user_message_accepted": {
+    "fields": {
+     "client_message_id": "string",
+     "message_id": "msg_*"
+    }
+   }
+  },
+  "voice": {
+   "contract": "nexa.voice.v1",
+   "large_ui": "Large documents arrive as `{id, category, truncated:true}`: read the full one with `GET /sessions/{tools.session_id}/tool-calls/{id}`.",
+   "sealed": "Voice events are signed and sealed on a LiveKit data topic; see docs/voice/event-contract.md and docs/handoff/fixtures/events. Tool events (`tool_call_*`, `asset_created`, `ui_presented`) have the same fields as the SSE events; the phone answers device tools over HTTPS with `tools.session_id`.",
+   "topic": "nexa.voice.events",
+   "types": [
+    "agent_ready",
+    "asset_created",
+    "assistant_audio_started",
+    "assistant_text",
+    "assistant_thinking",
+    "assistant_turn_ended",
+    "error",
+    "interrupted",
+    "model_available",
+    "model_busy",
+    "network_quality",
+    "quota_exceeded",
+    "session_ended",
+    "session_state",
+    "tool_call_completed",
+    "tool_call_failed",
+    "tool_call_progress",
+    "tool_call_requested",
+    "tool_call_updated",
+    "transcript",
+    "ui_presented",
+    "user_speech_ended",
+    "user_speech_started"
+   ]
+  }
+ },
+ "examples": {
+  "dir": "docs/sdk/examples",
+  "interactions": [
+   {
+    "example": "conversation_create",
+    "feature": "conversations.history",
+    "interaction": "Create/list/resume conversations"
+   },
+   {
+    "example": "conversation_list",
+    "feature": "conversations.history",
+    "interaction": "List conversations"
+   },
+   {
+    "example": "session_create",
+    "feature": "chat.messages",
+    "interaction": "Create a chat session with device tools"
+   },
+   {
+    "example": "tools_catalogue",
+    "feature": "tools.catalogue",
+    "interaction": "Tool catalogue and availability"
+   },
+   {
+    "example": "chat_plain_reply",
+    "feature": "chat.messages",
+    "interaction": "Send a message, stream events, direct answer"
+   },
+   {
+    "example": "messages_page",
+    "feature": "conversations.history",
+    "interaction": "History paging"
+   },
+   {
+    "example": "attachment_upload",
+    "feature": "chat.attachments",
+    "interaction": "Upload an attachment"
+   },
+   {
+    "example": "vision_with_attachment",
+    "feature": "chat.vision",
+    "interaction": "Image understanding with an attachment"
+   },
+   {
+    "example": "device_tool_roundtrip",
+    "feature": "tools.device.location_maps",
+    "interaction": "Device tool: approval + result"
+   },
+   {
+    "example": "device_tool_denied",
+    "feature": "tools.device.location_maps",
+    "interaction": "Device tool: user denies"
+   },
+   {
+    "example": "device_tool_expired",
+    "feature": "tools.device.location_maps",
+    "interaction": "Device tool: nobody answers (expiry)"
+   },
+   {
+    "example": "error_tool_call_closed",
+    "feature": "tools.device.location_maps",
+    "interaction": "Answering a closed call"
+   },
+   {
+    "example": "places_search",
+    "feature": "tools.places",
+    "interaction": "Places results + UI list"
+   },
+   {
+    "example": "maps_directions",
+    "feature": "tools.device.location_maps",
+    "interaction": "Take me to the second one (maps)"
+   },
+   {
+    "example": "web_search",
+    "feature": "tools.web_search.full",
+    "interaction": "Web search results + sources"
+   },
+   {
+    "example": "news_search",
+    "feature": "tools.news",
+    "interaction": "News results + sources"
+   },
+   {
+    "example": "sports_matches",
+    "feature": "tools.sports",
+    "interaction": "Sports results"
+   },
+   {
+    "example": "video_search",
+    "feature": "tools.video",
+    "interaction": "Video discovery"
+   },
+   {
+    "example": "open_link",
+    "feature": "tools.open_url",
+    "interaction": "Open a link"
+   },
+   {
+    "example": "theme_choices",
+    "feature": "theme.preview_apply_reset",
+    "interaction": "Theme choices (Dynamic UI)"
+   },
+   {
+    "example": "theme_apply",
+    "feature": "theme.preview_apply_reset",
+    "interaction": "Theme: touch, preview, apply"
+   },
+   {
+    "example": "error_unknown_ui_component",
+    "feature": "ui.touch_events",
+    "interaction": "Forged/stale UI event"
+   },
+   {
+    "example": "image_generate_job",
+    "feature": "tools.ocr_image",
+    "interaction": "Long job: start, progress, delivery"
+   },
+   {
+    "example": "jobs_status",
+    "feature": "jobs.status_cancel_resume",
+    "interaction": "Ask about jobs"
+   },
+   {
+    "example": "image_job_failed",
+    "feature": "jobs.status_cancel_resume",
+    "interaction": "Long job fails"
+   },
+   {
+    "example": "preferences",
+    "feature": "preferences",
+    "interaction": "Preferences"
+   },
+   {
+    "example": "conversation_delete",
+    "feature": "conversations.history",
+    "interaction": "Delete a conversation"
+   },
+   {
+    "example": "error_not_found",
+    "feature": "auth.tokens",
+    "interaction": "Not found / validation / missing token"
+   },
+   {
+    "example": "voice_session_create_with_tools",
+    "feature": "voice.tools.standard",
+    "interaction": "Voice session with tools"
+   },
+   {
+    "example": "voice_tool_events",
+    "feature": "voice.tools.standard",
+    "interaction": "Tool events inside a voice call"
+   }
+  ],
+  "note": "Captured from the real gateway code by tests/test_sdk_contract.py (voice examples derive from the real voice fixtures in docs/handoff/fixtures and are labelled CONTRACT_DEFINED).",
+  "voice_fixtures": "docs/handoff/fixtures (sealed event verification vectors, REST and error fixtures from real voice runs)"
+ },
+ "features": [
+  {
+   "id": "auth.tokens",
+   "status": "E2E_VERIFIED",
+   "title": "SDK session tokens, scopes, installation id"
+  },
+  {
+   "detail": "Verified on production: a new session recalled an earlier turn; deletion cascades.",
+   "id": "conversations.history",
+   "status": "E2E_VERIFIED",
+   "title": "Server-owned conversations, history paging, delete, resume"
+  },
+  {
+   "id": "chat.messages",
+   "status": "E2E_VERIFIED",
+   "title": "Send, SSE/long-poll events, cancel, idempotency"
+  },
+  {
+   "id": "chat.attachments",
+   "status": "BACKEND_READY",
+   "title": "Upload images/PDF/text, attach to a message"
+  },
+  {
+   "detail": "Real GPU vision model on production.",
+   "id": "chat.vision",
+   "status": "E2E_VERIFIED",
+   "title": "Image understanding (`vision.analyze`)"
+  },
+  {
+   "id": "preferences",
+   "status": "BACKEND_READY",
+   "title": "Durable per-user flat preferences"
+  },
+  {
+   "id": "tools.catalogue",
+   "status": "BACKEND_READY",
+   "title": "Per-app tool catalogue with availability reasons"
+  },
+  {
+   "detail": "Real model and real Google Places on production; the device was a script using the same HTTP endpoints.",
+   "flutter": "Run location and maps on the device; send approval and result.",
+   "id": "tools.device.location_maps",
+   "status": "E2E_VERIFIED",
+   "title": "Location -> Places -> maps directions chain"
+  },
+  {
+   "flutter": "Implement each device tool exactly as declared.",
+   "id": "tools.device.camera_pick_share_settings_network",
+   "status": "BACKEND_READY",
+   "title": "Camera, photo/file picker, share sheet, app settings, network status"
+  },
+  {
+   "id": "tools.places",
+   "status": "E2E_VERIFIED",
+   "title": "Google Places search with stored ordered results"
+  },
+  {
+   "detail": "Shown as reference articles, never as live web results.",
+   "id": "tools.web_search.keyless",
+   "status": "E2E_VERIFIED",
+   "title": "Web search in limited mode (`coverage: encyclopedia_only`, Wikipedia)"
+  },
+  {
+   "blocker": "No Brave API key installed. Same tool and result shape once installed.",
+   "id": "tools.web_search.full",
+   "status": "PROVIDER_BLOCKED",
+   "title": "Full web search (Brave)"
+  },
+  {
+   "blocker": "Keyed news provider recommended; the tool and shape do not change.",
+   "detail": "Real GDELT answers were verified from a developer host; from the production host GDELT throttles (`provider_rate_limited`).",
+   "id": "tools.news",
+   "status": "PROVIDER_BLOCKED",
+   "title": "News search with attribution and first-seen time"
+  },
+  {
+   "blocker": "No production sports provider key (the adapter was verified with the provider's public test key).",
+   "id": "tools.sports",
+   "status": "PROVIDER_BLOCKED",
+   "title": "Sports results"
+  },
+  {
+   "blocker": "No YouTube Data API key installed.",
+   "id": "tools.video",
+   "status": "PROVIDER_BLOCKED",
+   "title": "YouTube video discovery (metadata and links)"
+  },
+  {
+   "flutter": "Open only the validated `arguments.url`, after the user's consent.",
+   "id": "tools.open_url",
+   "status": "BACKEND_READY",
+   "title": "Open a gateway-returned link in the external browser"
+  },
+  {
+   "blocker": "GPU-owned: enable `ocr.extract`/chandra-ocr-2 (licence class `limited`) and `image.edit` for the application's key, and free or lower the image model's memory need next to Realtime. The app never evicts live voice to run these.",
+   "detail": "State machine, cancel, recovery and failure delivery are tested. Run against the real GPU on 2026-10-28 with the failures reported truthfully: OCR (`chandra-ocr-2`) and image editing are refused for this application's GPU key (`gpu_not_permitted`), and `image.generate` on the only installed permissive model (`qwen-image-2512`) needs 64 GB while 59.4 GB are free because Realtime keeps its models resident (`gpu_capacity`, retryable).",
+   "id": "tools.ocr_image",
+   "status": "GPU_BLOCKED",
+   "title": "OCR, image generation, image editing (async jobs)"
+  },
+  {
+   "detail": "The name also becomes part of the assistant's prompt (chat and voice).",
+   "flutter": "Optionally read it once at start and apply it in the host app's own design.",
+   "id": "assistant.profile",
+   "status": "BACKEND_READY",
+   "title": "Assistant name, accent colour, logo and welcome message set per application"
+  },
+  {
+   "blocker": "Needs the platform's Atlassian OAuth app (operator), the `jira` grant for the organization, the company's own connection in the Customer Portal and the application switch. No Flutter change: the tools appear in the existing catalogue.",
+   "detail": "Eight server tools in the `jira` group, executed with the organization's own Atlassian OAuth connection; results use stable ids/keys and the generic `nexa.ui/1` components. Tested against the documented Atlassian wire formats; not yet exercised on a real Jira Cloud site.",
+   "id": "tools.jira",
+   "status": "BACKEND_READY",
+   "title": "Jira Cloud (read-only): sites, projects/spaces, boards, sprints, issues, JQL search"
+  },
+  {
+   "id": "jobs.status_cancel_resume",
+   "status": "BACKEND_READY",
+   "title": "Ask about, cancel and resume long jobs (`jobs.status`, `jobs.cancel`)"
+  },
+  {
+   "flutter": "Implement the renderer for the closed component set; ignore unknown types.",
+   "id": "ui.nexa_ui_1",
+   "status": "BACKEND_READY",
+   "title": "Dynamic UI documents, stable option ids, touch events"
+  },
+  {
+   "id": "ui.touch_events",
+   "status": "BACKEND_READY",
+   "title": "`ui_event` on `POST /messages` (validated against the document the gateway sent)"
+  },
+  {
+   "flutter": "Register a host theme callback; otherwise do not list the theme tools in `client_tools`.",
+   "id": "theme.preview_apply_reset",
+   "status": "BACKEND_READY",
+   "title": "Palette choice, host preview, confirm/cancel, apply, reset"
+  },
+  {
+   "detail": "Realtime path verified on production earlier; see docs/voice.",
+   "id": "voice.session",
+   "status": "E2E_VERIFIED",
+   "title": "LiveKit voice session create/read/refresh/end, signed events, reconnect"
+  },
+  {
+   "id": "voice.transcripts",
+   "status": "BACKEND_READY",
+   "title": "Transcripts in the shared conversation (`voice-turns`)"
+  },
+  {
+   "detail": "Real Whisper job, real `llm.chat` job and real `qwen3-tts-1.7b-ksa` job produced a spoken reply on production (2026-10-28, GPU release 41186eb).",
+   "id": "voice.standard_path",
+   "status": "E2E_VERIFIED",
+   "title": "Standard (Jobs) voice path: STT -> LLM -> TTS"
+  },
+  {
+   "detail": "Real speech -> orchestrated model -> `web.search` -> spoken reply, stored in the conversation. A tool-enabled call keeps this path when GPU Realtime is unavailable.",
+   "id": "voice.tools.standard",
+   "status": "E2E_VERIFIED",
+   "title": "Tools in a voice call (standard path, same tool lifecycle events)"
+  },
+  {
+   "detail": "Real speech -> GPU Realtime `qwen3.6-27b` -> `tool.call` -> gateway-authorized `web.search` -> `tool.result` -> spoken continuation, turns stored server-side (2026-10-28).",
+   "id": "voice.tools.realtime",
+   "status": "E2E_VERIFIED",
+   "title": "Tools in a GPU Realtime call"
+  }
+ ],
+ "id": "labeeb.sdk/1",
+ "jobs": {
+  "ids": "The `tool_call_id` is the stable job id.",
+  "model": "Long jobs (image.generate, image.edit) answer `status: running` immediately; the assistant tells the user it started. Progress: `tool_call_progress`. Result: `asset_created` + an assistant message. Failure: `tool_call_failed` + an assistant message. Ask: tool `jobs.status`. Stop: tool `jobs.cancel` or POST .../cancel. After a gateway restart a running job is resumed, not lost.",
+  "never": "Never show a job as finished before `tool_call_completed`/`asset_created`."
+ },
+ "message_parts": {
+  "deleted_asset": {},
+  "file": {
+   "asset_id": "ast_*",
+   "filename?": "string",
+   "generated?": "bool",
+   "mime": "string",
+   "size_bytes?": "int"
+  },
+  "image": {
+   "asset_id": "ast_*",
+   "filename?": "string",
+   "generated?": "bool",
+   "mime": "string",
+   "size_bytes?": "int"
+  },
+  "text": {
+   "text": "string"
+  },
+  "tool_error": {
+   "error": "{code}",
+   "name": "string",
+   "tool_call_id?": "tc_*"
+  },
+  "tool_request": {
+   "arguments": "object",
+   "name": "string",
+   "tool_call_id": "tc_*"
+  },
+  "tool_result": {
+   "error?": "object",
+   "name": "string",
+   "result?": "object",
+   "status": "string",
+   "tool_call_id": "tc_*"
+  },
+  "ui_event": {
+   "component_id": "string",
+   "event": "string",
+   "option_ids?": "[string]",
+   "ui_id": "string"
+  }
+ },
+ "out_of_scope_for_flutter": [
+  "GPU Manager address, models, weights, admission",
+  "provider API keys",
+  "`nxk_` tenant keys",
+  "Customer Portal and Super Admin Console APIs"
+ ],
+ "released": "2026-10-28",
+ "sources": {
+  "rules": [
+   "Show attribution: Places `attribution`, news `publisher` + `seen_at` (first seen, NEVER \"published\"), web `source` + `url`, sports `source`, video `channel` + link.",
+   "`coverage: encyclopedia_only` results are reference articles, not live web results.",
+   "Sports `state` is `live` only when the provider says so.",
+   "Place content older than 30 days is reduced to `{rank,id}`."
+  ]
+ },
+ "status_vocabulary": {
+  "BACKEND_READY": "Implemented and tested in the gateway (mock GPU/providers); not yet proven against the real dependency on production.",
+  "CONTRACT_DEFINED": "The request/response/event shapes are frozen here; the backend may not implement them yet.",
+  "E2E_VERIFIED": "Exercised on production against the real dependency (model, provider) from the SDK-facing API. A device is played by a script until the Flutter client exists.",
+  "GPU_BLOCKED": "Backend ready; real results are blocked by a GPU Manager issue. The API still answers truthfully (an error or an unavailable state), never a fake result.",
+  "PROVIDER_BLOCKED": "Backend ready; real results are blocked by a missing or rate-limited external provider. The API reports `requires_configuration` / `provider_*` and never fabricates results."
+ },
+ "summary": "Everything the Flutter SDK needs: chat, history, attachments, tools, device tools, dynamic UI, themes, jobs, voice. Shapes are real; features carry an honest status.",
+ "theme": {
+  "flow": [
+   "app.theme.list_palettes -> ui_presented (themes_appearance, bottom_sheet)",
+   "user touches or says the option -> ui_event on POST /messages",
+   "app.theme.apply (client tool) with arguments.colors resolved by the server",
+   "host previews -> user confirms or cancels -> approval + result {status: applied|cancelled, palette_id?, mode?}",
+   "app.theme.reset -> result {status: reset|cancelled}"
+  ],
+  "host_callback": "Only register theme tools in `client_tools` when the host app provides a theme callback. Nothing is applied without the callback and the user's confirmation. Persist the choice with PUT /me/preferences.",
+  "palettes": [
+   {
+    "colors": {
+     "on_primary": "#FFFFFF",
+     "primary": "#C62828",
+     "secondary": "#FF8A80",
+     "surface": "#FFF5F5"
+    },
+    "id": "red",
+    "label": {
+     "ar": "أحمر",
+     "en": "Red"
+    }
+   },
+   {
+    "colors": {
+     "on_primary": "#FFFFFF",
+     "primary": "#1565C0",
+     "secondary": "#82B1FF",
+     "surface": "#F3F8FF"
+    },
+    "id": "blue",
+    "label": {
+     "ar": "أزرق",
+     "en": "Blue"
+    }
+   },
+   {
+    "colors": {
+     "on_primary": "#FFFFFF",
+     "primary": "#2E7D32",
+     "secondary": "#A5D6A7",
+     "surface": "#F4FBF4"
+    },
+    "id": "green",
+    "label": {
+     "ar": "أخضر",
+     "en": "Green"
+    }
+   },
+   {
+    "colors": {
+     "on_primary": "#FFFFFF",
+     "primary": "#6A1B9A",
+     "secondary": "#CE93D8",
+     "surface": "#FAF5FC"
+    },
+    "id": "purple",
+    "label": {
+     "ar": "بنفسجي",
+     "en": "Purple"
+    }
+   },
+   {
+    "colors": {
+     "on_primary": "#FFFFFF",
+     "primary": "#E65100",
+     "secondary": "#FFCC80",
+     "surface": "#FFF8F0"
+    },
+    "id": "orange",
+    "label": {
+     "ar": "برتقالي",
+     "en": "Orange"
+    }
+   },
+   {
+    "colors": {
+     "on_primary": "#FFFFFF",
+     "primary": "#00695C",
+     "secondary": "#80CBC4",
+     "surface": "#F2FAF9"
+    },
+    "id": "teal",
+    "label": {
+     "ar": "فيروزي",
+     "en": "Teal"
+    }
+   },
+   {
+    "colors": {
+     "on_primary": "#FFFFFF",
+     "primary": "#37474F",
+     "secondary": "#B0BEC5",
+     "surface": "#F5F7F8"
+    },
+    "id": "graphite",
+    "label": {
+     "ar": "رمادي فحمي",
+     "en": "Graphite"
+    }
+   }
+  ]
+ },
+ "tool_call": {
+  "error_codes": {
+   "cancelled": "the user or hang-up cancelled it",
+   "deadline_exceeded": "retryable",
+   "domain_not_allowed": "app allow-list or keyless mode cannot honour this scope",
+   "gpu_busy": "the GPU could not start the job (reserved for live voice); retryable",
+   "gpu_capacity": "not enough free GPU memory right now (kept free for live voice); retryable",
+   "gpu_not_permitted": "the GPU service has not enabled this model or operation for the app; operator action needed, not retryable",
+   "gpu_rejected": "not retryable",
+   "gpu_unavailable": "retryable",
+   "internal_error": "retryable",
+   "invalid_arguments": "plan rejected before execution",
+   "jira_bad_request": "Jira rejected the query (e.g. invalid JQL); not retryable",
+   "jira_forbidden": "the connected Jira user may not see this (Jira's own permissions)",
+   "jira_no_sprints": "the board does not use sprints (e.g. Kanban)",
+   "jira_not_connected": "the organization has not connected Jira (company admin action)",
+   "jira_not_found": "not found, or not visible to the connected user or this application",
+   "jira_reconnect_required": "the Jira authorization expired or was revoked; company admin reconnects",
+   "jira_site_not_selected": "the connection has several Jira sites and none is selected",
+   "job_not_found": "no such job in this conversation",
+   "model_not_ready": "model not resident/ready",
+   "no_model_selected": "the app has no model for this task",
+   "not_readable": "file cannot be read as text",
+   "places_api_not_enabled": "operator action needed",
+   "provider_credentials_rejected": "operator action needed",
+   "provider_rate_limited": "retry later",
+   "provider_unavailable": "retryable",
+   "provider_unreachable": "retryable",
+   "requires_configuration": "provider not configured for this deployment",
+   "unknown_tool": "not available in this session"
+  },
+  "rules": [
+   "Client tools need the device declaration in `client_tools` at session creation.",
+   "Answer once; a closed call answers 409 `tool_call_closed`.",
+   "Deadlines are enforced server-side; an unanswered call becomes `expired`.",
+   "Never execute anything the gateway did not send: URLs come only from validated `arguments`."
+  ],
+  "statuses": {
+   "awaiting_approval": "client tool: show consent UI, then POST approval",
+   "awaiting_client": "client tool approved: run it and POST the result",
+   "cancelled": "terminal",
+   "denied": "terminal: the user said no",
+   "expired": "terminal: deadline passed (retryable)",
+   "failed": "terminal (see error.code)",
+   "running": "server tool or long job in progress",
+   "succeeded": "terminal"
+  }
+ },
+ "tools": [
+  {
+   "approval_required": true,
+   "asynchronous": false,
+   "deadline_seconds": 30,
+   "description": "Get the user's current position from their device. Ask only when the answer needs it.",
+   "effect": "read",
+   "execution": "device",
+   "group": "device_location",
+   "name": "device.location.get_current",
+   "parameters": {
+    "additionalProperties": false,
+    "properties": {
+     "accuracy": {
+      "enum": [
+       "coarse",
+       "fine"
+      ],
+      "type": "string"
+     }
+    },
+    "type": "object"
+   },
+   "requires_conversation": false,
+   "result": {
+    "properties": {
+     "accuracy_m": {
+      "minimum": 0,
+      "type": "number"
+     },
+     "latitude": {
+      "maximum": 90,
+      "minimum": -90,
+      "type": "number"
+     },
+     "longitude": {
+      "maximum": 180,
+      "minimum": -180,
+      "type": "number"
+     },
+     "timestamp": {
+      "maxLength": 40,
+      "type": "string"
+     }
+    },
+    "required": [
+     "latitude",
+     "longitude"
+    ],
+    "type": "object"
+   },
+   "side": "client"
+  },
+  {
+   "approval_required": true,
+   "asynchronous": false,
+   "deadline_seconds": 120,
+   "description": "Ask the user to take a photo with their camera. The photo is returned as an asset.",
+   "effect": "device_action",
+   "execution": "device",
+   "group": "device_camera",
+   "name": "device.camera.capture",
+   "parameters": {
+    "additionalProperties": false,
+    "properties": {
+     "camera": {
+      "enum": [
+       "front",
+       "rear"
+      ],
+      "type": "string"
+     },
+     "purpose": {
+      "maxLength": 200,
+      "minLength": 1,
+      "type": "string"
+     }
+    },
+    "required": [
+     "purpose"
+    ],
+    "type": "object"
+   },
+   "requires_conversation": true,
+   "result": {
+    "properties": {
+     "asset_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "type": "string"
+     }
+    },
+    "required": [
+     "asset_id"
+    ],
+    "type": "object"
+   },
+   "side": "client"
+  },
+  {
+   "approval_required": true,
+   "asynchronous": false,
+   "deadline_seconds": 30,
+   "description": "Open turn-by-turn directions in the user's maps app. Prefer destination.place_id of a place from an earlier search; the gateway resolves it to that exact place.",
+   "effect": "device_action",
+   "execution": "device",
+   "group": "maps_directions",
+   "name": "maps.open_directions",
+   "parameters": {
+    "additionalProperties": false,
+    "properties": {
+     "destination": {
+      "additionalProperties": false,
+      "properties": {
+       "latitude": {
+        "maximum": 90,
+        "minimum": -90,
+        "type": "number"
+       },
+       "longitude": {
+        "maximum": 180,
+        "minimum": -180,
+        "type": "number"
+       },
+       "name": {
+        "maxLength": 120,
+        "type": "string"
+       },
+       "place_id": {
+        "maxLength": 256,
+        "minLength": 1,
+        "type": "string"
+       }
+      },
+      "type": "object"
+     },
+     "mode": {
+      "enum": [
+       "driving",
+       "walking",
+       "transit",
+       "bicycling"
+      ],
+      "type": "string"
+     }
+    },
+    "required": [
+     "destination"
+    ],
+    "type": "object"
+   },
+   "requires_conversation": false,
+   "result": {
+    "properties": {
+     "opened": {
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "opened"
+    ],
+    "type": "object"
+   },
+   "side": "client"
+  },
+  {
+   "approval_required": false,
+   "asynchronous": false,
+   "deadline_seconds": 15,
+   "description": "Find places of given types near a position (restaurants, pharmacies, hotels, hospitals, ...). Results are returned in ranked order; refer to them by number and place_id.",
+   "effect": "read",
+   "execution": "provider",
+   "group": "places",
+   "name": "places.search_nearby",
+   "parameters": {
+    "additionalProperties": false,
+    "properties": {
+     "included_types": {
+      "items": {
+       "enum": [
+        "restaurant",
+        "cafe",
+        "bar",
+        "bakery",
+        "fast_food_restaurant",
+        "hotel",
+        "lodging",
+        "pharmacy",
+        "hospital",
+        "doctor",
+        "dentist",
+        "gas_station",
+        "atm",
+        "bank",
+        "supermarket",
+        "grocery_store",
+        "convenience_store",
+        "shopping_mall",
+        "store",
+        "clothing_store",
+        "electronics_store",
+        "park",
+        "museum",
+        "tourist_attraction",
+        "parking",
+        "airport",
+        "train_station",
+        "bus_station",
+        "subway_station",
+        "mosque",
+        "church",
+        "school",
+        "university",
+        "gym",
+        "movie_theater",
+        "library",
+        "post_office",
+        "police",
+        "car_repair",
+        "car_wash",
+        "beauty_salon",
+        "hair_care",
+        "veterinary_care",
+        "taxi_stand"
+       ],
+       "type": "string"
+      },
+      "maxItems": 5,
+      "minItems": 1,
+      "type": "array"
+     },
+     "latitude": {
+      "maximum": 90,
+      "minimum": -90,
+      "type": "number"
+     },
+     "longitude": {
+      "maximum": 180,
+      "minimum": -180,
+      "type": "number"
+     },
+     "max_results": {
+      "maximum": 10,
+      "minimum": 1,
+      "type": "integer"
+     },
+     "radius_m": {
+      "maximum": 5000,
+      "minimum": 50,
+      "type": "integer"
+     }
+    },
+    "required": [
+     "included_types",
+     "latitude",
+     "longitude"
+    ],
+    "type": "object"
+   },
+   "requires_conversation": false,
+   "result": {
+    "properties": {
+     "places": {
+      "maxItems": 10,
+      "type": "array"
+     }
+    },
+    "required": [
+     "places"
+    ],
+    "type": "object"
+   },
+   "side": "server"
+  },
+  {
+   "approval_required": false,
+   "asynchronous": false,
+   "deadline_seconds": 15,
+   "description": "Search places with a natural-language query (\"best shawarma in Karrada\"), optionally biased to a position. Results are returned in ranked order; refer to them by number and place_id.",
+   "effect": "read",
+   "execution": "provider",
+   "group": "places",
+   "name": "places.search_text",
+   "parameters": {
+    "additionalProperties": false,
+    "properties": {
+     "latitude": {
+      "maximum": 90,
+      "minimum": -90,
+      "type": "number"
+     },
+     "longitude": {
+      "maximum": 180,
+      "minimum": -180,
+      "type": "number"
+     },
+     "max_results": {
+      "maximum": 10,
+      "minimum": 1,
+      "type": "integer"
+     },
+     "open_now": {
+      "type": "boolean"
+     },
+     "query": {
+      "maxLength": 200,
+      "minLength": 1,
+      "type": "string"
+     },
+     "radius_m": {
+      "maximum": 50000,
+      "minimum": 50,
+      "type": "integer"
+     }
+    },
+    "required": [
+     "query"
+    ],
+    "type": "object"
+   },
+   "requires_conversation": false,
+   "result": {
+    "properties": {
+     "places": {
+      "maxItems": 10,
+      "type": "array"
+     }
+    },
+    "required": [
+     "places"
+    ],
+    "type": "object"
+   },
+   "side": "server"
+  },
+  {
+   "approval_required": false,
+   "asynchronous": false,
+   "deadline_seconds": 90,
+   "description": "Describe or answer a question about an image the user attached to this conversation.",
+   "effect": "read",
+   "execution": "gpu_model",
+   "group": "vision",
+   "name": "vision.analyze",
+   "parameters": {
+    "additionalProperties": false,
+    "properties": {
+     "asset_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "type": "string"
+     },
+     "question": {
+      "maxLength": 1000,
+      "minLength": 1,
+      "type": "string"
+     }
+    },
+    "required": [
+     "asset_id",
+     "question"
+    ],
+    "type": "object"
+   },
+   "requires_conversation": true,
+   "result": {
+    "properties": {
+     "text": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "text"
+    ],
+    "type": "object"
+   },
+   "side": "server"
+  },
+  {
+   "approval_required": false,
+   "asynchronous": true,
+   "deadline_seconds": 600,
+   "description": "Create a new image from a text description.",
+   "effect": "write",
+   "execution": "gpu_model",
+   "group": "image_generation",
+   "name": "image.generate",
+   "parameters": {
+    "additionalProperties": false,
+    "properties": {
+     "height": {
+      "maximum": 1536,
+      "minimum": 256,
+      "type": "integer"
+     },
+     "prompt": {
+      "maxLength": 1000,
+      "minLength": 1,
+      "type": "string"
+     },
+     "width": {
+      "maximum": 1536,
+      "minimum": 256,
+      "type": "integer"
+     }
+    },
+    "required": [
+     "prompt"
+    ],
+    "type": "object"
+   },
+   "requires_conversation": true,
+   "result": {
+    "properties": {
+     "asset_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "type": "string"
+     }
+    },
+    "required": [
+     "asset_id"
+    ],
+    "type": "object"
+   },
+   "side": "server"
+  },
+  {
+   "approval_required": false,
+   "asynchronous": true,
+   "deadline_seconds": 600,
+   "description": "Edit an existing image (an attached or previously generated one) following an instruction.",
+   "effect": "write",
+   "execution": "gpu_model",
+   "group": "image_editing",
+   "name": "image.edit",
+   "parameters": {
+    "additionalProperties": false,
+    "properties": {
+     "asset_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "type": "string"
+     },
+     "instruction": {
+      "maxLength": 1000,
+      "minLength": 1,
+      "type": "string"
+     }
+    },
+    "required": [
+     "asset_id",
+     "instruction"
+    ],
+    "type": "object"
+   },
+   "requires_conversation": true,
+   "result": {
+    "properties": {
+     "asset_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "type": "string"
+     }
+    },
+    "required": [
+     "asset_id"
+    ],
+    "type": "object"
+   },
+   "side": "server"
+  },
+  {
+   "approval_required": false,
+   "asynchronous": false,
+   "deadline_seconds": 180,
+   "description": "Read the text of one or more page images (scans, photos of documents) attached to this conversation. PDFs must be attached as page images.",
+   "effect": "read",
+   "execution": "gpu_model",
+   "group": "ocr",
+   "name": "ocr.extract",
+   "parameters": {
+    "additionalProperties": false,
+    "properties": {
+     "asset_ids": {
+      "items": {
+       "maxLength": 128,
+       "minLength": 1,
+       "type": "string"
+      },
+      "maxItems": 8,
+      "minItems": 1,
+      "type": "array"
+     },
+     "output_format": {
+      "enum": [
+       "markdown",
+       "html",
+       "json"
+      ],
+      "type": "string"
+     }
+    },
+    "required": [
+     "asset_ids"
+    ],
+    "type": "object"
+   },
+   "requires_conversation": true,
+   "result": {
+    "properties": {
+     "text": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "text"
+    ],
+    "type": "object"
+   },
+   "side": "server"
+  },
+  {
+   "approval_required": false,
+   "asynchronous": false,
+   "deadline_seconds": 10,
+   "description": "Read the text of a text/markdown/csv/json file attached to this conversation.",
+   "effect": "read",
+   "execution": "gateway",
+   "group": "files",
+   "name": "file.read",
+   "parameters": {
+    "additionalProperties": false,
+    "properties": {
+     "asset_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "type": "string"
+     },
+     "max_chars": {
+      "maximum": 20000,
+      "minimum": 100,
+      "type": "integer"
+     }
+    },
+    "required": [
+     "asset_id"
+    ],
+    "type": "object"
+   },
+   "requires_conversation": true,
+   "result": {
+    "properties": {
+     "text": {
+      "type": "string"
+     },
+     "truncated": {
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "text"
+    ],
+    "type": "object"
+   },
+   "side": "server"
+  },
+  {
+   "approval_required": false,
+   "asynchronous": false,
+   "deadline_seconds": 10,
+   "description": "Create a text, markdown or csv file for the user to download.",
+   "effect": "write",
+   "execution": "gateway",
+   "group": "files",
+   "name": "file.create",
+   "parameters": {
+    "additionalProperties": false,
+    "properties": {
+     "content": {
+      "maxLength": 20000,
+      "minLength": 1,
+      "type": "string"
+     },
+     "filename": {
+      "maxLength": 100,
+      "minLength": 1,
+      "type": "string"
+     },
+     "mime": {
+      "enum": [
+       "text/plain",
+       "text/markdown",
+       "text/csv"
+      ],
+      "type": "string"
+     }
+    },
+    "required": [
+     "filename",
+     "mime",
+     "content"
+    ],
+    "type": "object"
+   },
+   "requires_conversation": true,
+   "result": {
+    "properties": {
+     "asset_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "type": "string"
+     }
+    },
+    "required": [
+     "asset_id"
+    ],
+    "type": "object"
+   },
+   "side": "server"
+  },
+  {
+   "approval_required": false,
+   "asynchronous": false,
+   "deadline_seconds": 20,
+   "description": "Search the web for pages, articles, reports and facts. Returns real, attributed results (title, source, link, snippet). Refer to results by number or result id. If the result says coverage is encyclopedia_only, it is not a live web search: say so and do not present it as current news.",
+   "effect": "read",
+   "execution": "provider",
+   "group": "web_search",
+   "name": "web.search",
+   "parameters": {
+    "additionalProperties": false,
+    "properties": {
+     "count": {
+      "maximum": 10,
+      "minimum": 1,
+      "type": "integer"
+     },
+     "domains": {
+      "items": {
+       "maxLength": 100,
+       "minLength": 3,
+       "type": "string"
+      },
+      "maxItems": 5,
+      "type": "array"
+     },
+     "freshness": {
+      "enum": [
+       "day",
+       "week",
+       "month",
+       "year"
+      ],
+      "type": "string"
+     },
+     "language": {
+      "enum": [
+       "en",
+       "ar"
+      ],
+      "type": "string"
+     },
+     "query": {
+      "maxLength": 300,
+      "minLength": 1,
+      "type": "string"
+     }
+    },
+    "required": [
+     "query"
+    ],
+    "type": "object"
+   },
+   "requires_conversation": false,
+   "result": {
+    "properties": {
+     "results": {
+      "maxItems": 10,
+      "type": "array"
+     }
+    },
+    "required": [
+     "results"
+    ],
+    "type": "object"
+   },
+   "side": "server"
+  },
+  {
+   "approval_required": false,
+   "asynchronous": false,
+   "deadline_seconds": 30,
+   "description": "Find recent news articles (latest headlines or a topic) with publisher and link. Use for 'latest news' or 'news about X'. Arabic and English supported.",
+   "effect": "read",
+   "execution": "provider",
+   "group": "news",
+   "name": "news.search",
+   "parameters": {
+    "additionalProperties": false,
+    "properties": {
+     "country": {
+      "maxLength": 2,
+      "minLength": 2,
+      "type": "string"
+     },
+     "language": {
+      "enum": [
+       "en",
+       "ar"
+      ],
+      "type": "string"
+     },
+     "max_results": {
+      "maximum": 10,
+      "minimum": 1,
+      "type": "integer"
+     },
+     "query": {
+      "maxLength": 200,
+      "minLength": 1,
+      "type": "string"
+     },
+     "timespan": {
+      "enum": [
+       "1h",
+       "6h",
+       "1d",
+       "3d",
+       "7d",
+       "30d"
+      ],
+      "type": "string"
+     },
+     "topic": {
+      "maxLength": 60,
+      "minLength": 1,
+      "type": "string"
+     }
+    },
+    "type": "object"
+   },
+   "requires_conversation": false,
+   "result": {
+    "properties": {
+     "articles": {
+      "maxItems": 10,
+      "type": "array"
+     }
+    },
+    "required": [
+     "articles"
+    ],
+    "type": "object"
+   },
+   "side": "server"
+  },
+  {
+   "approval_required": false,
+   "asynchronous": false,
+   "deadline_seconds": 25,
+   "description": "Get football (soccer) match results, fixtures, or a team's recent and upcoming matches from a sports data provider. Never guess scores.",
+   "effect": "read",
+   "execution": "provider",
+   "group": "sports",
+   "name": "sports.matches",
+   "parameters": {
+    "additionalProperties": false,
+    "properties": {
+     "competition": {
+      "maxLength": 80,
+      "minLength": 1,
+      "type": "string"
+     },
+     "date": {
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+      "type": "string"
+     },
+     "max_results": {
+      "maximum": 15,
+      "minimum": 1,
+      "type": "integer"
+     },
+     "state": {
+      "enum": [
+       "any",
+       "live",
+       "finished",
+       "upcoming"
+      ],
+      "type": "string"
+     },
+     "team": {
+      "maxLength": 80,
+      "minLength": 1,
+      "type": "string"
+     }
+    },
+    "type": "object"
+   },
+   "requires_conversation": false,
+   "result": {
+    "properties": {
+     "matches": {
+      "maxItems": 15,
+      "type": "array"
+     }
+    },
+    "required": [
+     "matches"
+    ],
+    "type": "object"
+   },
+   "side": "server"
+  },
+  {
+   "approval_required": false,
+   "asynchronous": false,
+   "deadline_seconds": 20,
+   "description": "Search YouTube for videos or channels. Returns real titles, channels and links.",
+   "effect": "read",
+   "execution": "provider",
+   "group": "video",
+   "name": "video.search",
+   "parameters": {
+    "additionalProperties": false,
+    "properties": {
+     "max_results": {
+      "maximum": 10,
+      "minimum": 1,
+      "type": "integer"
+     },
+     "query": {
+      "maxLength": 200,
+      "minLength": 1,
+      "type": "string"
+     },
+     "type": {
+      "enum": [
+       "video",
+       "channel"
+      ],
+      "type": "string"
+     }
+    },
+    "required": [
+     "query"
+    ],
+    "type": "object"
+   },
+   "requires_conversation": false,
+   "result": {
+    "properties": {
+     "videos": {
+      "maxItems": 10,
+      "type": "array"
+     }
+    },
+    "required": [
+     "videos"
+    ],
+    "type": "object"
+   },
+   "side": "server"
+  },
+  {
+   "approval_required": true,
+   "asynchronous": false,
+   "deadline_seconds": 30,
+   "description": "Open one of the links returned earlier in this conversation (a search result, article or video) in the user's browser. Give the result_id, never a URL.",
+   "effect": "device_action",
+   "execution": "device",
+   "group": "device_browser",
+   "name": "browser.open_url",
+   "parameters": {
+    "additionalProperties": false,
+    "properties": {
+     "result_id": {
+      "maxLength": 80,
+      "minLength": 1,
+      "type": "string"
+     }
+    },
+    "required": [
+     "result_id"
+    ],
+    "type": "object"
+   },
+   "requires_conversation": false,
+   "result": {
+    "properties": {
+     "opened": {
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "opened"
+    ],
+    "type": "object"
+   },
+   "side": "client"
+  },
+  {
+   "approval_required": false,
+   "asynchronous": false,
+   "deadline_seconds": 15,
+   "description": "Ask the app whether the device is online and what kind of connection it has (never network names or passwords).",
+   "effect": "read",
+   "execution": "device",
+   "group": "device_network",
+   "name": "device.network.get_status",
+   "parameters": {
+    "additionalProperties": false,
+    "properties": {},
+    "type": "object"
+   },
+   "requires_conversation": false,
+   "result": {
+    "properties": {
+     "online": {
+      "type": "boolean"
+     },
+     "type": {
+      "enum": [
+       "wifi",
+       "cellular",
+       "ethernet",
+       "none",
+       "unknown"
+      ],
+      "type": "string"
+     }
+    },
+    "required": [
+     "online"
+    ],
+    "type": "object"
+   },
+   "side": "client"
+  },
+  {
+   "approval_required": true,
+   "asynchronous": false,
+   "deadline_seconds": 180,
+   "description": "Ask the user to choose a photo from their gallery. The photo is returned as an asset.",
+   "effect": "device_action",
+   "execution": "device",
+   "group": "device_media",
+   "name": "device.photo.pick",
+   "parameters": {
+    "additionalProperties": false,
+    "properties": {
+     "purpose": {
+      "maxLength": 200,
+      "minLength": 1,
+      "type": "string"
+     }
+    },
+    "required": [
+     "purpose"
+    ],
+    "type": "object"
+   },
+   "requires_conversation": true,
+   "result": {
+    "properties": {
+     "asset_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "type": "string"
+     }
+    },
+    "required": [
+     "asset_id"
+    ],
+    "type": "object"
+   },
+   "side": "client"
+  },
+  {
+   "approval_required": true,
+   "asynchronous": false,
+   "deadline_seconds": 180,
+   "description": "Ask the user to choose a file (document, text, csv) from their device. Returned as an asset.",
+   "effect": "device_action",
+   "execution": "device",
+   "group": "device_media",
+   "name": "device.file.pick",
+   "parameters": {
+    "additionalProperties": false,
+    "properties": {
+     "purpose": {
+      "maxLength": 200,
+      "minLength": 1,
+      "type": "string"
+     }
+    },
+    "required": [
+     "purpose"
+    ],
+    "type": "object"
+   },
+   "requires_conversation": true,
+   "result": {
+    "properties": {
+     "asset_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "type": "string"
+     }
+    },
+    "required": [
+     "asset_id"
+    ],
+    "type": "object"
+   },
+   "side": "client"
+  },
+  {
+   "approval_required": true,
+   "asynchronous": false,
+   "deadline_seconds": 120,
+   "description": "Open the system share sheet with text and/or a file from this conversation. The user chooses the target.",
+   "effect": "device_action",
+   "execution": "device",
+   "group": "device_share",
+   "name": "device.share.content",
+   "parameters": {
+    "additionalProperties": false,
+    "properties": {
+     "asset_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "type": "string"
+     },
+     "text": {
+      "maxLength": 4000,
+      "type": "string"
+     },
+     "title": {
+      "maxLength": 100,
+      "type": "string"
+     }
+    },
+    "type": "object"
+   },
+   "requires_conversation": false,
+   "result": {
+    "properties": {
+     "shared": {
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "shared"
+    ],
+    "type": "object"
+   },
+   "side": "client"
+  },
+  {
+   "approval_required": true,
+   "asynchronous": false,
+   "deadline_seconds": 30,
+   "description": "Open the operating-system settings page of this app (permissions) for the user.",
+   "effect": "device_action",
+   "execution": "device",
+   "group": "device_settings",
+   "name": "device.app.open_settings",
+   "parameters": {
+    "additionalProperties": false,
+    "properties": {
+     "section": {
+      "enum": [
+       "app",
+       "location",
+       "notifications"
+      ],
+      "type": "string"
+     }
+    },
+    "type": "object"
+   },
+   "requires_conversation": false,
+   "result": {
+    "properties": {
+     "opened": {
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "opened"
+    ],
+    "type": "object"
+   },
+   "side": "client"
+  },
+  {
+   "approval_required": false,
+   "asynchronous": false,
+   "deadline_seconds": 5,
+   "description": "List the curated colour themes the user can choose from for the app and show them. Use when the user wants to change the app's colours.",
+   "effect": "none",
+   "execution": "gateway",
+   "group": "app_theme",
+   "name": "app.theme.list_palettes",
+   "parameters": {
+    "additionalProperties": false,
+    "properties": {},
+    "type": "object"
+   },
+   "requires_conversation": false,
+   "result": {
+    "properties": {
+     "palettes": {
+      "type": "array"
+     }
+    },
+    "required": [
+     "palettes"
+    ],
+    "type": "object"
+   },
+   "side": "server"
+  },
+  {
+   "approval_required": true,
+   "asynchronous": false,
+   "deadline_seconds": 120,
+   "description": "Apply one of the listed colour themes to the app. The app previews it and the user confirms. Give palette_id (from app.theme.list_palettes) and optionally mode.",
+   "effect": "device_action",
+   "execution": "device",
+   "group": "app_theme",
+   "name": "app.theme.apply",
+   "parameters": {
+    "additionalProperties": false,
+    "properties": {
+     "mode": {
+      "enum": [
+       "light",
+       "dark",
+       "system"
+      ],
+      "type": "string"
+     },
+     "palette_id": {
+      "maxLength": 40,
+      "minLength": 1,
+      "type": "string"
+     }
+    },
+    "required": [
+     "palette_id"
+    ],
+    "type": "object"
+   },
+   "requires_conversation": false,
+   "result": {
+    "properties": {
+     "mode": {
+      "type": "string"
+     },
+     "palette_id": {
+      "type": "string"
+     },
+     "status": {
+      "enum": [
+       "applied",
+       "cancelled"
+      ],
+      "type": "string"
+     }
+    },
+    "required": [
+     "status"
+    ],
+    "type": "object"
+   },
+   "side": "client"
+  },
+  {
+   "approval_required": true,
+   "asynchronous": false,
+   "deadline_seconds": 60,
+   "description": "Return the app to its original colours (the app asks the user to confirm).",
+   "effect": "device_action",
+   "execution": "device",
+   "group": "app_theme",
+   "name": "app.theme.reset",
+   "parameters": {
+    "additionalProperties": false,
+    "properties": {},
+    "type": "object"
+   },
+   "requires_conversation": false,
+   "result": {
+    "properties": {
+     "status": {
+      "enum": [
+       "reset",
+       "cancelled"
+      ],
+      "type": "string"
+     }
+    },
+    "required": [
+     "status"
+    ],
+    "type": "object"
+   },
+   "side": "client"
+  },
+  {
+   "approval_required": false,
+   "asynchronous": false,
+   "deadline_seconds": 15,
+   "description": "Check long-running jobs (image generation or editing) started in this conversation. Use it when the user asks whether something is done or how it is going. Omit job_id to list the most recent jobs.",
+   "effect": "none",
+   "execution": "gateway",
+   "group": "jobs",
+   "name": "jobs.status",
+   "parameters": {
+    "additionalProperties": false,
+    "properties": {
+     "job_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "type": "string"
+     }
+    },
+    "type": "object"
+   },
+   "requires_conversation": true,
+   "result": {
+    "properties": {
+     "jobs": {
+      "maxItems": 10,
+      "type": "array"
+     }
+    },
+    "required": [
+     "jobs"
+    ],
+    "type": "object"
+   },
+   "side": "server"
+  },
+  {
+   "approval_required": false,
+   "asynchronous": false,
+   "deadline_seconds": 15,
+   "description": "Cancel a running job of this conversation (only when the user asks to stop it).",
+   "effect": "write",
+   "execution": "gateway",
+   "group": "jobs",
+   "name": "jobs.cancel",
+   "parameters": {
+    "additionalProperties": false,
+    "properties": {
+     "job_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "type": "string"
+     }
+    },
+    "required": [
+     "job_id"
+    ],
+    "type": "object"
+   },
+   "requires_conversation": true,
+   "result": {
+    "properties": {
+     "job_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "type": "string"
+     },
+     "status": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "job_id",
+     "status"
+    ],
+    "type": "object"
+   },
+   "side": "server"
+  },
+  {
+   "approval_required": false,
+   "asynchronous": false,
+   "deadline_seconds": 25,
+   "description": "List the Jira Cloud sites (cloud ids) this company connected, and which one is in use.",
+   "effect": "read",
+   "execution": "tenant_integration",
+   "group": "jira",
+   "name": "jira.sites.list",
+   "parameters": {
+    "additionalProperties": false,
+    "properties": {},
+    "required": [],
+    "type": "object"
+   },
+   "requires_conversation": false,
+   "result": {
+    "properties": {
+     "items": {
+      "maxItems": 20,
+      "type": "array"
+     }
+    },
+    "required": [
+     "items"
+    ],
+    "type": "object"
+   },
+   "side": "server"
+  },
+  {
+   "approval_required": false,
+   "asynchronous": false,
+   "deadline_seconds": 25,
+   "description": "List Jira Spaces/Projects the connected user can see (a project is not a board). Optional name filter. Each item has a stable key (e.g. ABC).",
+   "effect": "read",
+   "execution": "tenant_integration",
+   "group": "jira",
+   "name": "jira.projects.list",
+   "parameters": {
+    "additionalProperties": false,
+    "properties": {
+     "max_results": {
+      "maximum": 20,
+      "minimum": 1,
+      "type": "integer"
+     },
+     "query": {
+      "maxLength": 100,
+      "minLength": 1,
+      "type": "string"
+     },
+     "start_at": {
+      "maximum": 100000,
+      "minimum": 0,
+      "type": "integer"
+     }
+    },
+    "required": [],
+    "type": "object"
+   },
+   "requires_conversation": false,
+   "result": {
+    "properties": {
+     "items": {
+      "maxItems": 20,
+      "type": "array"
+     }
+    },
+    "required": [
+     "items"
+    ],
+    "type": "object"
+   },
+   "side": "server"
+  },
+  {
+   "approval_required": false,
+   "asynchronous": false,
+   "deadline_seconds": 25,
+   "description": "List Jira Agile boards (Scrum/Kanban), each with the project it belongs to. Filter by project_key, name or type. Use board_id with the other board tools.",
+   "effect": "read",
+   "execution": "tenant_integration",
+   "group": "jira",
+   "name": "jira.boards.list",
+   "parameters": {
+    "additionalProperties": false,
+    "properties": {
+     "max_results": {
+      "maximum": 20,
+      "minimum": 1,
+      "type": "integer"
+     },
+     "name": {
+      "maxLength": 100,
+      "minLength": 1,
+      "type": "string"
+     },
+     "project_key": {
+      "maxLength": 50,
+      "minLength": 2,
+      "type": "string"
+     },
+     "start_at": {
+      "maximum": 100000,
+      "minimum": 0,
+      "type": "integer"
+     },
+     "type": {
+      "enum": [
+       "scrum",
+       "kanban",
+       "simple"
+      ],
+      "type": "string"
+     }
+    },
+    "required": [],
+    "type": "object"
+   },
+   "requires_conversation": false,
+   "result": {
+    "properties": {
+     "items": {
+      "maxItems": 20,
+      "type": "array"
+     }
+    },
+    "required": [
+     "items"
+    ],
+    "type": "object"
+   },
+   "side": "server"
+  },
+  {
+   "approval_required": false,
+   "asynchronous": false,
+   "deadline_seconds": 25,
+   "description": "Details of one board: type, project, its filter (name and JQL) and columns.",
+   "effect": "read",
+   "execution": "tenant_integration",
+   "group": "jira",
+   "name": "jira.board.get",
+   "parameters": {
+    "additionalProperties": false,
+    "properties": {
+     "board_id": {
+      "maximum": 2000000000,
+      "minimum": 1,
+      "type": "integer"
+     }
+    },
+    "required": [
+     "board_id"
+    ],
+    "type": "object"
+   },
+   "requires_conversation": false,
+   "result": {
+    "properties": {
+     "items": {
+      "maxItems": 20,
+      "type": "array"
+     }
+    },
+    "required": [
+     "items"
+    ],
+    "type": "object"
+   },
+   "side": "server"
+  },
+  {
+   "approval_required": false,
+   "asynchronous": false,
+   "deadline_seconds": 25,
+   "description": "Issues on a board, or in one sprint of it (sprint_id). Optional filters: status_category (todo, in_progress, done), assignee ('me' or an account id), overdue, text.",
+   "effect": "read",
+   "execution": "tenant_integration",
+   "group": "jira",
+   "name": "jira.board.issues",
+   "parameters": {
+    "additionalProperties": false,
+    "properties": {
+     "assignee": {
+      "maxLength": 128,
+      "minLength": 1,
+      "type": "string"
+     },
+     "board_id": {
+      "maximum": 2000000000,
+      "minimum": 1,
+      "type": "integer"
+     },
+     "max_results": {
+      "maximum": 20,
+      "minimum": 1,
+      "type": "integer"
+     },
+     "overdue": {
+      "type": "boolean"
+     },
+     "sprint_id": {
+      "maximum": 2000000000,
+      "minimum": 1,
+      "type": "integer"
+     },
+     "start_at": {
+      "maximum": 100000,
+      "minimum": 0,
+      "type": "integer"
+     },
+     "status_category": {
+      "enum": [
+       "todo",
+       "in_progress",
+       "done"
+      ],
+      "type": "string"
+     },
+     "text": {
+      "maxLength": 200,
+      "minLength": 1,
+      "type": "string"
+     }
+    },
+    "required": [
+     "board_id"
+    ],
+    "type": "object"
+   },
+   "requires_conversation": false,
+   "result": {
+    "properties": {
+     "items": {
+      "maxItems": 20,
+      "type": "array"
+     }
+    },
+    "required": [
+     "items"
+    ],
+    "type": "object"
+   },
+   "side": "server"
+  },
+  {
+   "approval_required": false,
+   "asynchronous": false,
+   "deadline_seconds": 25,
+   "description": "Sprints of a Scrum board (state: active, future, closed; default active,future).",
+   "effect": "read",
+   "execution": "tenant_integration",
+   "group": "jira",
+   "name": "jira.sprints.list",
+   "parameters": {
+    "additionalProperties": false,
+    "properties": {
+     "board_id": {
+      "maximum": 2000000000,
+      "minimum": 1,
+      "type": "integer"
+     },
+     "max_results": {
+      "maximum": 20,
+      "minimum": 1,
+      "type": "integer"
+     },
+     "start_at": {
+      "maximum": 100000,
+      "minimum": 0,
+      "type": "integer"
+     },
+     "state": {
+      "enum": [
+       "active",
+       "future",
+       "closed",
+       "active,future"
+      ],
+      "type": "string"
+     }
+    },
+    "required": [
+     "board_id"
+    ],
+    "type": "object"
+   },
+   "requires_conversation": false,
+   "result": {
+    "properties": {
+     "items": {
+      "maxItems": 20,
+      "type": "array"
+     }
+    },
+    "required": [
+     "items"
+    ],
+    "type": "object"
+   },
+   "side": "server"
+  },
+  {
+   "approval_required": false,
+   "asynchronous": false,
+   "deadline_seconds": 25,
+   "description": "Search Jira issues (work items) with structured filters; prefer these over raw JQL: project_key, status_category (todo, in_progress, done), assignee ('me', 'unassigned' or an account id), overdue, text, sprint ('open'). Optional jql for anything else (read-only JQL). Paginate with next_page_token from the previous result.",
+   "effect": "read",
+   "execution": "tenant_integration",
+   "group": "jira",
+   "name": "jira.issues.search",
+   "parameters": {
+    "additionalProperties": false,
+    "properties": {
+     "assignee": {
+      "maxLength": 128,
+      "minLength": 1,
+      "type": "string"
+     },
+     "jql": {
+      "maxLength": 1000,
+      "minLength": 1,
+      "type": "string"
+     },
+     "max_results": {
+      "maximum": 20,
+      "minimum": 1,
+      "type": "integer"
+     },
+     "next_page_token": {
+      "maxLength": 2000,
+      "minLength": 1,
+      "type": "string"
+     },
+     "overdue": {
+      "type": "boolean"
+     },
+     "project_key": {
+      "maxLength": 50,
+      "minLength": 2,
+      "type": "string"
+     },
+     "sprint": {
+      "enum": [
+       "open"
+      ],
+      "type": "string"
+     },
+     "status_category": {
+      "enum": [
+       "todo",
+       "in_progress",
+       "done"
+      ],
+      "type": "string"
+     },
+     "text": {
+      "maxLength": 200,
+      "minLength": 1,
+      "type": "string"
+     }
+    },
+    "required": [],
+    "type": "object"
+   },
+   "requires_conversation": false,
+   "result": {
+    "properties": {
+     "items": {
+      "maxItems": 20,
+      "type": "array"
+     }
+    },
+    "required": [
+     "items"
+    ],
+    "type": "object"
+   },
+   "side": "server"
+  },
+  {
+   "approval_required": false,
+   "asynchronous": false,
+   "deadline_seconds": 25,
+   "description": "Details and status of one issue by key (e.g. ABC-123).",
+   "effect": "read",
+   "execution": "tenant_integration",
+   "group": "jira",
+   "name": "jira.issue.get",
+   "parameters": {
+    "additionalProperties": false,
+    "properties": {
+     "issue_key": {
+      "maxLength": 60,
+      "minLength": 3,
+      "type": "string"
+     }
+    },
+    "required": [
+     "issue_key"
+    ],
+    "type": "object"
+   },
+   "requires_conversation": false,
+   "result": {
+    "properties": {
+     "items": {
+      "maxItems": 20,
+      "type": "array"
+     }
+    },
+    "required": [
+     "items"
+    ],
+    "type": "object"
+   },
+   "side": "server"
+  },
+  {
+   "approval_required": true,
+   "asynchronous": false,
+   "deadline_seconds": 180,
+   "description": "Record a short voice sample from the user's microphone ONLY after they agreed to voice cloning in this conversation. The device shows its own permission prompt and recording indicator. Returns the recording as an audio asset. Never call it before consent.",
+   "effect": "device_action",
+   "execution": "device",
+   "group": "voice_identity",
+   "name": "device.microphone.record_sample",
+   "parameters": {
+    "additionalProperties": false,
+    "properties": {
+     "max_seconds": {
+      "maximum": 60,
+      "minimum": 10,
+      "type": "integer"
+     },
+     "min_seconds": {
+      "maximum": 30,
+      "minimum": 5,
+      "type": "integer"
+     },
+     "purpose": {
+      "maxLength": 200,
+      "minLength": 1,
+      "type": "string"
+     }
+    },
+    "required": [
+     "purpose"
+    ],
+    "type": "object"
+   },
+   "requires_conversation": true,
+   "result": {
+    "properties": {
+     "asset_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "type": "string"
+     },
+     "duration_s": {
+      "type": "number"
+     }
+    },
+    "required": [
+     "asset_id"
+    ],
+    "type": "object"
+   },
+   "side": "client"
+  },
+  {
+   "approval_required": false,
+   "asynchronous": false,
+   "deadline_seconds": 20,
+   "description": "List the voices this user created (private to them) and which one is active.",
+   "effect": "read",
+   "execution": "gateway",
+   "group": "voice_identity",
+   "name": "voice.profile.list",
+   "parameters": {
+    "additionalProperties": false,
+    "properties": {},
+    "required": [],
+    "type": "object"
+   },
+   "requires_conversation": false,
+   "result": {
+    "type": "object"
+   },
+   "side": "server"
+  },
+  {
+   "approval_required": false,
+   "asynchronous": false,
+   "deadline_seconds": 60,
+   "description": "Create this user's private voice from a recorded sample asset. Requires consent_confirmed=true AFTER you explained what is captured, that it is used only to speak in their voice, whether it is saved (save=true) or temporary (24 h), and how to delete it.",
+   "effect": "write",
+   "execution": "gateway",
+   "group": "voice_identity",
+   "name": "voice.profile.create",
+   "parameters": {
+    "additionalProperties": false,
+    "properties": {
+     "asset_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "type": "string"
+     },
+     "consent_confirmed": {
+      "type": "boolean"
+     },
+     "language": {
+      "maxLength": 16,
+      "type": "string"
+     },
+     "name": {
+      "maxLength": 40,
+      "minLength": 1,
+      "type": "string"
+     },
+     "save": {
+      "type": "boolean"
+     },
+     "transcript": {
+      "maxLength": 1000,
+      "type": "string"
+     }
+    },
+    "required": [
+     "asset_id",
+     "name",
+     "consent_confirmed"
+    ],
+    "type": "object"
+   },
+   "requires_conversation": false,
+   "result": {
+    "type": "object"
+   },
+   "side": "server"
+  },
+  {
+   "approval_required": false,
+   "asynchronous": false,
+   "deadline_seconds": 120,
+   "description": "Synthesize a short real sample with one of the user's voices so they can hear it.",
+   "effect": "write",
+   "execution": "gateway",
+   "group": "voice_identity",
+   "name": "voice.profile.preview",
+   "parameters": {
+    "additionalProperties": false,
+    "properties": {
+     "model": {
+      "maxLength": 120,
+      "type": "string"
+     },
+     "text": {
+      "maxLength": 300,
+      "minLength": 1,
+      "type": "string"
+     },
+     "voice_id": {
+      "maxLength": 64,
+      "minLength": 1,
+      "type": "string"
+     }
+    },
+    "required": [
+     "voice_id"
+    ],
+    "type": "object"
+   },
+   "requires_conversation": true,
+   "result": {
+    "required": [
+     "asset_id"
+    ],
+    "type": "object"
+   },
+   "side": "server"
+  },
+  {
+   "approval_required": false,
+   "asynchronous": false,
+   "deadline_seconds": 20,
+   "description": "Use this voice for the user's next voice sessions. Only after the user approved the preview. It does NOT change the voice of the call in progress.",
+   "effect": "write",
+   "execution": "gateway",
+   "group": "voice_identity",
+   "name": "voice.profile.activate",
+   "parameters": {
+    "additionalProperties": false,
+    "properties": {
+     "voice_id": {
+      "maxLength": 64,
+      "minLength": 1,
+      "type": "string"
+     }
+    },
+    "required": [
+     "voice_id"
+    ],
+    "type": "object"
+   },
+   "requires_conversation": false,
+   "result": {
+    "type": "object"
+   },
+   "side": "server"
+  },
+  {
+   "approval_required": false,
+   "asynchronous": false,
+   "deadline_seconds": 30,
+   "description": "Permanently delete one of the user's voices (profile, any stored recording, activation).",
+   "effect": "write",
+   "execution": "gateway",
+   "group": "voice_identity",
+   "name": "voice.profile.delete",
+   "parameters": {
+    "additionalProperties": false,
+    "properties": {
+     "voice_id": {
+      "maxLength": 64,
+      "minLength": 1,
+      "type": "string"
+     }
+    },
+    "required": [
+     "voice_id"
+    ],
+    "type": "object"
+   },
+   "requires_conversation": false,
+   "result": {
+    "type": "object"
+   },
+   "side": "server"
+  }
+ ],
+ "ui": {
+  "actions": [
+   "send_ui_event",
+   "open_url",
+   "client_tool",
+   "dismiss"
+  ],
+  "categories": [
+   "choices_forms",
+   "themes_appearance",
+   "news_articles",
+   "sports_results",
+   "web_research",
+   "places_maps",
+   "images_media",
+   "files_documents",
+   "device_actions",
+   "tasks_progress"
+  ],
+  "components": [
+   "text",
+   "icon",
+   "image",
+   "button",
+   "choice",
+   "palette",
+   "switch",
+   "slider",
+   "input",
+   "list",
+   "grid",
+   "card",
+   "row",
+   "column",
+   "divider",
+   "progress",
+   "confirm",
+   "link"
+  ],
+  "json_schema": {
+   "$defs": {
+    "action": {
+     "additionalProperties": true,
+     "properties": {
+      "event": {
+       "enum": [
+        "select",
+        "confirm",
+        "cancel",
+        "submit",
+        "change",
+        "dismiss"
+       ]
+      },
+      "tool": {
+       "type": "string"
+      },
+      "type": {
+       "enum": [
+        "send_ui_event",
+        "open_url",
+        "client_tool",
+        "dismiss"
+       ]
+      },
+      "url": {
+       "pattern": "^https://",
+       "type": "string"
+      }
+     },
+     "required": [
+      "type"
+     ],
+     "type": "object"
+    },
+    "component": {
+     "additionalProperties": true,
+     "properties": {
+      "action": {
+       "$ref": "#/$defs/action"
+      },
+      "children": {
+       "items": {
+        "$ref": "#/$defs/component"
+       },
+       "type": "array"
+      },
+      "id": {
+       "pattern": "^[A-Za-z0-9_.:-]{1,64}$",
+       "type": "string"
+      },
+      "items": {
+       "items": {
+        "$ref": "#/$defs/component"
+       },
+       "type": "array"
+      },
+      "on_cancel": {
+       "$ref": "#/$defs/action"
+      },
+      "on_change": {
+       "$ref": "#/$defs/action"
+      },
+      "on_confirm": {
+       "$ref": "#/$defs/action"
+      },
+      "on_select": {
+       "$ref": "#/$defs/action"
+      },
+      "on_submit": {
+       "$ref": "#/$defs/action"
+      },
+      "on_tap": {
+       "$ref": "#/$defs/action"
+      },
+      "options": {
+       "items": {
+        "properties": {
+         "colors": {
+          "additionalProperties": {
+           "pattern": "^#[0-9A-Fa-f]{6}$",
+           "type": "string"
+          },
+          "type": "object"
+         },
+         "id": {
+          "type": "string"
+         },
+         "label": {},
+         "ordinal": {
+          "minimum": 1,
+          "type": "integer"
+         }
+        },
+        "required": [
+         "id"
+        ],
+        "type": "object"
+       },
+       "type": "array"
+      },
+      "type": {
+       "enum": [
+        "text",
+        "icon",
+        "image",
+        "button",
+        "choice",
+        "palette",
+        "switch",
+        "slider",
+        "input",
+        "list",
+        "grid",
+        "card",
+        "row",
+        "column",
+        "divider",
+        "progress",
+        "confirm",
+        "link"
+       ]
+      }
+     },
+     "required": [
+      "id",
+      "type"
+     ],
+     "type": "object"
+    }
+   },
+   "$id": "nexa.ui/1",
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "additionalProperties": true,
+   "properties": {
+    "category": {
+     "examples": [
+      "choices_forms",
+      "themes_appearance",
+      "news_articles",
+      "sports_results",
+      "web_research",
+      "places_maps",
+      "images_media",
+      "files_documents",
+      "device_actions",
+      "tasks_progress"
+     ],
+     "pattern": "^[a-z][a-z0-9_]{1,39}$",
+     "type": "string"
+    },
+    "id": {
+     "pattern": "^[A-Za-z0-9_.:-]{1,64}$",
+     "type": "string"
+    },
+    "presentation": {
+     "enum": [
+      "inline_card",
+      "modal",
+      "bottom_sheet",
+      "expandable",
+      "fullscreen",
+      "companion"
+     ]
+    },
+    "root": {
+     "$ref": "#/$defs/component"
+    },
+    "schema": {
+     "const": "nexa.ui/1"
+    },
+    "title": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "schema",
+    "id",
+    "category",
+    "presentation",
+    "root"
+   ],
+   "title": "LABEEB dynamic UI document",
+   "type": "object"
+  },
+  "limits": {
+   "max_bytes": 48000,
+   "max_depth": 6,
+   "max_nodes": 200
+  },
+  "presentations": [
+   "inline_card",
+   "modal",
+   "bottom_sheet",
+   "expandable",
+   "fullscreen",
+   "companion"
+  ],
+  "rules": [
+   "Render with the host ThemeData; never apply styles from the document.",
+   "Every selectable thing has a stable id and a 1-based `ordinal`: a touch and \"the second one\" resolve to the same id.",
+   "Links are https only; `open_url` and `link` open the external browser after consent.",
+   "Unknown component types are skipped, not fatal."
+  ],
+  "schema": "nexa.ui/1",
+  "ui_events": [
+   "select",
+   "confirm",
+   "cancel",
+   "submit",
+   "change",
+   "dismiss"
+  ]
+ },
+ "version": "1.0.0"
+}

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="nexa_assistant_channel_listening">Wake phrase listening</string>
+    <string name="nexa_assistant_channel_activation">Assistant activation</string>
+    <string name="nexa_assistant_listening">Listening for your wake phrase</string>
+    <string name="nexa_assistant_listening_for">Listening for “%1$s”</string>
+    <string name="nexa_assistant_listening_paused">Wake phrase paused</string>
+    <string name="nexa_assistant_on_device_only">On this device only. Nothing is recorded or sent.</string>
+    <string name="nexa_assistant_turn_off">Turn off</string>
+    <string name="nexa_assistant_tap_to_talk">Tap to talk to your assistant</string>
+    <string name="nexa_assistant_reenable_title">Wake phrase is off after restart</string>
+    <string name="nexa_assistant_reenable_text">Open the app once to turn it back on.</string>
+    <string name="nexa_assistant_channel_call">Live call</string>
+    <string name="nexa_assistant_call_title">Live call</string>
+    <string name="nexa_assistant_call_end">End call</string>
+</resources>

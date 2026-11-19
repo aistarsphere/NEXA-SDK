@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Resources reached by name at run time (the shrinker cannot see them):
+     the AMEER notification icon, looked up by the nexa_assistant plugin. -->
+<resources
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@drawable/nexa_notification_icon" />
