@@ -1,0 +1,17 @@
+{"t_ms":0,"wall":"2026-11-21T09:47:42.948914Z","ev":"qa.record_started","d":{"record_id":"qa_20261121-094742_voice_f1a5","type":"voice","run_id":"run_20261121-094557_b8530d","label":null,"content_capture":false,"app_id":"app_1Atzjgrw-kFLRCyF-OojKQ","app_version":"1.1.0","sdk_version":"0.1.0","platform":"android","os_version":"TKQ1.221013.002 test-keys","build_mode":"debug","backend":"real","gateway_host":"52.58.22.19","language":"ar"}}
+{"t_ms":5,"wall":"2026-11-21T09:47:42.954014Z","ev":"voice.start","d":{"language":"ar","muted":false,"chat_session_id":"ses_B7ygBUnfeEdq7lHcWmuO2w"}}
+{"t_ms":5,"wall":"2026-11-21T09:47:42.954303Z","ev":"voice.phase","d":{"from":"idle","to":"connecting","cause":"VoiceStartRequested"}}
+{"t_ms":52,"wall":"2026-11-21T09:47:43.001004Z","ev":"voice.permission","d":{"granted":true,"ms":45}}
+{"t_ms":3018,"wall":"2026-11-21T09:47:45.967316Z","ev":"http.request","d":{"channel":"voice","method":"POST","path":"/nexa/api/v1/sdk/voice/sessions","status":201,"ms":2937,"stream":false,"request_id":"a66d72c7-dee5-4bfc-9778-f0eab0dff40e","server_request_id":"a66d72c7-dee5-4bfc-9778-f0eab0dff40e","error_code":null,"retry_after":null,"auth_retry":false}}
+{"t_ms":3021,"wall":"2026-11-21T09:47:45.969951Z","ev":"voice.created","d":{"ms":2941,"voice_session_id":"vs_NXAFZKYQFzagoej3UQ4MlA","chat_session_id":"ses_B7ygBUnfeEdq7lHcWmuO2w","tools_enabled":true,"tools_reason":null,"voice_path":"standard","max_seconds":600,"reconnect_grace_s":30}}
+{"t_ms":3044,"wall":"2026-11-21T09:47:45.992787Z","ev":"voice.audio_route","d":{"route":"earpiece","mode":"normal"}}
+{"t_ms":3045,"wall":"2026-11-21T09:47:45.994065Z","ev":"voice.room_connect_started","d":{"voice_session_id":"vs_NXAFZKYQFzagoej3UQ4MlA"}}
+{"t_ms":4055,"wall":"2026-11-21T09:47:47.004746Z","ev":"voice.audio_route","d":{"route":"speaker","mode":"in_communication"}}
+{"t_ms":10056,"wall":"2026-11-21T09:47:53.005349Z","ev":"voice.audio_route","d":{"route":"speaker","mode":"normal"}}
+{"t_ms":13573,"wall":"2026-11-21T09:47:56.521999Z","ev":"voice.room_connect_failed","d":{"ms":10527,"error":"MediaConnectException"}}
+{"t_ms":14038,"wall":"2026-11-21T09:47:56.987456Z","ev":"voice.audio_route","d":{"route":"earpiece","mode":"normal"}}
+{"t_ms":23593,"wall":"2026-11-21T09:48:06.542099Z","ev":"voice.failed","d":{"error":"networkUnreachable","error_type":"NetworkException","retryable":true}}
+{"t_ms":23596,"wall":"2026-11-21T09:48:06.544888Z","ev":"voice.phase","d":{"from":"connecting","to":"disconnected","cause":"VoiceFailed"}}
+{"t_ms":24004,"wall":"2026-11-21T09:48:06.953335Z","ev":"http.request","d":{"channel":"voice","method":"DELETE","path":"/nexa/api/v1/sdk/voice/sessions/vs_NXAFZKYQFzagoej3UQ4MlA","status":200,"ms":350,"stream":false,"request_id":"ca9474ef-4b24-48a3-8673-e67b2d8d84f1","server_request_id":"ca9474ef-4b24-48a3-8673-e67b2d8d84f1","error_code":null,"retry_after":null,"auth_retry":false}}
+{"t_ms":24007,"wall":"2026-11-21T09:48:06.956763Z","ev":"voice.teardown_done","d":{"voice_session_id":"vs_NXAFZKYQFzagoej3UQ4MlA","ms":408}}
+{"t_ms":25509,"wall":"2026-11-21T09:48:08.458735Z","ev":"qa.record_ended","d":{"outcome":"failed:networkUnreachable"}}
