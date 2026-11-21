@@ -24,6 +24,22 @@ Device check (to do on the Nubia): record the times of `voice.phase → listenin
 `voice.mic_applied {enabled: true}`. Then speak a short word as soon as "listening" appears. Expected today: the
 word is missing from the transcript.
 
+## Status: IMPLEMENTED (unit tests PASS); on-device check NOT TESTED
+Implemented 2026-11-21 behind `NexaVoiceOptions.earlyMicrophone` (default **on**; `false` restores the old order):
+* The controller publishes the microphone right after `room.connect` (`_startEarlyMic`), unless muted or held by a
+  phone call. A mute while still connecting reaches that microphone at once.
+* When `agent_ready` arrives first, the call stays "connecting" until the microphone is live (at most 4 s).
+  Agent events received meanwhile are replayed after it. A drop or teardown cancels the wait.
+* If the early publish fails, `StartCapture` retries once and reports the error, as before.
+* Diagnostics: `voice.early_mic`, `voice.early_mic_failed`, `voice.listening_after_mic {wait_ms, mic, held_events}`.
+  The QA analysis has a new `listening_before_mic_ms` metric: above 0 means the gap still exists; 0 or below means
+  the mic was live first.
+* Tests: `packages/nexa_sdk/test/features/voice_early_mic_test.dart` (7 cases: order, wait and replay, muted at
+  start, mute while connecting, publish failure, flag off, drop during the wait).
+
+Device check still to do on the Nubia: in the QA record `listening_before_mic_ms` should be 0 or below, and a word
+spoken as soon as "listening" appears should be in the transcript.
+
 ## Proposed fix (client only; no backend or contract change)
 1. **Start the microphone earlier.** Publish the mic as soon as the room is connected, in parallel with waiting
    for `agent_ready`, unless the user is muted or a phone call holds the audio. The ~2 s then overlaps the

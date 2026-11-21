@@ -260,6 +260,7 @@ final class NexaVoiceOptions {
     this.muteGrace = Duration.zero,
     this.backgroundGrace = const Duration(seconds: 25),
     this.holdOnPhoneCall = true,
+    this.earlyMicrophone = true,
     this.waitForInterruptConfirmation = true,
     this.speakingSilenceTimeout = const Duration(milliseconds: 2500),
     this.postCallReconcileDelays = const [
@@ -286,6 +287,13 @@ final class NexaVoiceOptions {
   /// deliberately. Shorter than the server's reconnect grace (30 s) so the
   /// server is not left to its idle timeout.
   final Duration backgroundGrace;
+
+  /// True (default): publish the microphone as soon as the room connects,
+  /// in parallel with waiting for the agent, and show "listening" only once
+  /// the agent is ready **and** the microphone is live. False: the earlier
+  /// order (listening on `agent_ready`, then publish), which lost the
+  /// user's first ~2 s on slow devices.
+  final bool earlyMicrophone;
 
   /// Turn the microphone off while a phone call holds the audio (detected
   /// from the platform audio mode on Android, CallKit on iOS) and back on

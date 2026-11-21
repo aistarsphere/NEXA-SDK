@@ -253,6 +253,15 @@ final class QaAnalysis {
     metrics['start_to_listening_ms'] = listening == null
         ? null
         : listening.tMs - startT;
+    // > 0: "listening" was shown before the microphone track existed (the
+    // first-seconds gap); <= 0: the microphone was live first.
+    final micUp = _first(
+      'voice.local_track_published',
+      (l) => l['source'] == 'microphone',
+    );
+    metrics['listening_before_mic_ms'] = listening == null || micUp == null
+        ? null
+        : micUp.tMs - listening.tMs;
 
     final createFailed = _first('voice.create_failed');
     if (createFailed != null) {

@@ -12,7 +12,19 @@ final class MockRealtimeVoiceTransport implements RealtimeVoiceTransport {
   MockRealtimeVoiceTransport({
     this.connectDelay = Duration.zero,
     this.failConnectWith,
+    this.handshakeOnConnect = true,
+    this.microphoneDelay = Duration.zero,
   });
+
+  /// When false, [connect] only joins the room; the test emits
+  /// [RealtimeConnected] (the agent's `agent_ready`) itself.
+  final bool handshakeOnConnect;
+
+  /// Simulated microphone publish time.
+  final Duration microphoneDelay;
+
+  /// When set, enabling the microphone throws this.
+  Object? failMicrophoneWith;
 
   /// Simulated connection latency.
   final Duration connectDelay;
@@ -53,13 +65,18 @@ final class MockRealtimeVoiceTransport implements RealtimeVoiceTransport {
     grants.add(grant);
     if (connectDelay != Duration.zero) await Future<void>.delayed(connectDelay);
     _connected = true;
-    emit(const RealtimeConnected());
+    if (handshakeOnConnect) emit(const RealtimeConnected());
   }
 
   @override
   Future<void> setMicrophoneEnabled({required bool enabled}) async {
     _check();
     microphoneCalls.add(enabled);
+    if (microphoneDelay != Duration.zero) {
+      await Future<void>.delayed(microphoneDelay);
+    }
+    final failure = failMicrophoneWith;
+    if (enabled && failure != null) throw failure;
     _micEnabled = enabled;
   }
 

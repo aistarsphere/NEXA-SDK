@@ -314,6 +314,11 @@ final class NexaVoiceController {
     _diagnostics.record('voice.mute', {'muted': muted});
     _emit(NexaVoiceMuteChanged(clock.now(), muted: muted));
     _dispatch(VoiceMuteToggled(muted: muted));
+    if (_earlyMic != null) {
+      // Still connecting (the machine applies mute on connect) but the
+      // microphone is already publishing: mute must reach it now.
+      unawaited(_setMic(!muted && !_phoneHold).catchError(_micError));
+    }
     _sendClientInfo();
   }
 
@@ -327,6 +332,21 @@ final class NexaVoiceController {
   DateTime? _lastSpeechAt;
   bool? _micWanted;
   bool _micBusy = false;
+
+  /// The microphone publish started as soon as the room connected, in
+  /// parallel with waiting for `agent_ready` (publishing took ~0.8–2 s on
+  /// the Nubia). Null when none is pending.
+  Future<void>? _earlyMic;
+
+  /// `agent_ready` arrived while [_earlyMic] was still running: the call
+  /// keeps "connecting" until the microphone is live, and agent events
+  /// received meanwhile are replayed afterwards. Null when not waiting.
+  List<RealtimeVoiceEvent>? _heldEvents;
+  int _micWaitGen = 0;
+
+  /// Longest "connecting" may wait for the early publish after
+  /// `agent_ready`; then the call goes on and StartCapture finishes it.
+  static const _micWaitLimit = Duration(seconds: 4);
 
   /// A sentence may still be in flight: the user is speaking or the server
   /// is transcribing, or speech was heard in the last 1.5 s.
@@ -660,7 +680,15 @@ final class NexaVoiceController {
             rethrow;
           }
         case StartCapture():
-          await _timedMic(!_state.value.muted && !_phoneHold);
+          final early = _earlyMic;
+          _earlyMic = null;
+          if (early == null) {
+            await _timedMic(!_state.value.muted && !_phoneHold);
+          } else {
+            // Published early (or failed: then this retries and reports).
+            await early;
+            await _setMic(!_state.value.muted && !_phoneHold);
+          }
           if (_state.value.muted) {
             _dispatch(const VoiceMuteToggled(muted: true));
           }
@@ -795,6 +823,59 @@ final class NexaVoiceController {
     _callAudio?.connecting();
     await _transport.connect(grant);
     unawaited(_callAudio?.afterConnect());
+    _startEarlyMic();
+  }
+
+  /// Publishes the microphone as soon as the room is connected instead of
+  /// after `agent_ready`, so the publish overlaps the handshake (speech in
+  /// the first ~2 s of a call was lost: FIRST_SECONDS_AUDIO_2026-11-21).
+  /// Not when muted or held by a phone call. No data packets (contract §4).
+  void _startEarlyMic() {
+    final phase = _state.value.phase;
+    if (!_options.earlyMicrophone ||
+        _disposed ||
+        (phase != VoiceState.connecting && phase != VoiceState.reconnecting) ||
+        _state.value.muted ||
+        _phoneHold ||
+        _transport.isMicrophoneEnabled) {
+      return;
+    }
+    _diagnostics.record('voice.early_mic');
+    _earlyMic = _setMic(true).catchError(_micError);
+  }
+
+  void _micError(Object e) {
+    _diagnostics.record('voice.early_mic_failed', {
+      'error': e.runtimeType.toString(),
+    });
+  }
+
+  /// `agent_ready` came while the early publish runs: say "listening" only
+  /// once the microphone is live (bounded by [_micWaitLimit]).
+  Future<void> _connectAfterMic(Future<void> early) async {
+    final gen = ++_micWaitGen;
+    _heldEvents = [];
+    final watch = Stopwatch()..start();
+    await early.timeout(_micWaitLimit, onTimeout: () {});
+    if (_disposed || gen != _micWaitGen) return;
+    final held = _heldEvents ?? const <RealtimeVoiceEvent>[];
+    _heldEvents = null;
+    _diagnostics.record('voice.listening_after_mic', {
+      'wait_ms': watch.elapsedMilliseconds,
+      'mic': _transport.isMicrophoneEnabled,
+      'held_events': held.length,
+    });
+    _dispatch(const VoiceConnected());
+    for (final e in held) {
+      _onTransportEvent(e);
+    }
+  }
+
+  /// A drop or teardown voids the early publish and any wait on it.
+  void _resetEarlyMic() {
+    _earlyMic = null;
+    _heldEvents = null;
+    _micWaitGen++;
   }
 
   void _armCapBackstop(VoiceGrant grant) {
@@ -814,6 +895,17 @@ final class NexaVoiceController {
 
   void _onTransportEvent(RealtimeVoiceEvent e) {
     if (_disposed) return;
+    final held = _heldEvents;
+    if (held != null) {
+      if (e is RealtimeReconnecting || e is RealtimeDisconnected) {
+        _resetEarlyMic(); // handled below as usual
+      } else if (e is! RealtimeAudioLevels) {
+        held.add(e);
+        return;
+      }
+    } else if (e is RealtimeReconnecting || e is RealtimeDisconnected) {
+      _earlyMic = null;
+    }
     if (e is! RealtimeAudioLevels && _speakingWatchdog != null) {
       // A server event: the silence timer restarts from it.
       _speakingWatchdog!.cancel();
@@ -823,7 +915,12 @@ final class NexaVoiceController {
     switch (e) {
       case RealtimeConnected():
         _diagnostics.record('voice.handshake_done');
-        _dispatch(const VoiceConnected());
+        final early = _earlyMic;
+        if (early == null) {
+          _dispatch(const VoiceConnected());
+        } else {
+          unawaited(_connectAfterMic(early));
+        }
       case RealtimeReconnecting():
         _dispatch(const VoiceDisconnected(willReconnect: true));
       case RealtimeDisconnected(:final reason):
@@ -1091,6 +1188,7 @@ final class NexaVoiceController {
       _callAudio?.connecting();
       await _transport.connect(fresh); // handshake → RealtimeConnected
       unawaited(_callAudio?.afterConnect());
+      _startEarlyMic();
       outcome = 'rejoined';
     } on NexaException catch (e) {
       outcome = 'failed:${e.code.name}';
@@ -1273,6 +1371,7 @@ final class NexaVoiceController {
   Future<void> _teardown() async {
     if (_tearingDown) return;
     _tearingDown = true;
+    _resetEarlyMic();
     try {
       _capTimer?.cancel();
       _levels.value = NexaVoiceLevels.silent;
