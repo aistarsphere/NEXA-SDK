@@ -1,6 +1,8 @@
 # Is the user's speech in the first ~2 s of a call lost? (2026-11-21)
 
-## Answer: yes. The code shows it; a device measurement is still NOT TESTED
+## Answer: yes, according to the code. The device measurement is NOT TESTED
+The 2073 ms was measured on a **debug** build; a profile or release build may be faster, but the order below does
+not change.
 The order at the start of a call today:
 
 1. `room.connect` returns and the audio session starts (`livekit_voice_transport.dart:117`). The handshake

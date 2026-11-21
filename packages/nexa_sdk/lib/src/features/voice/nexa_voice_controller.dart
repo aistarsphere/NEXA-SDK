@@ -879,6 +879,15 @@ final class NexaVoiceController {
           ),
         );
       case RealtimeSessionSnapshot(:final state, :final capabilities):
+        final hasSignals =
+            capabilities != null && capabilities['client_signals'] is Map;
+        _diagnostics.record('voice.snapshot_caps', {
+          'capabilities': capabilities != null,
+          'client_signals': hasSignals,
+        });
+        _stats.value = _stats.value.copyWith(
+          snapshotCaps: hasSignals ? 'present' : 'missing',
+        );
         final learned = capabilities != null && _signals.update(capabilities);
         if (capabilities != null) _noteSignals();
         if (learned) {

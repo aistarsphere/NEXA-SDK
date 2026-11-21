@@ -128,6 +128,7 @@ List<(String, String)> callAudioDebugRows(NexaVoiceController v) {
     ('listening signal', st.listeningSignal ?? 'off (not announced)'),
     if (st.lastListeningSignal != null)
       ('last signal', st.lastListeningSignal!),
+    ('caps in snapshot', st.snapshotCaps ?? 'none seen'),
   ];
 }
 

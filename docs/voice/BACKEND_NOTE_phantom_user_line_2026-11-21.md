@@ -13,7 +13,7 @@ appears to have stored that fallback under the **user** role. Speech starts (ser
 | SDK session | `ses_XuhjEl4Ov7pW_OE2bUwUtw` |
 | User message (the phantom line) | `msg_4zRsmMRO5m0yzm0_ONgDUQ`, seq 908, channel voice, status accepted, **2026-11-19T15:42:12.102263Z**. Its stored text starts with the fallback sentence above (65 chars). |
 | Assistant reply | `msg_NsjjbyaqpOch2jm_cTzqfg`, seq 909, same timestamp |
-| Voice session (`vs_…`) | Not exposed by the messages API. The backend can map it from the SDK session or the conversation. On the device it is in the app's local history; it can be read when the phone is connected. |
+| Voice session (`vs_…`) | **Still missing.** The messages API does not return it. The backend can map it from the SDK session or the conversation; the client will read it from the phone when the phone is connected again. |
 
 ## Call times (UTC; the device clock is UTC+3)
 * About 15:41:47: call started (the conversation was created).
@@ -21,9 +21,11 @@ appears to have stored that fallback under the **user** role. Speech starts (ser
 * About 15:42:47: the tester tapped End call.
 
 ## Route at the time
-The output was the **loudspeaker** (the default; the panel showed `route speaker`, `mode in_communication`, AEC
-platform). The tester switched to the earpiece at about 15:42:11.5 UTC, about 0.6 s before the server wrote the
-line, so any audio that produced it was captured on the loudspeaker route. Mic and audio values are in
+The output was the **loudspeaker** (the default) until about 15:42:11–12 UTC, give or take about 0.5 s. The panel
+showed `route speaker`, `mode in_communication` and AEC `platform`. The tester then switched to the earpiece. That
+switch falls within about 1 s of the server's timestamp. The client and server clocks are not synchronised, and
+the switch time comes from the test machine's command timing, so the client cannot tell which came first. The
+route switch is itself a possible trigger. Mic and audio values are in
 `docs/qa/evidence/2026-11-19/voice-audio/nubia-NX679J/`.
 
 ## Questions for the backend

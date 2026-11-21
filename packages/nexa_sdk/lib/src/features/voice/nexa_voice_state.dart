@@ -26,6 +26,7 @@ final class NexaVoiceCallStats {
     this.muteMs,
     this.listeningSignal,
     this.lastListeningSignal,
+    this.snapshotCaps,
   });
 
   /// Server-confirmed interruptions (`interrupted`) of the assistant. In
@@ -47,6 +48,11 @@ final class NexaVoiceCallStats {
   /// The last listening-control send, e.g. `false (mute): sent`.
   final String? lastListeningSignal;
 
+  /// Whether the last `session_state` / `resume` answer carried
+  /// `capabilities.client_signals`: `present`, `missing`, or null if none
+  /// was seen yet this call.
+  final String? snapshotCaps;
+
   NexaVoiceCallStats copyWith({
     int? interruptions,
     int? speechStarts,
@@ -55,6 +61,7 @@ final class NexaVoiceCallStats {
     String? listeningSignal,
     bool clearListeningSignal = false,
     String? lastListeningSignal,
+    String? snapshotCaps,
   }) => NexaVoiceCallStats(
     interruptions: interruptions ?? this.interruptions,
     speechStarts: speechStarts ?? this.speechStarts,
@@ -64,6 +71,7 @@ final class NexaVoiceCallStats {
         ? null
         : (listeningSignal ?? this.listeningSignal),
     lastListeningSignal: lastListeningSignal ?? this.lastListeningSignal,
+    snapshotCaps: snapshotCaps ?? this.snapshotCaps,
   );
 }
 

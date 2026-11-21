@@ -88,8 +88,10 @@ For each route:
 **Mute mid-sentence (listening control, backend release d42c1ba):** start a sentence, tap **Mute** in the
 middle of it, wait 3 s, tap **Unmute**, and say a new, different sentence. Pass: the transcript shows the new
 sentence on its own. The cut-off half is dropped and never joined to it, and the agent answers only the new
-sentence. Check the panel's `signals` rows (listening control = `nexa.voice.listening`), and that the QA export has
-`voice.signal` with result `sent` for each mute and unmute.
+sentence. Check the panel: `listening signal` = `nexa.voice.listening` and `last signal` = `false (mute): sent`, then
+`true (unmute): sent`. Also check `caps in snapshot` = `present` after a network drop and rejoin (T4 step 3), which
+proves the `session_state` / `resume` path. The QA export has `voice.signal` with result `sent` for each mute and
+unmute, and `voice.snapshot_caps` for each snapshot.
 
 ## T3 — Route switching mid-call
 1. Start on the speaker. While the agent is speaking, connect the **Bluetooth** headset. Check that `route` = bluetooth within about 2 s and the audio moves to the headset.

@@ -154,6 +154,7 @@ void main() {
       'listening': false,
       'reason': 'mute',
     });
+    expect(v.stats.value.snapshotCaps, 'present');
     await waitFor(
       () => sent('nexa.voice.client_info').isNotEmpty,
       reason: 'client info from the snapshot',
