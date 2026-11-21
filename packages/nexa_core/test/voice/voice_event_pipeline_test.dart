@@ -274,6 +274,38 @@ void main() {
     },
   );
 
+  test('session_state and the resume answer carry capabilities', () {
+    const caps = {
+      'client_signals': {
+        'listening_control': 'nexa.voice.listening',
+        'client_info': 'nexa.voice.client_info',
+      },
+    };
+    pipeline
+      ..onPacket(signer.envelope(1, 'agent_ready'))
+      ..onPacket(
+        signer.envelope(2, 'session_state', {
+          'state': 'listening',
+          'capabilities': caps,
+        }),
+      );
+    pipeline.onResumeResponse(
+      jsonEncode({
+        'state': 'listening',
+        'last_seq': 2,
+        'covers': true,
+        'has_more': false,
+        'capabilities': caps,
+        'events': <String>[],
+      }),
+    );
+    final snapshots = out.whereType<RealtimeSessionSnapshot>().toList();
+    expect(snapshots, hasLength(2));
+    for (final s in snapshots) {
+      expect(s.capabilities, caps);
+    }
+  });
+
   test('covers:false jumps the cursor to last_seq and relies on state', () {
     pipeline.onPacket(signer.envelope(1, 'agent_ready'));
     pipeline.onPacket(

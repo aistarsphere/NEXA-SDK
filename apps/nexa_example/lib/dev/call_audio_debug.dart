@@ -125,6 +125,9 @@ List<(String, String)> callAudioDebugRows(NexaVoiceController v) {
     ('interruptions (server)', '${st.interruptions}'),
     ('speech starts (server)', '${st.speechStarts}'),
     ('last unmute / mute', '${ms(st.unmuteMs)} / ${ms(st.muteMs)}'),
+    ('listening signal', st.listeningSignal ?? 'off (not announced)'),
+    if (st.lastListeningSignal != null)
+      ('last signal', st.lastListeningSignal!),
   ];
 }
 

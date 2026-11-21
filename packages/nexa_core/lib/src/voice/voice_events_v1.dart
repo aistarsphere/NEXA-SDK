@@ -421,9 +421,11 @@ RealtimeVoiceEvent? realtimeEventFromV1(VoiceEventV1 e) {
             : const <String, Object?>{},
       );
     case 'session_state':
+      final caps = e['capabilities'];
       return RealtimeSessionSnapshot(
         state: e['state']?.toString() ?? 'listening',
         lastSeq: e['last_seq'] is int ? e['last_seq']! as int : null,
+        capabilities: caps is Map ? Map<String, Object?>.from(caps) : null,
       );
     case 'user_speech_started':
       return const RealtimeUserSpeechStarted();

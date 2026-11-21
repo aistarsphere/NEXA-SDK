@@ -13,9 +13,11 @@ import 'package:nexa_core/nexa_core.dart';
 /// }
 /// ```
 ///
-/// A value of `true` means "accepted under the proposed default name"; a
-/// string is the RPC method to call. Status: PROPOSED to the backend team
-/// (docs/voice/client-signals-proposal.md), not yet part of the contract.
+/// A value of `true` means "accepted under the default name"; a string is
+/// the RPC method to call. Status: accepted by the backend as proposed
+/// (docs/voice/client-signals-proposal.md, backend release d42c1ba). The
+/// agent repeats `capabilities` in every `session_state` and in the `resume`
+/// answer; [update] reads those without resetting a running signal.
 ///
 /// Every send is an RPC to the agent, which shares the server's RPC rate
 /// limit (burst 20, then 2/s) with `resume`. So each signal keeps only its
@@ -31,8 +33,18 @@ final class NexaVoiceSignals {
     send,
     NexaDiagnostics diagnostics = const NoopNexaDiagnostics(),
     this.minInterval = const Duration(milliseconds: 600),
+    this.onResult,
   }) : _send = send,
        _diagnostics = diagnostics;
+
+  /// Called after every send with the method, payload and result (for the
+  /// debug panel; payloads carry no content).
+  final void Function(
+    String method,
+    Map<String, Object?> payload,
+    RealtimeSignalResult result,
+  )?
+  onResult;
 
   static const defaultListeningMethod = 'nexa.voice.listening';
   static const defaultClientInfoMethod = 'nexa.voice.client_info';
@@ -49,10 +61,20 @@ final class NexaVoiceSignals {
   _Signal? _clientInfo;
 
   bool get listeningEnabled => _listening != null;
+  String? get listeningMethod => _listening?.method;
   bool get clientInfoEnabled => _clientInfo != null;
 
-  /// Reads `capabilities` of `agent_ready`.
+  /// Reads `capabilities` of `agent_ready`: a (new) agent starts afresh.
   void configure(Map<String, Object?> capabilities) {
+    reset();
+    update(capabilities, source: 'agent_ready');
+  }
+
+  /// Reads `capabilities` of a `session_state` snapshot or a `resume`
+  /// answer. A signal whose method is unchanged keeps its state (pending
+  /// value, or stopped after `unsupported`). Returns true when a signal was
+  /// not enabled before and is now: the caller sends the current state.
+  bool update(Map<String, Object?> capabilities, {String source = 'snapshot'}) {
     final cs = capabilities['client_signals'];
     String? name(Object? v, String fallback) =>
         v is String && v.isNotEmpty ? v : (v == true ? fallback : null);
@@ -62,12 +84,25 @@ final class NexaVoiceSignals {
     final info = cs is Map
         ? name(cs['client_info'], defaultClientInfoMethod)
         : null;
-    _listening = listening == null ? null : _Signal(listening, this);
-    _clientInfo = info == null ? null : _Signal(info, this);
-    _diagnostics.record('voice.signals', {
-      'listening_control': listening,
-      'client_info': info,
-    });
+    final before = (_listening?.method, _clientInfo?.method);
+    _Signal? keep(_Signal? old, String? method) {
+      if (old != null && old.method == method) return old;
+      old?.closed = true;
+      return method == null ? null : _Signal(method, this);
+    }
+
+    _listening = keep(_listening, listening);
+    _clientInfo = keep(_clientInfo, info);
+    final changed = before != (listening, info);
+    if (changed) {
+      _diagnostics.record('voice.signals', {
+        'source': source,
+        'listening_control': listening,
+        'client_info': info,
+      });
+    }
+    return (before.$1 == null && listening != null) ||
+        (before.$2 == null && info != null);
   }
 
   /// A call ended: nothing is sent until the next `agent_ready`.
@@ -79,8 +114,9 @@ final class NexaVoiceSignals {
   }
 
   /// The microphone stopped (false) or resumed (true) sending; [reason] is
-  /// `mute`, `unmute`, `phone_call` or `phone_call_ended`. The agent should
-  /// stop listening and drop the cut-off utterance while false.
+  /// `mute`, `unmute`, `phone_call` or `phone_call_ended` (the agreed set;
+  /// another app's call is reported as `phone_call`). The agent stops
+  /// listening, drops the cut-off utterance and resets its VAD while false.
   void listening({required bool listening, required String reason}) =>
       _listening?.post({'listening': listening, 'reason': reason});
 
@@ -122,6 +158,7 @@ final class _Signal {
           'method': method,
           'result': result.name,
         });
+        owner.onResult?.call(method, payload, result);
         if (result == RealtimeSignalResult.unsupported) {
           closed = true;
           return;

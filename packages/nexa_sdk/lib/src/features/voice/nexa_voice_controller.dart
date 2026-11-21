@@ -87,6 +87,18 @@ final class NexaVoiceController {
   late final NexaVoiceSignals _signals = NexaVoiceSignals(
     send: _transport.sendSignal,
     diagnostics: _diagnostics,
+    onResult: (method, payload, result) {
+      if (_disposed || method != _signals.listeningMethod) return;
+      _stats.value = _stats.value.copyWith(
+        lastListeningSignal:
+            '${payload['listening']} (${payload['reason']}): ${result.name}',
+      );
+    },
+  );
+
+  void _noteSignals() => _stats.value = _stats.value.copyWith(
+    listeningSignal: _signals.listeningMethod,
+    clearListeningSignal: _signals.listeningMethod == null,
   );
   late final VoiceSessionMachine _machine = VoiceSessionMachine(
     waitForInterruptConfirmation: _options.waitForInterruptConfirmation,
@@ -449,8 +461,9 @@ final class NexaVoiceController {
   }
 
   String _micOffReason() => switch (_holdReason) {
-    NexaCallHold.phoneCall => 'phone_call',
-    NexaCallHold.otherApp => 'other_app',
+    // The agreed reasons are mute | unmute | phone_call | phone_call_ended:
+    // another app's call (WhatsApp, VoIP) is reported as a phone call.
+    NexaCallHold.phoneCall || NexaCallHold.otherApp => 'phone_call',
     null => 'mute',
   };
 
@@ -492,8 +505,8 @@ final class NexaVoiceController {
       'audio_mode': audio?.mode,
       'muted': _state.value.muted,
       'microphone_on': _transport.isMicrophoneEnabled,
-      'phone_call': _holdReason == NexaCallHold.phoneCall,
-      'other_app_audio': _holdReason == NexaCallHold.otherApp,
+      // Agreed fields only; another app's call counts as a phone call.
+      'phone_call': _holdReason != null,
     });
   }
 
@@ -845,6 +858,7 @@ final class NexaVoiceController {
       case RealtimeAgentReady(:final capabilities):
         _set(_state.value.copyWith(agentPresent: true));
         _signals.configure(capabilities);
+        _noteSignals();
         _sendClientInfo();
         // Only a deliberate off state; the mic may simply not be started
         // yet when agent_ready arrives.
@@ -864,7 +878,17 @@ final class NexaVoiceController {
             present: false,
           ),
         );
-      case RealtimeSessionSnapshot(:final state):
+      case RealtimeSessionSnapshot(:final state, :final capabilities):
+        final learned = capabilities != null && _signals.update(capabilities);
+        if (capabilities != null) _noteSignals();
+        if (learned) {
+          // Learned from a snapshot (agent_ready was missed): send the
+          // current state, as agent_ready would have.
+          _sendClientInfo();
+          if (_state.value.muted || _phoneHold) {
+            _signals.listening(listening: false, reason: _micOffReason());
+          }
+        }
         _applySnapshot(state);
       case RealtimeAudioLevels(:final local, :final agent):
         _levels.value = NexaVoiceLevels(

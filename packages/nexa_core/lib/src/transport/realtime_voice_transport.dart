@@ -47,9 +47,18 @@ enum RealtimeSignalResult {
 /// `state` of a `resume` RPC answer. [state] is a server state string
 /// (`listening`, `user_speaking`, `thinking`, `ai_speaking`, ...).
 final class RealtimeSessionSnapshot extends RealtimeVoiceEvent {
-  const RealtimeSessionSnapshot({required this.state, this.lastSeq});
+  const RealtimeSessionSnapshot({
+    required this.state,
+    this.lastSeq,
+    this.capabilities,
+  });
   final String state;
   final int? lastSeq;
+
+  /// The agent's `capabilities`, repeated in every snapshot and `resume`
+  /// answer so a client that missed `agent_ready` still learns them. Null
+  /// when the server did not include them.
+  final Map<String, Object?>? capabilities;
 }
 
 /// Verified agent `error{code, component, retryable}`.

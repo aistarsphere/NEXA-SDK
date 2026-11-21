@@ -24,6 +24,8 @@ final class NexaVoiceCallStats {
     this.speechStarts = 0,
     this.unmuteMs,
     this.muteMs,
+    this.listeningSignal,
+    this.lastListeningSignal,
   });
 
   /// Server-confirmed interruptions (`interrupted`) of the assistant. In
@@ -38,16 +40,30 @@ final class NexaVoiceCallStats {
   final int? unmuteMs;
   final int? muteMs;
 
+  /// The listening-control RPC method the agent announced, or null when it
+  /// announced none (nothing is sent).
+  final String? listeningSignal;
+
+  /// The last listening-control send, e.g. `false (mute): sent`.
+  final String? lastListeningSignal;
+
   NexaVoiceCallStats copyWith({
     int? interruptions,
     int? speechStarts,
     int? unmuteMs,
     int? muteMs,
+    String? listeningSignal,
+    bool clearListeningSignal = false,
+    String? lastListeningSignal,
   }) => NexaVoiceCallStats(
     interruptions: interruptions ?? this.interruptions,
     speechStarts: speechStarts ?? this.speechStarts,
     unmuteMs: unmuteMs ?? this.unmuteMs,
     muteMs: muteMs ?? this.muteMs,
+    listeningSignal: clearListeningSignal
+        ? null
+        : (listeningSignal ?? this.listeningSignal),
+    lastListeningSignal: lastListeningSignal ?? this.lastListeningSignal,
   );
 }
 

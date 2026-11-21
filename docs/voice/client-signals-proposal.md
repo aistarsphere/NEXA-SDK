@@ -1,8 +1,10 @@
-# Client → agent signals: listening control and client info (PROPOSAL, 2026-11-19)
+# Client → agent signals: listening control and client info (ACCEPTED, 2026-11-19 / 2026-11-21)
 
-Status: **proposed by the mobile client, not yet agreed with the backend.** The app ships the client side behind
-a capability gate, so nothing is sent to an agent that does not ask for it. Until the backend confirms the
-names and payloads below, this feature is **NOT IMPLEMENTED end to end**.
+Status: **accepted by the backend as proposed and released (backend release d42c1ba, reported 2026-11-21).**
+Names: `nexa.voice.listening` and `nexa.voice.client_info`. The agent announces them in `agent_ready`, in every
+`session_state` and in the `resume` answer. `listening: false` stops input, discards the cut-off utterance and
+resets the VAD. The client reads all three places (2026-11-21). End-to-end device test: see the QA evidence
+folder for its result; until it is recorded there, end to end is **NOT TESTED**.
 
 ## Why
 * **Listening control.** When the user mutes, the app stops sending audio at once. Without a signal, the server
@@ -38,16 +40,17 @@ client that missed `agent_ready` still learns it):
 * If the RPC answers `UNSUPPORTED_METHOD` (1400), the client stops sending that signal for the session.
 * Any other error is retried once. Mute itself never waits for the RPC: the microphone is already off.
 
-> Gap: today the client reads `capabilities` only from `agent_ready`, which is best-effort at join (§5). Please
-> include `client_signals` in `session_state` (or the `resume` answer) too; the client will read it there once
-> agreed.
+The client reads `capabilities` from `agent_ready` (a new agent starts afresh), and from every `session_state` and
+`resume` answer (a signal whose method is unchanged keeps its state; a newly learned one gets the current state
+at once). `client_signals` missing from a later snapshot turns the signals off.
 
 ## `listening_control` payload
 ```json
 {"listening": false, "reason": "mute"}
 ```
 * `listening`: `false` when the microphone stopped sending, `true` when it resumed.
-* `reason`: `mute` | `unmute` | `phone_call` | `phone_call_ended`.
+* `reason`: `mute` | `unmute` | `phone_call` | `phone_call_ended`. On Android, another app's call (WhatsApp, VoIP)
+  that takes the audio is sent as `phone_call` / `phone_call_ended`, so the client stays within the agreed set.
 * Sent after the microphone state actually changed. A call that is already muted when `agent_ready`
   arrives sends `{"listening": false}` immediately.
 * Requested server behaviour while `false`: stop VAD/STT for the user, discard the partial utterance, and do
@@ -69,6 +72,7 @@ client that missed `agent_ready` still learns it):
   "phone_call": false
 }
 ```
+* `phone_call`: true while a phone call or another app's call holds the microphone.
 * `route`: `speaker` | `earpiece` | `wired` | `bluetooth` | `usb` | `other` | `unknown` (the output actually in use).
 * `audio_mode`: Android `in_communication` / `normal` / `in_call` …; iOS `videoChat` / `voiceChat` …
 * Sent on `agent_ready` and whenever route, mode, mute or phone-call state changes (coalesced).

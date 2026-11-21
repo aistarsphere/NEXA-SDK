@@ -85,8 +85,11 @@ For each route:
 | | wired | | | | NOT TESTED |
 | | bluetooth | | | | NOT TESTED |
 
-Server side: until the backend enables listening control (`docs/voice/client-signals-proposal.md`), a sentence
-cut by Mute may be joined with the next one after Unmute. Note it if seen; it is a known gap, not a client failure.
+**Mute mid-sentence (listening control, backend release d42c1ba):** start a sentence, tap **Mute** in the
+middle of it, wait 3 s, tap **Unmute**, and say a new, different sentence. Pass: the transcript shows the new
+sentence on its own. The cut-off half is dropped and never joined to it, and the agent answers only the new
+sentence. Check the panel's `signals` rows (listening control = `nexa.voice.listening`), and that the QA export has
+`voice.signal` with result `sent` for each mute and unmute.
 
 ## T3 — Route switching mid-call
 1. Start on the speaker. While the agent is speaking, connect the **Bluetooth** headset. Check that `route` = bluetooth within about 2 s and the audio moves to the headset.

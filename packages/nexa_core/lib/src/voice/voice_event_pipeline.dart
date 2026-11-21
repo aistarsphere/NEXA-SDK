@@ -89,11 +89,13 @@ final class VoiceEventPipeline {
       }
     }
     final state = decoded['state'];
+    final caps = decoded['capabilities'];
     if (state is String) {
       _emit(
         RealtimeSessionSnapshot(
           state: state,
           lastSeq: lastSeq is int ? lastSeq : null,
+          capabilities: caps is Map ? Map<String, Object?>.from(caps) : null,
         ),
       );
     }

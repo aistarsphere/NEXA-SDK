@@ -84,6 +84,11 @@ void main() {
       reason: 'listening false',
     );
     expect(sent('srv.listening').last, {'listening': false, 'reason': 'mute'});
+    expect(v.stats.value.listeningSignal, 'srv.listening');
+    await waitFor(
+      () => v.stats.value.lastListeningSignal == 'false (mute): sent',
+      reason: 'debug panel stats',
+    );
     await waitFor(
       () => sent(
         NexaVoiceSignals.defaultClientInfoMethod,
@@ -127,7 +132,87 @@ void main() {
     );
   });
 
+  test('capabilities learned from session_state (agent_ready missed): a '
+      'muted call tells the agent at once', () async {
+    final v = await inCall();
+    await v.toggleMute();
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+    const caps = {
+      'client_signals': {
+        'listening_control': 'nexa.voice.listening',
+        'client_info': 'nexa.voice.client_info',
+      },
+    };
+    transport.emit(
+      const RealtimeSessionSnapshot(state: 'listening', capabilities: caps),
+    );
+    await waitFor(
+      () => sent('nexa.voice.listening').isNotEmpty,
+      reason: 'listening false from the snapshot',
+    );
+    expect(sent('nexa.voice.listening').single, {
+      'listening': false,
+      'reason': 'mute',
+    });
+    await waitFor(
+      () => sent('nexa.voice.client_info').isNotEmpty,
+      reason: 'client info from the snapshot',
+    );
+    // The same capabilities again (every snapshot, resume): nothing resent.
+    transport.emit(
+      const RealtimeSessionSnapshot(state: 'listening', capabilities: caps),
+    );
+    await Future<void>.delayed(const Duration(milliseconds: 100));
+    expect(sent('nexa.voice.listening'), hasLength(1));
+  });
+
   group('NexaVoiceSignals', () {
+    test('update keeps a running signal; a new method replaces it', () async {
+      final calls = <String>[];
+      final s = NexaVoiceSignals(
+        send: (m, p) async {
+          calls.add(m);
+          return m == 'a'
+              ? RealtimeSignalResult.unsupported
+              : RealtimeSignalResult.sent;
+        },
+        minInterval: Duration.zero,
+      );
+      expect(
+        s.update({
+          'client_signals': {'listening_control': 'a'},
+        }),
+        isTrue,
+      );
+      s.listening(listening: false, reason: 'mute');
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      // Same method again: still stopped after `unsupported`.
+      expect(
+        s.update({
+          'client_signals': {'listening_control': 'a'},
+        }),
+        isFalse,
+      );
+      s.listening(listening: true, reason: 'unmute');
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      expect(calls, ['a']);
+      // A different method name: a fresh signal.
+      s
+        ..update({
+          'client_signals': {'listening_control': 'b'},
+        })
+        ..listening(listening: false, reason: 'mute');
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      expect(calls, ['a', 'b']);
+      // client_signals gone: nothing more is sent.
+      s
+        ..update(const {})
+        ..listening(listening: true, reason: 'unmute');
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      expect(calls, ['a', 'b']);
+      expect(s.listeningEnabled, isFalse);
+    });
+
     test('rapid changes collapse to the newest value', () async {
       final calls = <Map<String, Object?>>[];
       final s =

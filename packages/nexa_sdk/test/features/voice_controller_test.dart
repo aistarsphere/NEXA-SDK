@@ -910,6 +910,13 @@ void main() {
       await v.start();
       await phase(v, VoiceState.listening);
       await waitFor(() => platform.focusAcquired == 1, reason: 'observer');
+      transport.emit(
+        const RealtimeAgentReady(
+          capabilities: {
+            'client_signals': {'listening_control': true},
+          },
+        ),
+      );
       platform.facts['focus'] = 'lost_transient';
       await v.callAudio!.refresh();
       await waitFor(() => !transport.isMicrophoneEnabled, reason: 'held');
@@ -919,6 +926,16 @@ void main() {
       await v.callAudio!.refresh();
       await waitFor(() => transport.isMicrophoneEnabled, reason: 'back');
       expect(v.state.value.hold, isNull);
+      // Only the agreed reasons: another app's call reads as a phone call.
+      await waitFor(
+        () => transport.signals.length >= 2,
+        reason: 'listening signals',
+        timeout: const Duration(seconds: 3),
+      );
+      expect(transport.signals.map((s) => s.$2['reason']), [
+        'phone_call',
+        'phone_call_ended',
+      ]);
     });
 
     test('Android: permanent focus loss waits for the user; Resume takes '
