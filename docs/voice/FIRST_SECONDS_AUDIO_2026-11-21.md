@@ -1,8 +1,11 @@
 # Is the user's speech in the first ~2 s of a call lost? (2026-11-21)
 
-## Answer: yes, according to the code. The device measurement is NOT TESTED
-The 2073 ms was measured on a **debug** build; a profile or release build may be faster, but the order below does
-not change.
+## Answer: yes. The code shows it, and the device record confirms the window
+Nubia NX679J, debug build, record `qa_20261119-154146_voice_9edf.jsonl` (in the 2026-11-19 evidence folder):
+`voice.phase connecting→listening` at 15:41:54.826, then `voice.local_track_published` (microphone) at
+15:41:56.901. The screen said "listening" for **2.075 s** with no microphone track. A spoken word in that window
+was not tried, so "the word is missing from the transcript" is still NOT TESTED. The record proves only that no
+track existed. It is a debug build; profile or release may be faster, but the order does not change.
 The order at the start of a call today:
 
 1. `room.connect` returns and the audio session starts (`livekit_voice_transport.dart:117`). The handshake
