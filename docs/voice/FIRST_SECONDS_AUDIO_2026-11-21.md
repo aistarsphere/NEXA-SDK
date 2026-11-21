@@ -34,11 +34,23 @@ Implemented 2026-11-21 behind `NexaVoiceOptions.earlyMicrophone` (default **on**
 * Diagnostics: `voice.early_mic`, `voice.early_mic_failed`, `voice.listening_after_mic {wait_ms, mic, held_events}`.
   The QA analysis has a new `listening_before_mic_ms` metric: above 0 means the gap still exists; 0 or below means
   the mic was live first.
-* Tests: `packages/nexa_sdk/test/features/voice_early_mic_test.dart` (7 cases: order, wait and replay, muted at
-  start, mute while connecting, publish failure, flag off, drop during the wait).
+* The early publish starts after the call-audio setup (route, focus, mode) finishes, and sends no
+  `listening: true` signal: the agent has not announced yet, and listening is the server's default.
+* Tests: `packages/nexa_sdk/test/features/voice_early_mic_test.dart` (10 cases: order, wait and replay, muted at
+  start, phone call at start, mute while connecting, publish failure, flag off, drop during the wait, full rejoin
+  with no signal before the agent's announcement, second call on the same controller).
 
-Device check still to do on the Nubia: in the QA record `listening_before_mic_ms` should be 0 or below, and a word
-spoken as soon as "listening" appears should be in the transcript.
+Device check (Nubia, 15:40 UTC, `docs/qa/evidence/2026-11-21/early-mic/nubia-NX679J/`):
+* **Order: PASS.** The track was published 1.38 s before "listening" (`listening_before_mic_ms` = -1381). The
+  audio mode was `in_communication` on speaker before the publish. No `listening:true` signal at call start.
+* **Audio delivery: BLOCKED (network).** The publisher peer connection never connected (ICE stuck in Checking), so
+  no microphone packets left the phone. This morning's call with the old code had the same fault.
+* **Spoken first word: NOT TESTED.** Needs a person and a working publish path.
+
+Known limit: "listening" waits for the track to be *published*, not for the first packet to *reach the server*.
+On a healthy network (2026-11-19) the publisher connected inside the publish time, but that is not guaranteed.
+If the next device check shows a gap between "listening" and the first outbound packets, gate on the publisher
+connection as well.
 
 ## Proposed fix (client only; no backend or contract change)
 1. **Start the microphone earlier.** Publish the mic as soon as the room is connected, in parallel with waiting
@@ -52,8 +64,8 @@ spoken as soon as "listening" appears should be in the transcript.
 3. Measure both steps with the existing diagnostics: `voice.mic_applied ms`, `voice.handshake_done`, and the
    phase times.
 
-Risk: low. It changes only the order and the label. Put it behind a flag (`NexaVoiceOptions.earlyMicrophone`,
-default on after a device check), with unit tests for: muted at start (no publish), a phone call at start, a
+Risk: low. It changes only the order and the label. Put it behind a flag (`NexaVoiceOptions.earlyMicrophone`;
+shipped default on, with the order verified on the device and audio delivery still to verify), with unit tests for: muted at start (no publish), a phone call at start, a
 publish failure (the call still connects and shows an error), and a rejoin.
 
 ## Not recommended now

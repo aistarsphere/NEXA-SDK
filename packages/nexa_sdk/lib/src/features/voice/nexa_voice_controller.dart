@@ -338,6 +338,10 @@ final class NexaVoiceController {
   /// the Nubia). Null when none is pending.
   Future<void>? _earlyMic;
 
+  /// The early publish is running: it sends no `listening: true` signal
+  /// (the agent has not announced yet; listening is the server's default).
+  bool _earlyPublish = false;
+
   /// `agent_ready` arrived while [_earlyMic] was still running: the call
   /// keeps "connecting" until the microphone is live, and agent events
   /// received meanwhile are replayed afterwards. Null when not waiting.
@@ -565,13 +569,15 @@ final class NexaVoiceController {
     final ms = watch.elapsedMilliseconds;
     _diagnostics.record('voice.mic_applied', {'enabled': enabled, 'ms': ms});
     if (_disposed) return;
-    _signals.listening(
-      listening: enabled,
-      reason: enabled
-          ? (_phoneReleasing ? 'phone_call_ended' : 'unmute')
-          : _micOffReason(),
-    );
-    _sendClientInfo();
+    if (!(enabled && _earlyPublish)) {
+      _signals.listening(
+        listening: enabled,
+        reason: enabled
+            ? (_phoneReleasing ? 'phone_call_ended' : 'unmute')
+            : _micOffReason(),
+      );
+      _sendClientInfo();
+    }
     _stats.value = enabled
         ? _stats.value.copyWith(unmuteMs: ms)
         : _stats.value.copyWith(muteMs: ms);
@@ -822,8 +828,18 @@ final class NexaVoiceController {
     await _callAudio?.beginCall();
     _callAudio?.connecting();
     await _transport.connect(grant);
-    unawaited(_callAudio?.afterConnect());
-    _startEarlyMic();
+    _afterConnect();
+  }
+
+  /// Route, focus and audio mode first (as before), then the early
+  /// microphone, so the track opens in the communication setup.
+  void _afterConnect() {
+    final audio = _callAudio;
+    if (audio == null) {
+      _startEarlyMic();
+      return;
+    }
+    unawaited(audio.afterConnect().whenComplete(_startEarlyMic));
   }
 
   /// Publishes the microphone as soon as the room is connected instead of
@@ -841,7 +857,10 @@ final class NexaVoiceController {
       return;
     }
     _diagnostics.record('voice.early_mic');
-    _earlyMic = _setMic(true).catchError(_micError);
+    _earlyPublish = true;
+    _earlyMic = _setMic(
+      true,
+    ).catchError(_micError).whenComplete(() => _earlyPublish = false);
   }
 
   void _micError(Object e) {
@@ -1187,8 +1206,7 @@ final class NexaVoiceController {
       _grant = fresh;
       _callAudio?.connecting();
       await _transport.connect(fresh); // handshake → RealtimeConnected
-      unawaited(_callAudio?.afterConnect());
-      _startEarlyMic();
+      _afterConnect();
       outcome = 'rejoined';
     } on NexaException catch (e) {
       outcome = 'failed:${e.code.name}';

@@ -13,6 +13,34 @@ final class _Permissions implements NexaPermissionHandler {
   Future<bool> request(NexaPermission permission) async => true;
 }
 
+final class _AudioPlatform implements NexaCallAudioPlatform {
+  final facts = <String, Object?>{
+    'platform': 'android',
+    'mode': 'in_communication',
+    'route': 'speaker',
+    'phoneCall': false,
+    'bluetoothPresent': false,
+    'bluetoothPermissionNeeded': false,
+  };
+  @override
+  Future<bool> acquireFocus() async => true;
+  @override
+  Future<void> releaseFocus() async {}
+  @override
+  Future<Map<String, Object?>?> state() async => Map.of(facts);
+  @override
+  Future<String?> reassertCommunicationMode() async => 'in_communication';
+}
+
+const _signalCaps = RealtimeAgentReady(
+  capabilities: {
+    'client_signals': {
+      'listening_control': 'nexa.voice.listening',
+      'client_info': 'nexa.voice.client_info',
+    },
+  },
+);
+
 void main() {
   late MockRealtimeVoiceTransport transport;
   late NexaClient client;
@@ -22,6 +50,7 @@ void main() {
   Future<NexaVoiceController> voice({
     NexaVoiceOptions options = const NexaVoiceOptions(),
     Duration micDelay = const Duration(milliseconds: 300),
+    NexaCallAudio? callAudio,
   }) async {
     transport = MockRealtimeVoiceTransport(
       handshakeOnConnect: false,
@@ -35,6 +64,7 @@ void main() {
         voiceTransport: transport,
         voiceProvisioner: MockVoiceProvisioner(),
         permissionHandler: _Permissions(),
+        callAudio: callAudio,
       ),
       voiceOptions: options,
     );
@@ -153,5 +183,73 @@ void main() {
     await Future<void>.delayed(const Duration(milliseconds: 500));
     // The stale wait must not move the call to "listening".
     expect(v.state.value.phase, VoiceState.reconnecting);
+  });
+
+  test('a phone call at start: nothing is published early', () async {
+    final platform = _AudioPlatform()..facts['phoneCall'] = true;
+    final v = await voice(
+      micDelay: Duration.zero,
+      callAudio: NexaCallAudio(
+        platform: platform,
+        setSpeaker: (_) async {},
+        readProcessing: () async => const {},
+        pollInterval: const Duration(hours: 1),
+      ),
+    );
+    await v.start();
+    await joined();
+    await waitFor(() => v.state.value.phoneCallHold, reason: 'held');
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+    expect(transport.microphoneCalls, isEmpty);
+    transport.emit(const RealtimeConnected());
+    await phase(v, VoiceState.listening);
+    expect(transport.isMicrophoneEnabled, isFalse);
+  });
+
+  test('a full rejoin publishes early again and sends no signal before the '
+      "agent's announcement", () async {
+    final v = await voice(micDelay: Duration.zero);
+    await v.start();
+    await joined();
+    transport.emit(const RealtimeConnected());
+    transport.emit(_signalCaps);
+    await phase(v, VoiceState.listening);
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+    transport.signals.clear();
+    transport.microphoneCalls.clear();
+
+    transport.simulateRoomDeleted();
+    await waitFor(() => transport.grants.length == 2, reason: 'rejoined');
+    await waitFor(
+      () => transport.isMicrophoneEnabled,
+      reason: 'early publish on rejoin',
+    );
+    expect(v.state.value.phase, VoiceState.reconnecting);
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+    expect(
+      transport.signals.where((s) => s.$1 == 'nexa.voice.listening'),
+      isEmpty,
+    );
+    transport.emit(const RealtimeConnected());
+    await phase(v, VoiceState.listening);
+    expect(transport.microphoneCalls, [true]);
+  });
+
+  test('a second call on the same controller sends nothing before '
+      'agent_ready', () async {
+    final v = await voice(micDelay: Duration.zero);
+    await v.start();
+    await joined();
+    transport.emit(const RealtimeConnected());
+    transport.emit(_signalCaps);
+    await phase(v, VoiceState.listening);
+    await v.end();
+    await phase(v, VoiceState.ended);
+    transport.signals.clear();
+    await v.start();
+    await waitFor(() => transport.grants.length == 2, reason: 'second call');
+    await waitFor(() => transport.isMicrophoneEnabled, reason: 'early mic');
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+    expect(transport.signals, isEmpty);
   });
 }
